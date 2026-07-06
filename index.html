@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.5.2</title>
-  <link rel="stylesheet" href="./styles.css?v=v3-4-0">
+  <title>Ekzen Servis Takip V3.5.3</title>
+  <link rel="stylesheet" href="./styles.css?v=v3-5-3">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -179,10 +179,16 @@
     </header>
 
     <div class="mobile-list-head mobile-list-head-v3313">
-      <div class="mobile-date-control-row mobile-date-control-row-v340" aria-label="Mobil tarih filtresi">
-        <label class="mobile-date-real-label">
+      <div class="mobile-date-control-row mobile-date-control-row-v353" aria-label="Mobil tarih ve kaynak filtresi">
+        <label class="mobile-date-real-label mobile-top-control">
           <span>Tarih</span>
           <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Mobil servis tarihi">
+        </label>
+        <label class="mobile-source-real-label mobile-top-control">
+          <span>Kaynaklar</span>
+          <select id="mobileSourcePicker" class="mobile-source-input-real" aria-label="Mobil servis kaynağı">
+            <option value="">Tüm Kaynaklar</option>
+          </select>
         </label>
         <button class="mobile-today-button" type="button" data-mobile-action="today-date">Bugün</button>
         <button class="mobile-daily-cash-button" type="button" data-mobile-action="open-daily-cash">Günlük Kasa</button>
@@ -227,7 +233,7 @@
     <main id="mobileServiceList" class="mobile-service-list"></main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.5.2</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V3.5.3</div>
 
 
 
@@ -471,6 +477,6 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=v3-4-0"></script>
+  <script src="./app.js?v=v3-5-3"></script>
 </body>
 </html>

@@ -5586,3 +5586,83 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
     font-weight: 850 !important;
   }
 }
+
+
+/* V3.5.3 - Ana mobil bar kilitli düzen: Tarih/Kaynaklar üstte, Bugün/Kasa altta */
+@media (max-width: 768px) {
+  .mobile-date-control-row-v353 {
+    width: 100% !important;
+    max-width: none !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+  }
+  .mobile-date-control-row-v353 .mobile-top-control {
+    grid-column: auto !important;
+    min-width: 0 !important;
+    min-height: 78px !important;
+    padding: 12px 13px !important;
+    border: 0 !important;
+    border-radius: 22px !important;
+    background: #fff !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .08) !important;
+    display: grid !important;
+    align-content: center !important;
+    gap: 4px !important;
+  }
+  .mobile-source-real-label span,
+  .mobile-date-real-label span {
+    font-size: 15px !important;
+    line-height: 1 !important;
+    color: #64748b !important;
+    font-weight: 950 !important;
+  }
+  .mobile-source-input-real,
+  .mobile-date-input-real {
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    font-size: 16px !important;
+    font-weight: 950 !important;
+    line-height: 1.2 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+  }
+  .mobile-source-input-real {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .mobile-date-control-row-v353 .mobile-today-button,
+  .mobile-date-control-row-v353 .mobile-daily-cash-button {
+    width: 100% !important;
+    min-height: 58px !important;
+    border: 0 !important;
+    border-radius: 20px !important;
+    padding: 0 12px !important;
+    font-size: 17px !important;
+    font-weight: 950 !important;
+    white-space: nowrap !important;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .08) !important;
+  }
+  .mobile-money-edit-box {
+    width: 100% !important;
+    text-align: left !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    cursor: pointer !important;
+  }
+  .mobile-money-edit-box small {
+    display: inline-flex !important;
+    margin-top: 8px !important;
+    padding: 5px 9px !important;
+    border-radius: 999px !important;
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    font-weight: 950 !important;
+    font-size: 12px !important;
+  }
+}

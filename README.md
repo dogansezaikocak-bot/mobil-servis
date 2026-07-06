@@ -1,3 +1,6 @@
-# Ekzen Servis Takip V3.5.2
+Ekzen Servis Takip V3.5.3
 
-Mobil görünüm korunarak servis listesi ve günlük kasa butonu sabitlendi.
+- Erteleme tarih tekilleştirme
+- Mobil ödeme düzenleme
+- Kapanış/kasa tekil güncelleme
+- Tarih + kaynak filtresi

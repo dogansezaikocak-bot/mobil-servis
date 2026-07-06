@@ -2114,9 +2114,9 @@ function serviceHasDate(service, isoDate) {
 }
 
 function serviceDateCandidates(service) {
-  const dates = [service.availableDate, service.visitDate, service.date];
-  if (service.createdAt) dates.push(toIsoDate(new Date(service.createdAt)));
-  return uniqueValues(dates.filter(Boolean));
+  const dates = [service.availableDate, service.visitDate, service.date].filter(Boolean);
+  if (!dates.length && service.createdAt) dates.push(toIsoDate(new Date(service.createdAt)));
+  return uniqueValues(dates);
 }
 
 function serviceMainDate(service) {
@@ -2300,6 +2300,7 @@ function fileToDataUrl(file) {
 let mobileTechFilter = "remaining";
 let mobileActiveServiceId = "";
 let mobileSelectedDate = isoToday;
+let mobileSelectedSource = "";
 let mobileCashModeOpen = false;
 
 function isMobileTechViewport() {
@@ -2545,7 +2546,7 @@ function mobileRenderDetail(serviceId) {
       <div class="mobile-detail-box"><h3>Telefon</h3><p>${escapeHtml(service.phone || "Telefon yok")}</p></div>
       <div class="mobile-detail-box"><h3>Tarih / Saat</h3><p>${escapeHtml(formatDate(serviceDate))} · ${escapeHtml(serviceTime)}</p></div>
       <div class="mobile-detail-box"><h3>Kaynak</h3><p>${escapeHtml(service.source || "Kendi İşim")}</p></div>
-      <div class="mobile-detail-box"><h3>Alınan Tutar</h3><p>${escapeHtml(money(incomeTotal || service.price || 0))}</p></div>
+      <button type="button" class="mobile-detail-box mobile-money-edit-box" data-mobile-action="edit-payment" data-service-id="${escapeAttr(service.id)}"><h3>Alınan Tutar</h3><p>${escapeHtml(money(incomeTotal || service.price || 0))}</p><small>Düzenle</small></button>
     </div>
 
     <div class="mobile-detail-box"><h3>Adres</h3><p>${escapeHtml(addressText || "Adres girilmedi")}</p></div>
@@ -2644,6 +2645,7 @@ function mobileSaveDelayDate(serviceId) {
   const nextDate = input.value || isoToday;
   service.availableDate = nextDate;
   service.visitDate = nextDate;
+  service.date = nextDate;
   mobileSelectedDate = nextDate;
   mobileSaveWorkNote(serviceId);
   saveState();
@@ -2887,7 +2889,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V3.5.2";
+  const VERSION = "V3.5.3";
   let mode = "services";
 
   function selectedDate() {
@@ -2899,10 +2901,29 @@ document.addEventListener("keydown", (event) => {
     if (!date) return true;
     const candidates = [];
     [service.availableDate, service.visitDate, service.date].forEach((value) => { if (value) candidates.push(String(value).slice(0,10)); });
-    if (service.createdAt) {
+    if (!candidates.length && service.createdAt) {
       try { candidates.push(toIsoDate(new Date(service.createdAt))); } catch (e) {}
     }
     return candidates.includes(date);
+  }
+
+  function selectedSource() {
+    const picker = document.querySelector("#mobileSourcePicker");
+    return (picker && picker.value) || mobileSelectedSource || "";
+  }
+
+  function serviceMatchesSourceSafe(service, source) {
+    return !source || (service.source || "") === source;
+  }
+
+  function fillMobileSourcePickerSafe() {
+    const picker = document.querySelector("#mobileSourcePicker");
+    if (!picker) return;
+    const previous = mobileSelectedSource || picker.value || "";
+    const names = settingsList("sources").filter(Boolean);
+    picker.innerHTML = `<option value="">Tüm Kaynaklar</option>${names.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}`;
+    picker.value = names.includes(previous) ? previous : "";
+    mobileSelectedSource = picker.value;
   }
 
   function isDoneSafe(service) {
@@ -2914,7 +2935,8 @@ document.addEventListener("keydown", (event) => {
   }
 
   function servicesForMobile(filter, date) {
-    let list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date));
+    const source = selectedSource();
+    let list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date) && serviceMatchesSourceSafe(service, source));
     if (filter === "done") list = list.filter(isDoneSafe);
     else if (filter === "new") list = list.filter((service) => isStatus(service.status, "Yeni Kayıt"));
     else list = list.filter(isRemainingSafe);
@@ -2922,7 +2944,8 @@ document.addEventListener("keydown", (event) => {
   }
 
   function countsForMobile(date) {
-    const list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date));
+    const source = selectedSource();
+    const list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date) && serviceMatchesSourceSafe(service, source));
     return {
       remaining: list.filter(isRemainingSafe).length,
       done: list.filter(isDoneSafe).length,
@@ -2954,6 +2977,7 @@ document.addEventListener("keydown", (event) => {
     const picker = document.querySelector("#mobileDatePicker");
     if (picker && picker.value !== date) picker.value = date;
 
+    fillMobileSourcePickerSafe();
     const counts = countsForMobile(date);
     const remainingEl = document.querySelector("#mobileCountRemaining");
     const doneEl = document.querySelector("#mobileCountDone");
@@ -2995,9 +3019,12 @@ document.addEventListener("keydown", (event) => {
     forceShow(page, "block");
     page?.classList.add("is-open");
 
+    fillMobileSourcePickerSafe();
+    const source = selectedSource();
     const items = (state.cash || []).filter((item) => {
       const itemDate = String(item.date || "").slice(0,10);
-      return cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && itemDate === date;
+      const itemSource = cashItemSource(item);
+      return cashIsPosted(item) && matchesPortalSource(itemSource) && (!source || itemSource === source) && itemDate === date;
     });
     const totals = cashBreakdown(items);
     const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
@@ -3055,6 +3082,13 @@ document.addEventListener("keydown", (event) => {
   }, true);
 
   document.addEventListener("change", function(event) {
+    const sourcePicker = event.target.closest("#mobileSourcePicker");
+    if (sourcePicker) {
+      event.stopImmediatePropagation();
+      mobileSelectedSource = sourcePicker.value || "";
+      renderMobileServicesStable();
+      return;
+    }
     const picker = event.target.closest("#mobileDatePicker");
     if (!picker) return;
     event.stopImmediatePropagation();
@@ -3076,3 +3110,118 @@ document.addEventListener("keydown", (event) => {
   window.addEventListener("load", () => setTimeout(renderMobileServicesStable, 120));
   setTimeout(renderMobileServicesStable, 120);
 })();
+
+
+/* V3.5.3 - Erteleme, ödeme düzenleme ve kapanış kayıtlarını tekilleştirme */
+function primaryCashForService(serviceId) {
+  return (state.cash || []).find((item) => item.serviceId === serviceId && !item.parentCashId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense && item.type === "income");
+}
+
+function serviceCloseNote(service) {
+  const notes = Array.isArray(service?.notes) ? service.notes : [];
+  return notes.find((note) => note && typeof note.text === "string" && note.text.trim()) || null;
+}
+
+function openCompleteForm(serviceId) {
+  if (isSourcePortal()) return;
+  const service = state.services.find((item) => item.id === serviceId);
+  if (!service || !matchesPortalSource(service.source)) return;
+  const existingCash = primaryCashForService(serviceId);
+  const existingNote = serviceCloseNote(service);
+  completeForm.reset();
+  completeForm.elements.serviceId.value = serviceId;
+  completeForm.elements.type.value = "income";
+  completeForm.elements.amount.value = existingCash ? String(Number(existingCash.amount) || 0) : (service.price && Number(service.price) > 0 ? String(service.price) : "");
+  completeForm.elements.materialCost.value = existingCash ? String(Number(existingCash.materialCost) || 0) : "";
+  if (completeForm.elements.otherExpense) completeForm.elements.otherExpense.value = existingCash ? String(Number(existingCash.otherExpense) || 0) : "";
+  completeForm.elements.commissionRate.value = existingCash ? String(Number(existingCash.commissionRate) || 0) : "50";
+  completeForm.elements.source.value = existingCash?.source || service.source || "";
+  completeForm.elements.workNote.value = existingNote?.text || "";
+  completeDialog.showModal();
+}
+
+function completeServiceFromForm(formData) {
+  if (isSourcePortal()) return;
+  const data = Object.fromEntries(formData);
+  const service = state.services.find((item) => item.id === data.serviceId);
+  if (!service || !matchesPortalSource(service.source)) return;
+
+  const workNote = String(data.workNote || "").trim();
+  const amountRaw = String(data.amount ?? "").trim();
+  if (!workNote) { alert("Fişi kapatmak için yapılan işlemler alanı zorunludur."); return; }
+  if (amountRaw === "") { alert("Fişi kapatmak için para bilgisi zorunludur. Ücretsiz işlemse 0 yaz."); return; }
+
+  const oldPrimary = (state.cash || []).filter((item) => item.serviceId === service.id && !item.parentCashId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense && item.type === "income");
+  const primary = oldPrimary[0];
+  const oldPrimaryIds = new Set(oldPrimary.map((item) => item.id));
+  state.cash = (state.cash || []).filter((item) => {
+    if (oldPrimaryIds.has(item.id)) return item.id === primary?.id;
+    if (item.parentCashId && oldPrimaryIds.has(item.parentCashId)) return item.parentCashId === primary?.id;
+    return true;
+  });
+
+  const amount = Number(data.amount) || 0;
+  const materialCost = Number(data.materialCost) || 0;
+  const otherExpense = Number(data.otherExpense) || 0;
+  const commissionRate = Number(data.commissionRate) || 0;
+  const closeDate = primary?.date || isoToday;
+  const cashItem = {
+    ...(primary || {}),
+    id: primary?.id || uid(),
+    date: closeDate,
+    type: "income",
+    title: data.paymentMode || "Tahsilat Yapıldı",
+    amount,
+    materialCost,
+    otherExpense,
+    commission50: commissionRate > 0,
+    commissionRate,
+    source: data.source || service.source || "",
+    serviceId: service.id,
+  };
+
+  state.cash = state.cash.filter((item) => item.id !== cashItem.id && item.parentCashId !== cashItem.id);
+  state.cash.unshift(cashItem);
+  syncSettlementCash(cashItem);
+
+  service.status = "İşlem Tamam";
+  service.paymentStatus = amount > 0 ? "Ödendi" : (data.paymentMode || "Fiş Kapatıldı");
+  service.price = amount;
+  service.source = data.source || service.source || "";
+  service.notes = Array.isArray(service.notes) ? service.notes : [];
+  const note = serviceCloseNote(service);
+  if (note) {
+    note.text = workNote;
+    note.updatedAt = new Date().toISOString();
+    service.notes = [note, ...service.notes.filter((item) => item.id !== note.id && item.text !== workNote)];
+  } else {
+    service.notes.unshift({ id: uid(), text: workNote, createdAt: new Date().toISOString(), updatedAt: "" });
+  }
+  service.statusHistory = Array.isArray(service.statusHistory) ? service.statusHistory : [];
+  const lastClose = service.statusHistory.find((item) => isStatus(item.status, "İşlem Tamam") && String(item.description || "").includes("Fiş kapatıldı"));
+  const desc = `Fiş kapatıldı - ${workNote}`;
+  if (lastClose) {
+    lastClose.date = closeDate;
+    lastClose.description = desc;
+    lastClose.updatedAt = new Date().toISOString();
+  } else {
+    service.statusHistory.unshift({ id: uid(), date: closeDate, status: "İşlem Tamam", description: desc, createdAt: new Date().toISOString() });
+  }
+
+  saveState();
+  completeDialog.close();
+  render();
+}
+
+document.addEventListener("click", function(event) {
+  const btn = event.target.closest('[data-mobile-action="edit-payment"]');
+  if (!btn) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const serviceId = btn.dataset.serviceId;
+  if (serviceId) {
+    mobileSaveWorkNote(serviceId);
+    mobileCloseDetail();
+    openCompleteForm(serviceId);
+  }
+});
