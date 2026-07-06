@@ -2435,52 +2435,53 @@ function mobileFinishService(serviceId) {
 function mobileDelayService(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
+  const currentDate = service.availableDate || service.visitDate || isoToday;
+  const existing = document.querySelector("#mobileDelayPanel");
+  if (existing) existing.remove();
 
-  // Mobilde eski tarayıcı prompt kutusu yerine cihazın kendi takvim seçicisini açar.
-  const input = document.createElement("input");
-  input.type = "date";
-  input.value = service.availableDate || service.visitDate || isoToday;
-  input.min = "2000-01-01";
-  input.max = "2100-12-31";
-  input.setAttribute("aria-label", "Yeni servis tarihi");
-  Object.assign(input.style, {
-    position: "fixed",
-    left: "50%",
-    bottom: "24px",
-    width: "1px",
-    height: "1px",
-    opacity: "0.01",
-    zIndex: "999999",
-    pointerEvents: "none"
-  });
+  const footer = document.querySelector(".mobile-sheet-footer");
+  const panel = document.createElement("div");
+  panel.id = "mobileDelayPanel";
+  panel.className = "mobile-delay-panel";
+  panel.innerHTML = `
+    <div class="mobile-delay-panel-head">
+      <strong>Servisi Ertele</strong>
+      <small>Yeni tarihi takvimden seç</small>
+    </div>
+    <label class="mobile-delay-date-label">
+      <span>Yeni Tarih</span>
+      <input id="mobileDelayDateInput" type="date" value="${escapeAttr(currentDate)}" min="2000-01-01" max="2100-12-31">
+    </label>
+    <div class="mobile-delay-panel-actions">
+      <button type="button" class="mobile-delay-cancel" data-mobile-action="cancel-delay">Vazgeç</button>
+      <button type="button" class="mobile-delay-save" data-mobile-action="save-delay" data-service-id="${escapeAttr(service.id)}">Kaydet</button>
+    </div>
+  `;
 
-  let handled = false;
-  const cleanup = () => {
-    setTimeout(() => input.remove(), 250);
-  };
-  const applyDate = () => {
-    if (handled || !input.value) return;
-    handled = true;
-    const nextDate = input.value;
-    service.availableDate = nextDate;
-    service.visitDate = nextDate;
-    mobileSaveWorkNote(serviceId);
-    saveState();
-    render();
-    mobileCloseDetail();
-    cleanup();
-  };
+  if (footer) footer.before(panel);
+  else document.querySelector("#mobileDetailBody")?.appendChild(panel);
 
-  input.addEventListener("change", applyDate, { once: true });
-  input.addEventListener("blur", cleanup, { once: true });
-  document.body.appendChild(input);
-
+  const input = panel.querySelector("#mobileDelayDateInput");
+  input?.focus({ preventScroll: true });
   try {
-    if (typeof input.showPicker === "function") input.showPicker();
-    else input.click();
+    if (typeof input?.showPicker === "function") input.showPicker();
   } catch (error) {
-    input.click();
+    // Bazı mobil tarayıcılar showPicker desteklemez; görünür date input yine çalışır.
   }
+}
+
+function mobileSaveDelayDate(serviceId) {
+  const service = state.services.find((item) => item.id === serviceId);
+  const input = document.querySelector("#mobileDelayDateInput");
+  if (!service || !input) return;
+  const nextDate = input.value || isoToday;
+  service.availableDate = nextDate;
+  service.visitDate = nextDate;
+  mobileSelectedDate = nextDate;
+  mobileSaveWorkNote(serviceId);
+  saveState();
+  mobileCloseDetail();
+  render();
 }
 
 (function setupMobileTechPanel(){
@@ -2512,6 +2513,8 @@ function mobileDelayService(serviceId) {
     if (action === "close-detail") mobileCloseDetail();
     if (action === "finish-service" && serviceId) mobileFinishService(serviceId);
     if (action === "delay-service" && serviceId) mobileDelayService(serviceId);
+    if (action === "save-delay" && serviceId) mobileSaveDelayDate(serviceId);
+    if (action === "cancel-delay") document.querySelector("#mobileDelayPanel")?.remove();
     if (action === "add-note" && serviceId) { mobileSaveWorkNote(serviceId); openNoteForm(serviceId); }
     if (action === "add-photo" && serviceId) { mobileSaveWorkNote(serviceId); openPhotoForm(serviceId); }
     if (action === "edit-service" && serviceId) {

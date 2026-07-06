@@ -4847,3 +4847,79 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
   opacity: 0;
   pointer-events: none;
 }
+
+/* V3.3.11 - Mobil erteleme takvim paneli */
+@media (max-width: 768px) {
+  .mobile-delay-panel {
+    margin: 12px 0 14px;
+    padding: 14px;
+    border-radius: 18px;
+    background: #ecfdf5;
+    border: 1px solid #99f6e4;
+    box-shadow: 0 10px 24px rgba(15, 118, 110, .12);
+  }
+
+  .mobile-delay-panel-head {
+    display: grid;
+    gap: 2px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-delay-panel-head strong {
+    font-size: 18px;
+    font-weight: 950;
+    color: #064e3b;
+  }
+
+  .mobile-delay-panel-head small {
+    color: #0f766e;
+    font-weight: 800;
+  }
+
+  .mobile-delay-date-label {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 12px;
+    color: #064e3b;
+    font-weight: 950;
+  }
+
+  .mobile-delay-date-label input[type="date"] {
+    width: 100%;
+    min-height: 58px;
+    border: 1px solid #5eead4;
+    border-radius: 16px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 19px;
+    font-weight: 950;
+    padding: 0 14px;
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+
+  .mobile-delay-panel-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mobile-delay-panel-actions button {
+    min-height: 54px;
+    border: 0;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 950;
+  }
+
+  .mobile-delay-cancel {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .mobile-delay-save {
+    background: #0f766e;
+    color: #ffffff;
+  }
+}
