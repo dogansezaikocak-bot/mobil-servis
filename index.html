@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.3.14</title>
-  <link rel="stylesheet" href="./styles.css?v=v3-3-13-mobile-date-architecture">
+  <title>Ekzen Servis Takip V3.4.0</title>
+  <link rel="stylesheet" href="./styles.css?v=v3-4-0">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -173,10 +173,10 @@
 
     <div class="mobile-list-head mobile-list-head-v3313">
       <h2 id="mobileListTitle">Bugünkü Servisler</h2>
-      <div class="mobile-date-control-row" aria-label="Mobil tarih filtresi">
-        <label id="mobileDateButton" class="mobile-date-button mobile-native-date-button">
-          <span id="mobileListDate">--.--.----</span> 📅
-          <input id="mobileDatePicker" class="mobile-native-date-input" type="date" aria-label="Mobil servis tarihi">
+      <div class="mobile-date-control-row mobile-date-control-row-v340" aria-label="Mobil tarih filtresi">
+        <label class="mobile-date-real-label">
+          <span>Tarih</span>
+          <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Mobil servis tarihi">
         </label>
         <button class="mobile-today-button" type="button" data-mobile-action="today-date">Bugün</button>
       </div>
@@ -184,8 +184,8 @@
 
     <main id="mobileServiceList" class="mobile-service-list"></main>
 
-    <button class="mobile-new-service-bar" type="button" data-action="open-service-modal">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.3.14</div>
+    <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
+    <div class="mobile-version-badge">Ekzen Servis Takip V3.4.0</div>
 
     <div id="mobileDetailSheet" class="mobile-detail-sheet" hidden>
       <div class="mobile-sheet-backdrop" data-mobile-action="close-detail"></div>
@@ -264,6 +264,7 @@
         </label>
         <label>Tutar<input name="amount" type="number" min="0" step="0.01"></label>
         <label>Malzeme Gideri<input name="materialCost" type="number" min="0" step="0.01" placeholder="0"></label>
+          <label>Diğer Gider<input name="otherExpense" type="number" min="0" step="0.01" placeholder="0"></label>
         <label>Servis Kaynağı<select name="source"></select></label>
         <label>Komisyon
           <select name="commissionRate">
@@ -316,6 +317,7 @@
           </label>
           <label>Tahsil Edilen Tutar<input name="amount" type="number" min="0" step="0.01" required placeholder="0"></label>
           <label>Malzeme Gideri<input name="materialCost" type="number" min="0" step="0.01" placeholder="0"></label>
+          <label>Diğer Gider<input name="otherExpense" type="number" min="0" step="0.01" placeholder="0"></label>
           <label>Komisyon
             <select name="commissionRate">
               <option value="70">%70</option>
@@ -425,6 +427,6 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=20260629-source-balance-only"></script>
+  <script src="./app.js?v=v3-4-0"></script>
 </body>
 </html>

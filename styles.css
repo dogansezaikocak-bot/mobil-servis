@@ -5187,3 +5187,74 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
 .mobile-wizard-card footer button:disabled {
   opacity: 0.45;
 }
+
+/* V3.4.0 - mobil kararlı tarih ve fiş ekranı */
+@media (max-width: 768px) {
+  .mobile-list-head-v3313 {
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .mobile-list-head-v3313 h2 {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    font-size: clamp(20px, 5.5vw, 28px) !important;
+    line-height: 1.1 !important;
+  }
+  .mobile-date-control-row-v340 {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: 190px !important;
+    display: grid !important;
+    grid-template-columns: minmax(128px, 1fr) auto !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+  }
+  .mobile-date-real-label {
+    min-width: 0 !important;
+    min-height: 44px !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 14px !important;
+    background: #fff !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .08) !important;
+    padding: 5px 8px !important;
+    display: grid !important;
+    gap: 1px !important;
+  }
+  .mobile-date-real-label span {
+    color: #64748b !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+  }
+  .mobile-date-input-real {
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    line-height: 1.2 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+  }
+  .mobile-today-button {
+    min-height: 44px !important;
+    border-radius: 14px !important;
+    padding: 0 10px !important;
+    background: #006b55 !important;
+    color: #fff !important;
+  }
+  .mobile-native-date-input { opacity: 1; position: static; }
+  .mobile-version-badge { font-size: 13px !important; }
+  .complete-dialog .complete-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .complete-dialog label input,
+  .complete-dialog label select,
+  .complete-dialog textarea {
+    font-size: 16px !important;
+  }
+}

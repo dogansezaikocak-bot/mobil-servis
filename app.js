@@ -166,6 +166,7 @@ function migrateState(oldState) {
     serviceId: item.serviceId || "",
     source: item.source || "",
     materialCost: Number(item.materialCost) || 0,
+    otherExpense: Number(item.otherExpense) || 0,
     commission50: Boolean(item.commission50),
     commissionRate: item.commissionRate !== undefined ? Number(item.commissionRate) : (item.commission50 ? 50 : 0),
     parentCashId: item.parentCashId || "",
@@ -243,7 +244,7 @@ function demoService(id, customerName, phone, district, address, brand, device, 
     address,
     brand,
     device,
-    model: "",
+    model: mobileNewServiceData.model || "",
     fault,
     warrantyEnd: "2027-06-20",
     source: "Ali Korkmaz",
@@ -1504,6 +1505,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.type.value = "income";
   completeForm.elements.amount.value = service.price && Number(service.price) > 0 ? String(service.price) : "";
   completeForm.elements.materialCost.value = "";
+  if (completeForm.elements.otherExpense) completeForm.elements.otherExpense.value = "";
   completeForm.elements.commissionRate.value = "50";
   completeForm.elements.source.value = service.source || "";
   completeForm.elements.workNote.value = "";
@@ -1529,6 +1531,7 @@ function completeServiceFromForm(formData) {
 
   const amount = Number(data.amount) || 0;
   const materialCost = Number(data.materialCost) || 0;
+  const otherExpense = Number(data.otherExpense) || 0;
   const commissionRate = Number(data.commissionRate) || 0;
   const cashType = data.type === "expense" ? "expense" : "income";
   const closeDate = isoToday;
@@ -1540,6 +1543,7 @@ function completeServiceFromForm(formData) {
     title: data.paymentMode || (cashType === "income" ? "Tahsilat" : "Gider"),
     amount,
     materialCost,
+    otherExpense,
     commission50: commissionRate > 0,
     commissionRate,
     source: data.source || service.source || "",
@@ -1606,6 +1610,7 @@ function saveCash(formData) {
   if (isSourcePortal() && previous && !matchesPortalSource(cashItemSource(previous))) return;
   if (isSourcePortal() && serviceId && !matchesPortalSource(serviceSource(serviceId))) return;
   const materialCost = Number(data.materialCost) || 0;
+  const otherExpense = Number(data.otherExpense) || 0;
   const commissionRate = Number(data.commissionRate) || 0;
   const cashType = data.type === "expense" ? "expense" : "income";
   const cashItem = {
@@ -1616,6 +1621,7 @@ function saveCash(formData) {
     title: (data.title || "").trim() || (cashType === "income" ? "Tahsilat" : "Gider"),
     amount: Number(data.amount) || 0,
     materialCost,
+    otherExpense,
     commission50: commissionRate > 0,
     commissionRate,
     source: isSourcePortal() ? portalSourceName() : (data.source || serviceSource(serviceId) || ""),
@@ -1955,8 +1961,9 @@ function syncSettlementCash(cashItem) {
   if (cashItem.type !== "income") return;
 
   const materialCost = Number(cashItem.materialCost) || 0;
+  const otherExpense = Number(cashItem.otherExpense) || 0;
   const receivedAmount = Number(cashItem.amount) || 0;
-  const commissionBase = Math.max(receivedAmount - materialCost, 0);
+  const commissionBase = Math.max(receivedAmount - materialCost - otherExpense, 0);
   const relatedItems = [];
 
   if (materialCost > 0) {
@@ -1968,8 +1975,25 @@ function syncSettlementCash(cashItem) {
       autoMaterialExpense: true,
       date: cashItem.date,
       type: "expense",
-      title: "",
+      title: "Malzeme Gideri",
       amount: materialCost,
+      materialCost: 0,
+      commission50: false,
+      commissionRate: 0,
+    });
+  }
+
+  if (otherExpense > 0) {
+    relatedItems.push({
+      id: uid(),
+      parentCashId: cashItem.id,
+      serviceId: cashItem.serviceId,
+      source: cashItem.source,
+      autoOtherExpense: true,
+      date: cashItem.date,
+      type: "expense",
+      title: "Diğer Gider",
+      amount: otherExpense,
       materialCost: 0,
       commission50: false,
       commissionRate: 0,
@@ -2228,7 +2252,7 @@ function fileToDataUrl(file) {
 }
 
 
-/* V3.3.14 - Mobile mimari devam: yeni fiş sihirbazı, harita ve kapanış ücret ekranı */
+/* V3.4.0 - Mobile mimari devam: yeni fiş sihirbazı, harita ve kapanış ücret ekranı */
 let mobileTechFilter = "remaining";
 let mobileActiveServiceId = "";
 let mobileSelectedDate = isoToday;
@@ -2244,7 +2268,8 @@ function mobileFullAddress(service) {
 function mobileMapUrl(service) {
   const destination = mobileFullAddress(service);
   if (!destination) return "";
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+  // Google Haritalar mobilde ve iPhone Safari'de en sorunsuz çalışan arama bağlantısı.
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
 }
 
 function openMobileMap(serviceId) {
@@ -2254,8 +2279,7 @@ function openMobileMap(serviceId) {
     alert("Harita için adres girilmemiş.");
     return;
   }
-  const opened = window.open(url, "_blank", "noopener");
-  if (!opened) window.location.href = url;
+  window.location.href = url;
 }
 
 function mobileStatusBucket(status) {
@@ -2280,11 +2304,6 @@ function mobileOpenMainDatePanel() {
   if (!picker) return;
   picker.value = mobileSelectedDate || isoToday;
   picker.focus({ preventScroll: true });
-  try {
-    if (typeof picker.showPicker === "function") picker.showPicker();
-  } catch (error) {
-    // iOS Safari showPicker desteklemese de input gerçek date alanıdır; dokunma doğrudan takvimi açar.
-  }
 }
 
 function mobileCloseMainDatePanel() {
@@ -2321,8 +2340,6 @@ function mobileRenderTechPanel() {
   if (newCounter) newCounter.textContent = counts.new;
   document.querySelector("#mobileCountDone").textContent = counts.done;
   const activeMobileDate = mobileSelectedDate || isoToday;
-  const dateEl = document.querySelector("#mobileListDate");
-  if (dateEl) dateEl.textContent = formatServiceCardDate(activeMobileDate);
   const pickerEl = document.querySelector("#mobileDatePicker");
   if (pickerEl && pickerEl.value !== activeMobileDate) pickerEl.value = activeMobileDate;
   const titleEl = document.querySelector("#mobileListTitle");
@@ -2365,7 +2382,7 @@ function mobileServiceCard(service) {
       <div class="mobile-card-actions">
         <a href="${phoneHref}" onclick="event.stopPropagation()">Ara</a>
         <a href="${whatsappHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()">WhatsApp</a>
-        <button type="button" data-mobile-action="open-map" data-service-id="${escapeAttr(service.id)}" onclick="event.stopPropagation()">Yol Tarifi</button>
+        <a href="${mapHref || '#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yol Tarifi</a>
       </div>
     </article>
   `;
@@ -2408,7 +2425,7 @@ function mobileRenderDetail(serviceId) {
     <div class="mobile-detail-actions mobile-detail-actions-six">
       <a href="${phoneHref}">📞<b>Ara</b></a>
       <a href="${whatsappHref}" target="_blank" rel="noopener">💬<b>WhatsApp</b></a>
-      <button type="button" data-mobile-action="open-map" data-service-id="${escapeAttr(service.id)}">🗺️<b>Harita</b></button>
+      <a href="${mapHref || '#'}" target="_blank" rel="noopener">🗺️<b>Harita</b></a>
       <button type="button" data-mobile-action="add-note" data-service-id="${escapeAttr(service.id)}">📝<b>Not</b></button>
       <button type="button" data-mobile-action="add-photo" data-service-id="${escapeAttr(service.id)}">📷<b>Fotoğraf</b></button>
       <button type="button" data-mobile-action="edit-service" data-service-id="${escapeAttr(service.id)}">✎<b>Düzenle</b></button>
@@ -2466,8 +2483,10 @@ function mobileFinishService(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
   const note = mobileSaveWorkNote(serviceId);
+  mobileCloseDetail();
   openCompleteForm(serviceId);
   if (note && completeForm?.elements?.workNote) completeForm.elements.workNote.value = note;
+  setTimeout(() => completeForm?.elements?.amount?.focus({ preventScroll: true }), 80);
 }
 
 function mobileDelayService(serviceId) {
@@ -2530,6 +2549,7 @@ const mobileNewServiceSteps = [
   { key: "fault", label: "Şikayet", type: "textarea", placeholder: "Örn: çalışmıyor, su akıtıyor", required: true },
   { key: "device", label: "Cihaz Türü", type: "select", optionsKey: "devices", required: true },
   { key: "brand", label: "Marka", type: "select", optionsKey: "brands", required: true },
+  { key: "model", label: "Model", type: "text", placeholder: "Varsa model yaz", required: false },
 ];
 let mobileNewServiceData = {};
 let mobileNewServiceIndex = 0;
@@ -2619,7 +2639,7 @@ function saveMobileWizardService() {
     fault: mobileNewServiceData.fault || "",
     device: mobileNewServiceData.device || "",
     brand: mobileNewServiceData.brand || "",
-    model: "",
+    model: mobileNewServiceData.model || "",
     source: mobileNewServiceData.source || "Kendi İşim",
     status: "Yeni Kayıt",
     availableDate: mobileNewServiceData.availableDate || isoToday,
@@ -2683,6 +2703,10 @@ document.addEventListener("keydown", (event) => {
     if (!mobileAction) return;
     const action = mobileAction.dataset.mobileAction;
     const serviceId = mobileAction.dataset.serviceId;
+    if (action === "open-new-service") {
+      openMobileNewServiceWizard();
+      return;
+    }
     if (action === "today-date") {
       const picker = document.querySelector("#mobileDatePicker");
       if (picker) picker.value = isoToday;
