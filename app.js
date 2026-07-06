@@ -2879,3 +2879,200 @@ document.addEventListener("keydown", (event) => {
   window.addEventListener("resize", () => { if (isMobileTechViewport()) mobileRenderTechPanel(); });
   setTimeout(mobileRenderTechPanel, 0);
 })();
+
+
+/* V3.5.2 - Mobil servis listesi ve günlük kasa kilitli düzeltme
+   Görsel yerleşime dokunmadan yalnızca iki aksiyonu garantiye alır:
+   1) Kalan/Biten sayaçları servis listesini kesin gösterir.
+   2) Günlük Kasa butonu sayaç panelini kesin gösterir.
+*/
+(function setupMobileStableListAndCashV352(){
+  const VERSION = "V3.5.2";
+  let mode = "services";
+
+  function selectedDate() {
+    const picker = document.querySelector("#mobileDatePicker");
+    return (picker && picker.value) || mobileSelectedDate || isoToday;
+  }
+
+  function serviceMatchesDateSafe(service, date) {
+    if (!date) return true;
+    const candidates = [];
+    [service.availableDate, service.visitDate, service.date].forEach((value) => { if (value) candidates.push(String(value).slice(0,10)); });
+    if (service.createdAt) {
+      try { candidates.push(toIsoDate(new Date(service.createdAt))); } catch (e) {}
+    }
+    return candidates.includes(date);
+  }
+
+  function isDoneSafe(service) {
+    return isStatus(service.status, "İşlem Tamam") || isClosed(service.status);
+  }
+
+  function isRemainingSafe(service) {
+    return !isDoneSafe(service) && statusGroup(service.status) !== "danger";
+  }
+
+  function servicesForMobile(filter, date) {
+    let list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date));
+    if (filter === "done") list = list.filter(isDoneSafe);
+    else if (filter === "new") list = list.filter((service) => isStatus(service.status, "Yeni Kayıt"));
+    else list = list.filter(isRemainingSafe);
+    return list;
+  }
+
+  function countsForMobile(date) {
+    const list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date));
+    return {
+      remaining: list.filter(isRemainingSafe).length,
+      done: list.filter(isDoneSafe).length,
+      new: list.filter((service) => isStatus(service.status, "Yeni Kayıt")).length,
+    };
+  }
+
+  function forceShow(el, display) {
+    if (!el) return;
+    el.hidden = false;
+    el.removeAttribute("hidden");
+    el.style.setProperty("display", display, "important");
+    el.style.setProperty("visibility", "visible", "important");
+    el.style.setProperty("opacity", "1", "important");
+  }
+
+  function forceHide(el) {
+    if (!el) return;
+    el.hidden = true;
+    el.setAttribute("hidden", "");
+    el.style.setProperty("display", "none", "important");
+  }
+
+  function renderMobileServicesStable() {
+    mode = "services";
+    mobileCashModeOpen = false;
+    const date = selectedDate();
+    mobileSelectedDate = date;
+    const picker = document.querySelector("#mobileDatePicker");
+    if (picker && picker.value !== date) picker.value = date;
+
+    const counts = countsForMobile(date);
+    const remainingEl = document.querySelector("#mobileCountRemaining");
+    const doneEl = document.querySelector("#mobileCountDone");
+    if (remainingEl) remainingEl.textContent = counts.remaining;
+    if (doneEl) doneEl.textContent = counts.done;
+
+    document.querySelectorAll("[data-mobile-filter]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.mobileFilter === mobileTechFilter);
+    });
+
+    const page = document.querySelector("#mobileDailyCashPage");
+    const list = document.querySelector("#mobileServiceList");
+    const newButton = document.querySelector(".mobile-new-service-bar");
+    forceHide(page);
+    forceShow(list, "grid");
+    forceShow(newButton, "block");
+
+    const services = servicesForMobile(mobileTechFilter || "remaining", date);
+    if (list) {
+      list.innerHTML = services.length
+        ? services.map(mobileServiceCard).join("")
+        : `<div class="mobile-empty">Bu tarih için ${mobileTechFilter === "done" ? "biten" : "kalan"} servis yok.</div>`;
+    }
+  }
+
+  function renderMobileCashStable() {
+    mode = "cash";
+    mobileCashModeOpen = true;
+    const date = selectedDate();
+    mobileSelectedDate = date;
+    const picker = document.querySelector("#mobileDatePicker");
+    if (picker && picker.value !== date) picker.value = date;
+
+    const list = document.querySelector("#mobileServiceList");
+    const newButton = document.querySelector(".mobile-new-service-bar");
+    const page = document.querySelector("#mobileDailyCashPage");
+    forceHide(list);
+    forceHide(newButton);
+    forceShow(page, "block");
+    page?.classList.add("is-open");
+
+    const items = (state.cash || []).filter((item) => {
+      const itemDate = String(item.date || "").slice(0,10);
+      return cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && itemDate === date;
+    });
+    const totals = cashBreakdown(items);
+    const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
+    const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
+    setText("#mobileDailyPageIncome", money(totals.income));
+    setText("#mobileDailyPageCommission", money(totals.commission));
+    setText("#mobileDailyPageMaterial", money(totals.material));
+    setText("#mobileDailyPageExpense", money(totals.manualExpense));
+    setText("#mobileDailyPageProfit", money(profit));
+    setText("#mobileDailyCashPageDate", date === isoToday ? `Bugün · ${formatDisplayDate(date)}` : formatDisplayDate(date));
+  }
+
+  window.ekzenMobileStableRender = function ekzenMobileStableRender() {
+    if (mode === "cash") renderMobileCashStable();
+    else renderMobileServicesStable();
+  };
+
+  document.addEventListener("click", function(event) {
+    const filterButton = event.target.closest("[data-mobile-filter]");
+    if (filterButton) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      mobileTechFilter = filterButton.dataset.mobileFilter || "remaining";
+      renderMobileServicesStable();
+      return;
+    }
+
+    const actionButton = event.target.closest("[data-mobile-action]");
+    if (!actionButton) return;
+    const action = actionButton.dataset.mobileAction;
+
+    if (action === "open-daily-cash") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      renderMobileCashStable();
+      return;
+    }
+
+    if (action === "today-date") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const picker = document.querySelector("#mobileDatePicker");
+      if (picker) picker.value = isoToday;
+      mobileSelectedDate = isoToday;
+      renderMobileServicesStable();
+      return;
+    }
+
+    if (action === "close-daily-cash") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      renderMobileServicesStable();
+      return;
+    }
+  }, true);
+
+  document.addEventListener("change", function(event) {
+    const picker = event.target.closest("#mobileDatePicker");
+    if (!picker) return;
+    event.stopImmediatePropagation();
+    mobileSelectedDate = picker.value || isoToday;
+    renderMobileServicesStable();
+  }, true);
+
+  const oldRender = render;
+  render = function renderV352StablePatch() {
+    oldRender();
+    setTimeout(() => {
+      const badge = document.querySelector(".mobile-version-badge");
+      if (badge) badge.textContent = `Ekzen Servis Takip ${VERSION}`;
+      window.ekzenMobileStableRender?.();
+    }, 0);
+  };
+
+  window.addEventListener("DOMContentLoaded", () => setTimeout(renderMobileServicesStable, 60));
+  window.addEventListener("load", () => setTimeout(renderMobileServicesStable, 120));
+  setTimeout(renderMobileServicesStable, 120);
+})();
