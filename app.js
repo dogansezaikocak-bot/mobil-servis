@@ -2114,7 +2114,8 @@ function serviceHasDate(service, isoDate) {
 }
 
 function serviceMainDate(service) {
-  return service.availableDate || (service.createdAt ? toIsoDate(new Date(service.createdAt)) : "");
+  // V3.5.0: Eski ve yeni kayıtların hepsini aynı tarih filtresinde yakala.
+  return service.availableDate || service.visitDate || service.date || (service.createdAt ? toIsoDate(new Date(service.createdAt)) : "");
 }
 
 function ensureValues(values, requiredValues) {
@@ -2341,14 +2342,30 @@ function mobileOpenMainDatePanel() {
   if (!picker) return;
   picker.value = mobileSelectedDate || isoToday;
   picker.focus({ preventScroll: true });
+  try { if (typeof picker.showPicker === "function") picker.showPicker(); } catch (error) {}
 }
 
 function mobileCloseMainDatePanel() {
-  // V3.3.13: Ana tarih paneli kaldırıldı; gerçek date input kullanılıyor.
+  // V3.5.0: Ana tarih için ayrı panel yok; gerçek date input kullanılır.
+}
+
+function mobileSetCashMode(isCash) {
+  const root = document.querySelector("#mobileTechApp");
+  const list = document.querySelector("#mobileServiceList");
+  const newButton = document.querySelector(".mobile-new-service-bar");
+  const page = document.querySelector("#mobileDailyCashPage");
+  root?.classList.toggle("is-cash-mode", Boolean(isCash));
+  if (list) list.hidden = Boolean(isCash);
+  if (newButton) newButton.hidden = Boolean(isCash);
+  if (page) {
+    page.hidden = !isCash;
+    page.classList.toggle("is-open", Boolean(isCash));
+  }
 }
 
 function mobileApplyMainDate(value) {
   mobileSelectedDate = value || isoToday;
+  mobileSetCashMode(false);
   mobileRenderTechPanel();
 }
 
@@ -2364,12 +2381,10 @@ function mobileServiceCounts() {
 function mobileRenderTechPanel() {
   const root = document.querySelector("#mobileTechApp");
   if (!root) return;
-  const owner = state.company?.ownerName || "Doğan Sezai Koçak";
   const counts = mobileServiceCounts();
   const currentCount = counts[mobileTechFilter] ?? counts.remaining;
   const filterLabel = mobileTechFilter === "new" ? "Yeni" : mobileTechFilter === "done" ? "Biten" : "Kalan";
 
-  document.querySelector("#mobileTechName").textContent = owner;
   const summary = document.querySelector("#mobileTechSummary");
   if (summary) summary.textContent = `${filterLabel} · ${currentCount} servis`;
   document.querySelector("#mobileCountRemaining").textContent = counts.remaining;
@@ -2411,17 +2426,12 @@ function mobileRenderDailyCash() {
 
 function mobileOpenDailyCashPage() {
   mobileRenderDailyCash();
-  const page = document.querySelector("#mobileDailyCashPage");
-  if (!page) return;
-  page.hidden = false;
-  requestAnimationFrame(() => page.classList.add("is-open"));
+  mobileSetCashMode(true);
 }
 
 function mobileCloseDailyCashPage() {
-  const page = document.querySelector("#mobileDailyCashPage");
-  if (!page) return;
-  page.classList.remove("is-open");
-  setTimeout(() => { page.hidden = true; }, 180);
+  mobileSetCashMode(false);
+  mobileRenderTechPanel();
 }
 
 function mobileServiceCard(service) {
@@ -2765,6 +2775,7 @@ document.addEventListener("keydown", (event) => {
     const filterButton = event.target.closest("[data-mobile-filter]");
     if (filterButton) {
       mobileTechFilter = filterButton.dataset.mobileFilter || "remaining";
+      mobileSetCashMode(false);
       mobileRenderTechPanel();
       return;
     }

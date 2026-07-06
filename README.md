@@ -1,5 +1,11 @@
-# Ekzen Servis Takip V3.4.2
+# Ekzen Servis Takip V3.5.0
 
-- Mobil ana ekranda tarih satırına Günlük Kasa butonu eklendi.
-- Günlük kasa ana listede düz yazı/kart olarak görünmez; ayrı mobil sayfa olarak açılır.
-- Kasa sayfasında masaüstü mantığına uygun kutu kutu sayaçlar: hasılat, komisyon, malzeme, diğer gider ve net kazanç.
+Mobil ana ekran toparlama sürümü.
+
+## Değişiklikler
+- Servis listesi tekrar seçilen tarihe göre gösterilir.
+- Ana ekran başlığı sadeleştirildi.
+- Tarih / Bugün / Günlük Kasa düzeni mobil uyumlu hale getirildi.
+- Günlük kasa ana ekran içinde sayaç kartları olarak açılır.
+- Yeni Fiş Aç sıralı soru akışı korunur.
+- Fiş kapatma ücret / malzeme / komisyon ekranı korunur.
