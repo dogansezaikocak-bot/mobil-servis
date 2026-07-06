@@ -1,10 +1,11 @@
-# Ekzen Servis Takip V3.4.0
+# Ekzen Servis Takip V3.4.1
 
-Mobil kararlı sürüm.
+Günlük kasa eklendi.
 
-## Değişiklikler
-- Ana tarih seçimi gerçek mobil tarih input yapısına geçirildi.
-- Yeni Fiş Aç sıralı soru akışı olarak çalışır.
-- Harita/Yol Tarifi bağlantısı güçlendirildi.
-- Servis detayında alınan tutar gösterimi korundu.
-- Fiş kapat ekranına tahsilat, malzeme, diğer gider ve komisyon alanları eklendi.
+- Ana sayfada seçili günün toplam hasılatı görünür.
+- Ödenen komisyon görünür.
+- Malzeme gideri görünür.
+- Diğer giderler ayrı görünür.
+- Hasılattan komisyon, malzeme ve diğer giderler düşülerek Kazanç sayacı hesaplanır.
+- Mobil ana ekrana Günlük Kasa kartı eklendi.
+- Her tarih kendi kasa hesabını ayrı gösterir.

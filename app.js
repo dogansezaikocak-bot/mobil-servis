@@ -571,6 +571,8 @@ function fillSelect(select, options) {
 function setDefaultDates() {
   cashStartDate.value = "";
   cashEndDate.value = "";
+  if (dashboardStartDate && !dashboardStartDate.value) dashboardStartDate.value = isoToday;
+  if (dashboardEndDate && !dashboardEndDate.value) dashboardEndDate.value = isoToday;
 }
 
 function prepareTodayServiceList() {
@@ -639,6 +641,7 @@ function renderDashboard() {
   document.querySelector("#dashboardTitle").textContent = portalTitle();
   document.querySelector("#dashboardOwnerLine").hidden = isSourcePortal();
   renderSourceMetrics(services, cashItems, cashBalanceItems);
+  renderDailyCashSummary(cashItems);
   renderDashboardCounters(services);
 
   const plans = [...services]
@@ -680,7 +683,7 @@ function renderSourceMetrics(services, cashItems, cashBalanceItems) {
 
   document.querySelector("#sourceMetrics").innerHTML = `
     <article class="metric-card finance-card income-card">
-      <span>Toplam Gelirler</span>
+      <span>Toplam Hasılat</span>
       <b>${money(totals.income)}</b>
     </article>
     <article class="metric-card finance-card commission-card">
@@ -692,10 +695,44 @@ function renderSourceMetrics(services, cashItems, cashBalanceItems) {
       <b>${money(totals.material)}</b>
     </article>
     <article class="metric-card finance-card cash-status-card">
-      <span>Kasa Durumu</span>
-      <b>${money(dashboardOwnerCashStatus(cashItems))}</b>
+      <span>Kazanç</span>
+      <b>${money(totals.income - totals.commission - totals.material - totals.manualExpense)}</b>
     </article>
   `;
+}
+
+
+function renderDailyCashSummary(cashItems) {
+  const container = document.querySelector("#dailyCashList");
+  if (!container) return;
+  const postedItems = postedCashItems(cashItems || []);
+  const days = new Map();
+  postedItems.forEach((item) => {
+    const date = item.date || isoToday;
+    if (!days.has(date)) days.set(date, []);
+    days.get(date).push(item);
+  });
+  const start = dashboardStartDate?.value || isoToday;
+  const end = dashboardEndDate?.value || start;
+  if (!days.size && start === end) days.set(start, []);
+  const rows = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([date, items]) => {
+    const totals = cashBreakdown(items);
+    const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
+    return `
+      <article class="daily-cash-card">
+        <div class="daily-cash-date">
+          <span>Gün</span>
+          <b>${escapeHtml(formatDate(date))}</b>
+        </div>
+        <div><span>Toplam Hasılat</span><b>${money(totals.income)}</b></div>
+        <div><span>Komisyon</span><b class="cash-negative">-${money(totals.commission)}</b></div>
+        <div><span>Malzeme</span><b class="cash-negative">-${money(totals.material)}</b></div>
+        <div><span>Diğer Gider</span><b class="cash-negative">-${money(totals.manualExpense)}</b></div>
+        <div class="daily-cash-profit"><span>Kazanç</span><b>${money(profit)}</b></div>
+      </article>
+    `;
+  });
+  container.innerHTML = rows.length ? rows.join("") : `<p class="empty">Bu tarih için kasa hareketi yok.</p>`;
 }
 
 function renderTopSourceMenu() {
@@ -2339,6 +2376,7 @@ function mobileRenderTechPanel() {
   const newCounter = document.querySelector("#mobileCountNew");
   if (newCounter) newCounter.textContent = counts.new;
   document.querySelector("#mobileCountDone").textContent = counts.done;
+  mobileRenderDailyCash();
   const activeMobileDate = mobileSelectedDate || isoToday;
   const pickerEl = document.querySelector("#mobileDatePicker");
   if (pickerEl && pickerEl.value !== activeMobileDate) pickerEl.value = activeMobileDate;
@@ -2353,6 +2391,20 @@ function mobileRenderTechPanel() {
   list.innerHTML = services.length ? services.map(mobileServiceCard).join("") : `<div class="mobile-empty">Bu bölümde servis yok.</div>`;
 
   if (mobileActiveServiceId) mobileRenderDetail(mobileActiveServiceId);
+}
+
+
+function mobileRenderDailyCash() {
+  const date = mobileSelectedDate || isoToday;
+  const items = (state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (item.date || "") === date);
+  const totals = cashBreakdown(items);
+  const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
+  const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
+  setText("#mobileDailyIncome", money(totals.income));
+  setText("#mobileDailyCommission", `-${money(totals.commission)}`);
+  setText("#mobileDailyMaterial", `-${money(totals.material)}`);
+  setText("#mobileDailyProfit", money(profit));
+  setText("#mobileDailyProfitSmall", money(profit));
 }
 
 function mobileServiceCard(service) {
