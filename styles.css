@@ -5037,3 +5037,153 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
   padding: 0 14px;
   font-weight: 800;
 }
+
+/* V3.3.14 - mobil tarih görünümü, harita butonu, yeni fiş sihirbazı */
+@media (max-width: 768px) {
+  .mobile-date-control-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+  .mobile-date-button {
+    min-width: 0 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    justify-content: center !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    font-size: 18px !important;
+    line-height: 1.1 !important;
+  }
+  #mobileListDate {
+    display: inline-block !important;
+    max-width: calc(100vw - 150px) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    vertical-align: middle !important;
+  }
+  .mobile-today-button {
+    min-width: 72px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    white-space: nowrap !important;
+  }
+  .mobile-card-actions button,
+  .mobile-detail-actions button {
+    border: 0 !important;
+    border-radius: 14px !important;
+    background: #eef2ff !important;
+    color: #1f2937 !important;
+    font: inherit !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+  }
+  .mobile-card-actions button {
+    padding: 10px 12px !important;
+  }
+  .mobile-detail-actions button {
+    min-height: 58px !important;
+  }
+  .complete-dialog .dialog-shell {
+    width: min(94vw, 520px) !important;
+    max-height: 88vh !important;
+  }
+  .complete-form-grid,
+  .complete-form-grid fieldset {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.mobile-wizard[hidden] { display: none !important; }
+.mobile-wizard {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: end center;
+}
+.mobile-wizard-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+}
+.mobile-wizard-card {
+  position: relative;
+  width: min(100%, 560px);
+  max-height: 92vh;
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -20px 50px rgba(15, 23, 42, 0.25);
+  padding: 18px;
+}
+.mobile-wizard-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.mobile-wizard-card header small {
+  display: block;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.mobile-wizard-card header h2 {
+  margin: 0;
+  font-size: 25px;
+  line-height: 1.15;
+}
+.mobile-wizard-card header button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 26px;
+}
+.mobile-wizard-body label {
+  display: grid;
+  gap: 10px;
+  font-weight: 900;
+  color: #0f172a;
+}
+.mobile-wizard-body input,
+.mobile-wizard-body textarea,
+.mobile-wizard-body select {
+  width: 100%;
+  border: 2px solid #dbe3ef;
+  border-radius: 18px;
+  padding: 15px 14px;
+  font-size: 20px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.mobile-wizard-card footer {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+.mobile-wizard-card footer button {
+  border: 0;
+  border-radius: 16px;
+  padding: 15px 12px;
+  font-size: 17px;
+  font-weight: 900;
+}
+.mobile-wizard-card footer .secondary {
+  background: #e2e8f0;
+  color: #334155;
+}
+.mobile-wizard-card footer .primary {
+  background: #0f766e;
+  color: #ffffff;
+}
+.mobile-wizard-card footer button:disabled {
+  opacity: 0.45;
+}

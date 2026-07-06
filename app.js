@@ -390,7 +390,10 @@ function bindEvents() {
     ].includes(action)) return;
 
     if (action === "toggle-nav") document.body.classList.toggle("nav-open");
-    if (action === "open-service-modal") openServiceForm();
+    if (action === "open-service-modal") {
+      if (isMobileTechViewport() && isMobileTechClick) openMobileNewServiceWizard();
+      else openServiceForm();
+    }
     if (action === "open-service-detail") openDetail(button.dataset.serviceId);
     if (action === "move-service-order") moveServiceOrder(button.dataset.serviceId, button.dataset.direction);
     if (action === "open-related-service") openRelatedServiceForm(button.dataset.serviceId);
@@ -2225,13 +2228,34 @@ function fileToDataUrl(file) {
 }
 
 
-/* V3.3.13 - Mobile-first teknisyen paneli */
+/* V3.3.14 - Mobile mimari devam: yeni fiş sihirbazı, harita ve kapanış ücret ekranı */
 let mobileTechFilter = "remaining";
 let mobileActiveServiceId = "";
 let mobileSelectedDate = isoToday;
 
 function isMobileTechViewport() {
   return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+}
+
+function mobileFullAddress(service) {
+  return [service.city || "Ankara", service.district, service.address].filter(Boolean).join(" ").trim();
+}
+
+function mobileMapUrl(service) {
+  const destination = mobileFullAddress(service);
+  if (!destination) return "";
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+}
+
+function openMobileMap(serviceId) {
+  const service = state.services.find((item) => item.id === serviceId);
+  const url = service ? mobileMapUrl(service) : "";
+  if (!url) {
+    alert("Harita için adres girilmemiş.");
+    return;
+  }
+  const opened = window.open(url, "_blank", "noopener");
+  if (!opened) window.location.href = url;
 }
 
 function mobileStatusBucket(status) {
@@ -2320,7 +2344,7 @@ function mobileServiceCard(service) {
   const phoneClean = digits(service.phone);
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
   const whatsappHref = phoneClean ? `https://wa.me/90${phoneClean.replace(/^0/, "")}` : "#";
-  const mapHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.address || "")}`;
+  const mapHref = mobileMapUrl(service);
   const bucket = mobileStatusBucket(service.status);
   const deviceTitle = [service.brand, service.device].filter(Boolean).join(" ") || "Cihaz bilgisi yok";
   return `
@@ -2341,7 +2365,7 @@ function mobileServiceCard(service) {
       <div class="mobile-card-actions">
         <a href="${phoneHref}" onclick="event.stopPropagation()">Ara</a>
         <a href="${whatsappHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()">WhatsApp</a>
-        <a href="${mapHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Yol Tarifi</a>
+        <button type="button" data-mobile-action="open-map" data-service-id="${escapeAttr(service.id)}" onclick="event.stopPropagation()">Yol Tarifi</button>
       </div>
     </article>
   `;
@@ -2365,8 +2389,8 @@ function mobileRenderDetail(serviceId) {
   const phoneClean = digits(service.phone);
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
   const whatsappHref = phoneClean ? `https://wa.me/90${phoneClean.replace(/^0/, "")}` : "#";
-  const addressText = [service.city, service.district, service.address].filter(Boolean).join(" ");
-  const mapHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText || service.address || "")}`;
+  const addressText = mobileFullAddress(service);
+  const mapHref = mobileMapUrl(service);
   const noteText = service.notes?.map((note) => note.text).filter(Boolean).join("\n") || "";
   const linkedCash = state.cash.filter((item) => item.serviceId === service.id);
   const incomeTotal = linkedCash.filter((item) => item.type === "income").reduce((total, item) => total + (Number(item.amount) || 0), 0);
@@ -2384,7 +2408,7 @@ function mobileRenderDetail(serviceId) {
     <div class="mobile-detail-actions mobile-detail-actions-six">
       <a href="${phoneHref}">📞<b>Ara</b></a>
       <a href="${whatsappHref}" target="_blank" rel="noopener">💬<b>WhatsApp</b></a>
-      <a href="${mapHref}" target="_blank" rel="noopener">🗺️<b>Harita</b></a>
+      <button type="button" data-mobile-action="open-map" data-service-id="${escapeAttr(service.id)}">🗺️<b>Harita</b></button>
       <button type="button" data-mobile-action="add-note" data-service-id="${escapeAttr(service.id)}">📝<b>Not</b></button>
       <button type="button" data-mobile-action="add-photo" data-service-id="${escapeAttr(service.id)}">📷<b>Fotoğraf</b></button>
       <button type="button" data-mobile-action="edit-service" data-service-id="${escapeAttr(service.id)}">✎<b>Düzenle</b></button>
@@ -2394,7 +2418,7 @@ function mobileRenderDetail(serviceId) {
       <div class="mobile-detail-box"><h3>Telefon</h3><p>${escapeHtml(service.phone || "Telefon yok")}</p></div>
       <div class="mobile-detail-box"><h3>Tarih / Saat</h3><p>${escapeHtml(formatDate(serviceDate))} · ${escapeHtml(serviceTime)}</p></div>
       <div class="mobile-detail-box"><h3>Kaynak</h3><p>${escapeHtml(service.source || "Kendi İşim")}</p></div>
-      <div class="mobile-detail-box"><h3>Ücret</h3><p>${escapeHtml(money(balanceTotal || service.price || 0))}</p></div>
+      <div class="mobile-detail-box"><h3>Alınan Tutar</h3><p>${escapeHtml(money(incomeTotal || service.price || 0))}</p></div>
     </div>
 
     <div class="mobile-detail-box"><h3>Adres</h3><p>${escapeHtml(addressText || "Adres girilmedi")}</p></div>
@@ -2442,16 +2466,8 @@ function mobileFinishService(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
   const note = mobileSaveWorkNote(serviceId);
-  if (!note) {
-    alert("Fişi kapatmadan önce yapılan işlemi yazmalısın.");
-    return;
-  }
-  service.status = "İşlem Tamam";
-  service.statusHistory = Array.isArray(service.statusHistory) ? service.statusHistory : [];
-  service.statusHistory.push({ id: uid(), date: isoToday, status: "İşlem Tamam", technician: service.technician || "", description: "Mobil panelden fiş kapatıldı", createdAt: new Date().toISOString() });
-  saveState();
-  mobileCloseDetail();
-  render();
+  openCompleteForm(serviceId);
+  if (note && completeForm?.elements?.workNote) completeForm.elements.workNote.value = note;
 }
 
 function mobileDelayService(serviceId) {
@@ -2506,6 +2522,144 @@ function mobileSaveDelayDate(serviceId) {
   render();
 }
 
+
+const mobileNewServiceSteps = [
+  { key: "customerName", label: "İsim Soyisim", type: "text", placeholder: "Müşteri adı soyadı", required: true },
+  { key: "phone", label: "Telefon", type: "tel", placeholder: "05xx xxx xx xx", required: true },
+  { key: "address", label: "Adres", type: "textarea", placeholder: "Mahalle, sokak, bina, daire", required: true },
+  { key: "fault", label: "Şikayet", type: "textarea", placeholder: "Örn: çalışmıyor, su akıtıyor", required: true },
+  { key: "device", label: "Cihaz Türü", type: "select", optionsKey: "devices", required: true },
+  { key: "brand", label: "Marka", type: "select", optionsKey: "brands", required: true },
+];
+let mobileNewServiceData = {};
+let mobileNewServiceIndex = 0;
+
+function openMobileNewServiceWizard() {
+  mobileNewServiceData = { availableDate: mobileSelectedDate || isoToday, source: "Kendi İşim" };
+  mobileNewServiceIndex = 0;
+  let overlay = document.querySelector("#mobileNewServiceWizard");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "mobileNewServiceWizard";
+    overlay.className = "mobile-wizard";
+    document.body.appendChild(overlay);
+  }
+  overlay.removeAttribute("hidden");
+  renderMobileNewServiceStep();
+}
+
+function closeMobileNewServiceWizard() {
+  document.querySelector("#mobileNewServiceWizard")?.setAttribute("hidden", "");
+}
+
+function renderMobileNewServiceStep() {
+  const overlay = document.querySelector("#mobileNewServiceWizard");
+  if (!overlay) return;
+  const step = mobileNewServiceSteps[mobileNewServiceIndex];
+  const progress = `${mobileNewServiceIndex + 1}/${mobileNewServiceSteps.length}`;
+  const value = mobileNewServiceData[step.key] || "";
+  let field = "";
+  if (step.type === "textarea") {
+    field = `<textarea id="mobileWizardField" rows="5" placeholder="${escapeAttr(step.placeholder || "")}" ${step.required ? "required" : ""}>${escapeHtml(value)}</textarea>`;
+  } else if (step.type === "select") {
+    const options = settingsList(step.optionsKey).filter(Boolean);
+    field = `<select id="mobileWizardField" ${step.required ? "required" : ""}>
+      <option value="">Seç</option>
+      ${options.map((item) => `<option value="${escapeAttr(item)}" ${item === value ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}
+    </select>`;
+  } else {
+    field = `<input id="mobileWizardField" type="${escapeAttr(step.type)}" value="${escapeAttr(value)}" placeholder="${escapeAttr(step.placeholder || "")}" ${step.required ? "required" : ""}>`;
+  }
+  overlay.innerHTML = `
+    <div class="mobile-wizard-backdrop" data-mobile-wizard="close"></div>
+    <section class="mobile-wizard-card" role="dialog" aria-modal="true" aria-label="Yeni fiş aç">
+      <header>
+        <div><small>Yeni Fiş Aç · ${progress}</small><h2>${escapeHtml(step.label)}</h2></div>
+        <button type="button" data-mobile-wizard="close">×</button>
+      </header>
+      <div class="mobile-wizard-body">
+        <label>${escapeHtml(step.label)}${field}</label>
+      </div>
+      <footer>
+        <button type="button" class="secondary" data-mobile-wizard="back" ${mobileNewServiceIndex === 0 ? "disabled" : ""}>Geri</button>
+        <button type="button" class="primary" data-mobile-wizard="next">${mobileNewServiceIndex === mobileNewServiceSteps.length - 1 ? "Servisi Aç" : "Devam"}</button>
+      </footer>
+    </section>
+  `;
+  setTimeout(() => document.querySelector("#mobileWizardField")?.focus({ preventScroll: true }), 50);
+}
+
+function mobileWizardCurrentValue() {
+  const field = document.querySelector("#mobileWizardField");
+  return field ? String(field.value || "").trim() : "";
+}
+
+function mobileWizardNext() {
+  const step = mobileNewServiceSteps[mobileNewServiceIndex];
+  const value = mobileWizardCurrentValue();
+  if (step.required && !value) {
+    alert(`${step.label} boş kalmasın.`);
+    return;
+  }
+  mobileNewServiceData[step.key] = value;
+  if (mobileNewServiceIndex < mobileNewServiceSteps.length - 1) {
+    mobileNewServiceIndex += 1;
+    renderMobileNewServiceStep();
+    return;
+  }
+  saveMobileWizardService();
+}
+
+function saveMobileWizardService() {
+  const service = {
+    id: nextServiceId(),
+    customerName: mobileNewServiceData.customerName || "",
+    phone: mobileNewServiceData.phone || "",
+    address: mobileNewServiceData.address || "",
+    fault: mobileNewServiceData.fault || "",
+    device: mobileNewServiceData.device || "",
+    brand: mobileNewServiceData.brand || "",
+    model: "",
+    source: mobileNewServiceData.source || "Kendi İşim",
+    status: "Yeni Kayıt",
+    availableDate: mobileNewServiceData.availableDate || isoToday,
+    visitDate: mobileNewServiceData.availableDate || isoToday,
+    availableTime: "",
+    warrantyEnd: addYear(isoToday),
+    operatorNote: "",
+    createdAt: new Date().toISOString(),
+    price: 0,
+    sortOrder: state.services.reduce((min, item) => Math.min(min, Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 0), 0) - 1,
+    notes: [],
+    photos: [],
+    statusHistory: [{ id: uid(), date: isoToday, status: "Yeni Kayıt", description: "Mobil sihirbazdan yeni fiş açıldı", createdAt: new Date().toISOString() }],
+    history: [],
+  };
+  state.services.unshift(service);
+  saveState();
+  closeMobileNewServiceWizard();
+  mobileSelectedDate = service.availableDate || isoToday;
+  mobileTechFilter = "new";
+  render();
+  mobileOpenDetail(service.id);
+}
+
+document.addEventListener("click", (event) => {
+  const action = event.target.closest("[data-mobile-wizard]")?.dataset.mobileWizard;
+  if (!action) return;
+  if (action === "close") closeMobileNewServiceWizard();
+  if (action === "back" && mobileNewServiceIndex > 0) { mobileNewServiceData[mobileNewServiceSteps[mobileNewServiceIndex].key] = mobileWizardCurrentValue(); mobileNewServiceIndex -= 1; renderMobileNewServiceStep(); }
+  if (action === "next") mobileWizardNext();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (document.querySelector("#mobileNewServiceWizard")?.hasAttribute("hidden")) return;
+  if (event.key === "Enter" && !event.shiftKey && event.target?.id === "mobileWizardField" && event.target.tagName !== "TEXTAREA") {
+    event.preventDefault();
+    mobileWizardNext();
+  }
+});
+
 (function setupMobileTechPanel(){
   const previousRender = render;
   render = function patchedRender() {
@@ -2544,6 +2698,7 @@ function mobileSaveDelayDate(serviceId) {
       mobileApplyMainDate(picker?.value || isoToday);
       return;
     }
+    if (action === "open-map" && serviceId) { openMobileMap(serviceId); return; }
     if (action === "open-detail" && serviceId) mobileOpenDetail(serviceId);
     if (action === "close-detail") mobileCloseDetail();
     if (action === "finish-service" && serviceId) mobileFinishService(serviceId);

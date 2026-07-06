@@ -1,14 +1,10 @@
-# Ekzen Servis Takip V3.3.13
+# Ekzen Servis Takip V3.3.14
 
-## Mobil ana ekran tarih fix
-- Ana ekrandaki tarih butonu artık gizli input ile değil, görünür tarih paneliyle çalışır.
-- Tarihe basınca mobilde panel açılır.
-- Tarih seçilip Uygula denince o tarihin servisleri listelenir.
-- Bugün butonu eklendi.
-- Ertele takvim fix korunmuştur.
+Mobil mimari düzeltme sürümü.
 
-
-## V3.3.13
-- Mobil ana ekran tarih seçimi teknik olarak yeniden kuruldu.
-- Tarih yazısı artık JavaScript tıklama yakalama yerine gerçek date input ile çalışır.
-- iPhone Safari/Chrome ve Android için daha güvenli yapı.
+## Değişiklikler
+- Harita / Yol Tarifi mobilde buton tabanlı açılacak şekilde düzeltildi.
+- Ana sayfadaki tarih alanı mobilde taşmayacak şekilde daraltıldı.
+- Yeni Fiş Aç mobilde sıralı soru akışına geçirildi: isim soyisim, telefon, adres, şikayet, cihaz türü, marka.
+- Servis detayındaki ücret alanı artık masraflar düşülmüş kalan tutarı değil, müşteriden alınan tutarı gösterir.
+- Mobilde Fişi Kapat butonu artık ücret ekranını açar; alınan tutar, malzeme gideri ve komisyon alanları görünür.
