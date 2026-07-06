@@ -2250,6 +2250,37 @@ function mobileFilteredServices() {
   return services;
 }
 
+
+function mobileOpenMainDatePanel() {
+  const panel = document.querySelector("#mobileDatePanel");
+  const picker = document.querySelector("#mobileDatePicker");
+  if (!panel || !picker) return;
+  picker.value = mobileSelectedDate || isoToday;
+  panel.hidden = false;
+  panel.classList.add("is-open");
+  setTimeout(() => {
+    picker.focus({ preventScroll: true });
+    try {
+      if (typeof picker.showPicker === "function") picker.showPicker();
+    } catch (error) {
+      // Mobil tarayıcı desteklemese bile tarih alanı görünür kalır.
+    }
+  }, 40);
+}
+
+function mobileCloseMainDatePanel() {
+  const panel = document.querySelector("#mobileDatePanel");
+  if (!panel) return;
+  panel.classList.remove("is-open");
+  panel.hidden = true;
+}
+
+function mobileApplyMainDate(value) {
+  mobileSelectedDate = value || isoToday;
+  mobileCloseMainDatePanel();
+  mobileRenderTechPanel();
+}
+
 function mobileServiceCounts() {
   const services = (state.services || []).filter((service) => serviceHasDate(service, mobileSelectedDate || isoToday));
   return {
@@ -2494,9 +2525,7 @@ function mobileSaveDelayDate(serviceId) {
   document.addEventListener("click", (event) => {
     const dateButton = event.target.closest("#mobileDateButton");
     if (dateButton) {
-      const picker = document.querySelector("#mobileDatePicker");
-      if (picker?.showPicker) picker.showPicker();
-      else picker?.click();
+      mobileOpenMainDatePanel();
       return;
     }
     const filterButton = event.target.closest("[data-mobile-filter]");
@@ -2509,6 +2538,21 @@ function mobileSaveDelayDate(serviceId) {
     if (!mobileAction) return;
     const action = mobileAction.dataset.mobileAction;
     const serviceId = mobileAction.dataset.serviceId;
+    if (action === "today-date") {
+      const picker = document.querySelector("#mobileDatePicker");
+      if (picker) picker.value = isoToday;
+      mobileApplyMainDate(isoToday);
+      return;
+    }
+    if (action === "close-main-date") {
+      mobileCloseMainDatePanel();
+      return;
+    }
+    if (action === "save-main-date") {
+      const picker = document.querySelector("#mobileDatePicker");
+      mobileApplyMainDate(picker?.value || isoToday);
+      return;
+    }
     if (action === "open-detail" && serviceId) mobileOpenDetail(serviceId);
     if (action === "close-detail") mobileCloseDetail();
     if (action === "finish-service" && serviceId) mobileFinishService(serviceId);

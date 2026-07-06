@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.3.11</title>
-  <link rel="stylesheet" href="./styles.css?v=v3-3-11-delay-calendar-fix">
+  <title>Ekzen Servis Takip V3.3.12</title>
+  <link rel="stylesheet" href="./styles.css?v=v3-3-12-main-date-fix">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -174,13 +174,23 @@
     <div class="mobile-list-head">
       <h2 id="mobileListTitle">Bugünkü Servisler</h2>
       <button id="mobileDateButton" class="mobile-date-button" type="button"><span id="mobileListDate">--.--.----</span> 📅</button>
-      <input id="mobileDatePicker" class="mobile-date-picker" type="date" aria-label="Mobil servis tarihi">
+      <div id="mobileDatePanel" class="mobile-main-date-panel" hidden>
+        <label>
+          <span>Liste Tarihi</span>
+          <input id="mobileDatePicker" type="date" aria-label="Mobil servis tarihi">
+        </label>
+        <div class="mobile-main-date-actions">
+          <button type="button" data-mobile-action="today-date">Bugün</button>
+          <button type="button" data-mobile-action="close-main-date">Vazgeç</button>
+          <button type="button" data-mobile-action="save-main-date">Uygula</button>
+        </div>
+      </div>
     </div>
 
     <main id="mobileServiceList" class="mobile-service-list"></main>
 
     <button class="mobile-new-service-bar" type="button" data-action="open-service-modal">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.3.11</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V3.3.12</div>
 
     <div id="mobileDetailSheet" class="mobile-detail-sheet" hidden>
       <div class="mobile-sheet-backdrop" data-mobile-action="close-detail"></div>
