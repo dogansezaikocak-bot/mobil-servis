@@ -4991,3 +4991,49 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
     color: #ffffff;
   }
 }
+
+/* V3.3.13 - Mobil ana tarih mimarisi */
+.mobile-list-head-v3313 {
+  position: relative;
+}
+
+.mobile-date-control-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.mobile-native-date-button {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 48px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-native-date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.01;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 5;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mobile-today-button {
+  min-height: 48px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  padding: 0 14px;
+  font-weight: 800;
+}

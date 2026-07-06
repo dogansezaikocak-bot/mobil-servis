@@ -2225,7 +2225,7 @@ function fileToDataUrl(file) {
 }
 
 
-/* V3.3 - Mobile-first teknisyen paneli */
+/* V3.3.13 - Mobile-first teknisyen paneli */
 let mobileTechFilter = "remaining";
 let mobileActiveServiceId = "";
 let mobileSelectedDate = isoToday;
@@ -2252,32 +2252,23 @@ function mobileFilteredServices() {
 
 
 function mobileOpenMainDatePanel() {
-  const panel = document.querySelector("#mobileDatePanel");
   const picker = document.querySelector("#mobileDatePicker");
-  if (!panel || !picker) return;
+  if (!picker) return;
   picker.value = mobileSelectedDate || isoToday;
-  panel.hidden = false;
-  panel.classList.add("is-open");
-  setTimeout(() => {
-    picker.focus({ preventScroll: true });
-    try {
-      if (typeof picker.showPicker === "function") picker.showPicker();
-    } catch (error) {
-      // Mobil tarayıcı desteklemese bile tarih alanı görünür kalır.
-    }
-  }, 40);
+  picker.focus({ preventScroll: true });
+  try {
+    if (typeof picker.showPicker === "function") picker.showPicker();
+  } catch (error) {
+    // iOS Safari showPicker desteklemese de input gerçek date alanıdır; dokunma doğrudan takvimi açar.
+  }
 }
 
 function mobileCloseMainDatePanel() {
-  const panel = document.querySelector("#mobileDatePanel");
-  if (!panel) return;
-  panel.classList.remove("is-open");
-  panel.hidden = true;
+  // V3.3.13: Ana tarih paneli kaldırıldı; gerçek date input kullanılıyor.
 }
 
 function mobileApplyMainDate(value) {
   mobileSelectedDate = value || isoToday;
-  mobileCloseMainDatePanel();
   mobileRenderTechPanel();
 }
 
@@ -2570,8 +2561,7 @@ function mobileSaveDelayDate(serviceId) {
   document.addEventListener("change", (event) => {
     const datePicker = event.target.closest("#mobileDatePicker");
     if (datePicker) {
-      mobileSelectedDate = datePicker.value || isoToday;
-      mobileRenderTechPanel();
+      mobileApplyMainDate(datePicker.value || isoToday);
       return;
     }
     const select = event.target.closest("[data-mobile-status-service]");
