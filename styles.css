@@ -5437,7 +5437,7 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
   .mobile-today-button, .mobile-daily-cash-button { width: 100%; }
 }
 
-/* V3.5.0 - Mobil ana ekran sağlam düzen */
+/* V3.5.1 - Mobil ana ekran sağlam düzen */
 @media (max-width: 768px) {
   .mobile-tech-app {
     background: #eef5f3 !important;

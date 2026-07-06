@@ -1,4 +1,4 @@
-# Ekzen Servis Takip V3.5.0
+# Ekzen Servis Takip V3.5.1
 
 Mobil ana ekran toparlama sürümü.
 

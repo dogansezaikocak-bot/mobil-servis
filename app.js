@@ -2110,11 +2110,17 @@ function isStatus(status, expected) {
 }
 
 function serviceHasDate(service, isoDate) {
-  return serviceMainDate(service) === isoDate;
+  return serviceDateCandidates(service).includes(isoDate);
+}
+
+function serviceDateCandidates(service) {
+  const dates = [service.availableDate, service.visitDate, service.date];
+  if (service.createdAt) dates.push(toIsoDate(new Date(service.createdAt)));
+  return uniqueValues(dates.filter(Boolean));
 }
 
 function serviceMainDate(service) {
-  // V3.5.0: Eski ve yeni kayıtların hepsini aynı tarih filtresinde yakala.
+  // V3.5.1: Eski ve yeni kayıtların hepsini aynı tarih filtresinde yakala.
   return service.availableDate || service.visitDate || service.date || (service.createdAt ? toIsoDate(new Date(service.createdAt)) : "");
 }
 
@@ -2294,6 +2300,7 @@ function fileToDataUrl(file) {
 let mobileTechFilter = "remaining";
 let mobileActiveServiceId = "";
 let mobileSelectedDate = isoToday;
+let mobileCashModeOpen = false;
 
 function isMobileTechViewport() {
   return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
@@ -2328,11 +2335,19 @@ function mobileStatusBucket(status) {
   return "process";
 }
 
+function mobileIsDoneService(service) {
+  return isStatus(service.status, "İşlem Tamam") || isClosed(service.status);
+}
+
+function mobileIsRemainingService(service) {
+  return !mobileIsDoneService(service) && statusGroup(service.status) !== "danger";
+}
+
 function mobileFilteredServices() {
   let services = sortServices(state.services || []).filter((service) => serviceHasDate(service, mobileSelectedDate || isoToday));
   if (mobileTechFilter === "new") services = services.filter((service) => isStatus(service.status, "Yeni Kayıt"));
-  if (mobileTechFilter === "done") services = services.filter((service) => isStatus(service.status, "İşlem Tamam"));
-  if (mobileTechFilter === "remaining") services = services.filter((service) => !isStatus(service.status, "İşlem Tamam") && statusGroup(service.status) !== "danger");
+  if (mobileTechFilter === "done") services = services.filter(mobileIsDoneService);
+  if (mobileTechFilter === "remaining") services = services.filter(mobileIsRemainingService);
   return services;
 }
 
@@ -2346,20 +2361,28 @@ function mobileOpenMainDatePanel() {
 }
 
 function mobileCloseMainDatePanel() {
-  // V3.5.0: Ana tarih için ayrı panel yok; gerçek date input kullanılır.
+  // V3.5.1: Ana tarih için ayrı panel yok; gerçek date input kullanılır.
 }
 
 function mobileSetCashMode(isCash) {
+  mobileCashModeOpen = Boolean(isCash);
   const root = document.querySelector("#mobileTechApp");
   const list = document.querySelector("#mobileServiceList");
   const newButton = document.querySelector(".mobile-new-service-bar");
   const page = document.querySelector("#mobileDailyCashPage");
-  root?.classList.toggle("is-cash-mode", Boolean(isCash));
-  if (list) list.hidden = Boolean(isCash);
-  if (newButton) newButton.hidden = Boolean(isCash);
+  root?.classList.toggle("is-cash-mode", mobileCashModeOpen);
+  if (list) {
+    list.hidden = mobileCashModeOpen;
+    list.style.display = mobileCashModeOpen ? "none" : "grid";
+  }
+  if (newButton) {
+    newButton.hidden = mobileCashModeOpen;
+    newButton.style.display = mobileCashModeOpen ? "none" : "block";
+  }
   if (page) {
-    page.hidden = !isCash;
-    page.classList.toggle("is-open", Boolean(isCash));
+    page.hidden = !mobileCashModeOpen;
+    page.style.display = mobileCashModeOpen ? "block" : "none";
+    page.classList.toggle("is-open", mobileCashModeOpen);
   }
 }
 
@@ -2372,9 +2395,9 @@ function mobileApplyMainDate(value) {
 function mobileServiceCounts() {
   const services = (state.services || []).filter((service) => serviceHasDate(service, mobileSelectedDate || isoToday));
   return {
-    remaining: services.filter((service) => !isStatus(service.status, "İşlem Tamam") && statusGroup(service.status) !== "danger").length,
+    remaining: services.filter(mobileIsRemainingService).length,
     new: services.filter((service) => isStatus(service.status, "Yeni Kayıt")).length,
-    done: services.filter((service) => isStatus(service.status, "İşlem Tamam")).length,
+    done: services.filter(mobileIsDoneService).length,
   };
 }
 
@@ -2403,7 +2426,14 @@ function mobileRenderTechPanel() {
 
   const list = document.querySelector("#mobileServiceList");
   const services = mobileFilteredServices();
-  list.innerHTML = services.length ? services.map(mobileServiceCard).join("") : `<div class="mobile-empty">Bu bölümde servis yok.</div>`;
+  if (list) {
+    list.innerHTML = services.length ? services.map(mobileServiceCard).join("") : `<div class="mobile-empty">Bu bölümde servis yok.</div>`;
+    if (!mobileCashModeOpen) {
+      list.hidden = false;
+      list.style.display = "grid";
+    }
+  }
+  mobileSetCashMode(mobileCashModeOpen);
 
   if (mobileActiveServiceId) mobileRenderDetail(mobileActiveServiceId);
 }
@@ -2427,6 +2457,7 @@ function mobileRenderDailyCash() {
 function mobileOpenDailyCashPage() {
   mobileRenderDailyCash();
   mobileSetCashMode(true);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function mobileCloseDailyCashPage() {
@@ -2774,6 +2805,7 @@ document.addEventListener("keydown", (event) => {
     }
     const filterButton = event.target.closest("[data-mobile-filter]");
     if (filterButton) {
+      event.preventDefault();
       mobileTechFilter = filterButton.dataset.mobileFilter || "remaining";
       mobileSetCashMode(false);
       mobileRenderTechPanel();
@@ -2784,10 +2816,12 @@ document.addEventListener("keydown", (event) => {
     const action = mobileAction.dataset.mobileAction;
     const serviceId = mobileAction.dataset.serviceId;
     if (action === "open-new-service") {
+      event.preventDefault();
       openMobileNewServiceWizard();
       return;
     }
     if (action === "open-daily-cash") {
+      event.preventDefault();
       mobileOpenDailyCashPage();
       return;
     }
