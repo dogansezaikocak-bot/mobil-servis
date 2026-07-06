@@ -5316,3 +5316,123 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
 }
 .mobile-daily-cash-grid span { display: block; font-size: 11px; color: #64748b; margin-bottom: 3px; }
 .mobile-daily-cash-grid b { font-size: 14px; color: #0f172a; }
+
+/* V3.4.2 Mobil Günlük Kasa ayrı sayfa */
+.mobile-daily-cash { display: none !important; }
+.mobile-date-control-row-v340 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 8px;
+}
+.mobile-date-real-label { min-width: 0; }
+.mobile-date-input-real { width: 100%; min-width: 0; }
+.mobile-daily-cash-button {
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 12px;
+  min-height: 44px;
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  color: #fff;
+  font-weight: 900;
+  font-size: 12px;
+  box-shadow: 0 12px 26px rgba(15, 118, 110, .24);
+  white-space: nowrap;
+}
+.mobile-daily-cash-page[hidden] { display: none !important; }
+.mobile-daily-cash-page {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  background: radial-gradient(circle at top left, rgba(20, 184, 166, .24), transparent 34%), linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform .22s ease;
+}
+.mobile-daily-cash-page.is-open { transform: translateX(0); }
+.mobile-daily-page-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.mobile-back-button {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 16px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 34px;
+  line-height: 1;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .12);
+}
+.mobile-daily-page-head span {
+  display: block;
+  font-size: 22px;
+  font-weight: 950;
+  color: #0f172a;
+}
+.mobile-daily-page-head strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #64748b;
+}
+.mobile-daily-counter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.mobile-daily-counter {
+  min-height: 112px;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .09);
+}
+.mobile-daily-counter span {
+  display: block;
+  font-size: 12px;
+  font-weight: 850;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+.mobile-daily-counter b {
+  display: block;
+  font-size: 22px;
+  font-weight: 950;
+  color: #0f172a;
+  letter-spacing: -.03em;
+}
+.mobile-daily-counter small {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  line-height: 1.35;
+}
+.mobile-daily-counter.income b { color: #0369a1; }
+.mobile-daily-counter.commission b,
+.mobile-daily-counter.material b,
+.mobile-daily-counter.expense b { color: #b45309; }
+.mobile-daily-counter.profit {
+  grid-column: 1 / -1;
+  min-height: 132px;
+  background: linear-gradient(135deg, #ecfdf5, #ffffff 58%);
+  border-color: rgba(16, 185, 129, .28);
+}
+.mobile-daily-counter.profit b {
+  font-size: 34px;
+  color: #047857;
+}
+@media (max-width: 390px) {
+  .mobile-date-control-row-v340 { grid-template-columns: 1fr 1fr; }
+  .mobile-date-real-label { grid-column: 1 / -1; }
+  .mobile-today-button, .mobile-daily-cash-button { width: 100%; }
+}

@@ -1,11 +1,5 @@
-# Ekzen Servis Takip V3.4.1
+# Ekzen Servis Takip V3.4.2
 
-Günlük kasa eklendi.
-
-- Ana sayfada seçili günün toplam hasılatı görünür.
-- Ödenen komisyon görünür.
-- Malzeme gideri görünür.
-- Diğer giderler ayrı görünür.
-- Hasılattan komisyon, malzeme ve diğer giderler düşülerek Kazanç sayacı hesaplanır.
-- Mobil ana ekrana Günlük Kasa kartı eklendi.
-- Her tarih kendi kasa hesabını ayrı gösterir.
+- Mobil ana ekranda tarih satırına Günlük Kasa butonu eklendi.
+- Günlük kasa ana listede düz yazı/kart olarak görünmez; ayrı mobil sayfa olarak açılır.
+- Kasa sayfasında masaüstü mantığına uygun kutu kutu sayaçlar: hasılat, komisyon, malzeme, diğer gider ve net kazanç.

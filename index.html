@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.4.1</title>
+  <title>Ekzen Servis Takip V3.4.2</title>
   <link rel="stylesheet" href="./styles.css?v=v3-4-0">
 </head>
 <body>
@@ -187,26 +187,50 @@
           <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Mobil servis tarihi">
         </label>
         <button class="mobile-today-button" type="button" data-mobile-action="today-date">Bugün</button>
+        <button class="mobile-daily-cash-button" type="button" data-mobile-action="open-daily-cash">Günlük Kasa</button>
       </div>
     </div>
 
-    <section class="mobile-daily-cash" aria-label="Günlük kasa">
-      <div class="mobile-daily-cash-title">
-        <span>Günlük Kasa</span>
-        <b id="mobileDailyProfit">₺0</b>
-      </div>
-      <div class="mobile-daily-cash-grid">
-        <div><span>Hasılat</span><b id="mobileDailyIncome">₺0</b></div>
-        <div><span>Komisyon</span><b id="mobileDailyCommission">₺0</b></div>
-        <div><span>Malzeme</span><b id="mobileDailyMaterial">₺0</b></div>
-        <div><span>Kazanç</span><b id="mobileDailyProfitSmall">₺0</b></div>
-      </div>
-    </section>
 
     <main id="mobileServiceList" class="mobile-service-list"></main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.4.1</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V3.4.2</div>
+
+
+
+    <div id="mobileDailyCashPage" class="mobile-daily-cash-page" hidden>
+      <div class="mobile-daily-page-head">
+        <button class="mobile-back-button" type="button" data-mobile-action="close-daily-cash">‹</button>
+        <div>
+          <span>Günlük Kasa</span>
+          <strong id="mobileDailyCashPageDate">Bugün</strong>
+        </div>
+      </div>
+      <section class="mobile-daily-counter-grid" aria-label="Günlük kasa sayaçları">
+        <article class="mobile-daily-counter income">
+          <span>Toplam Hasılat</span>
+          <b id="mobileDailyPageIncome">₺0</b>
+        </article>
+        <article class="mobile-daily-counter commission">
+          <span>Ödenen Komisyon</span>
+          <b id="mobileDailyPageCommission">₺0</b>
+        </article>
+        <article class="mobile-daily-counter material">
+          <span>Malzeme</span>
+          <b id="mobileDailyPageMaterial">₺0</b>
+        </article>
+        <article class="mobile-daily-counter expense">
+          <span>Diğer Gider</span>
+          <b id="mobileDailyPageExpense">₺0</b>
+        </article>
+        <article class="mobile-daily-counter profit">
+          <span>Net Kazanç</span>
+          <b id="mobileDailyPageProfit">₺0</b>
+          <small>Hasılat - komisyon - malzeme - gider</small>
+        </article>
+      </section>
+    </div>
 
     <div id="mobileDetailSheet" class="mobile-detail-sheet" hidden>
       <div class="mobile-sheet-backdrop" data-mobile-action="close-detail"></div>

@@ -2400,11 +2400,28 @@ function mobileRenderDailyCash() {
   const totals = cashBreakdown(items);
   const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
   const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
-  setText("#mobileDailyIncome", money(totals.income));
-  setText("#mobileDailyCommission", `-${money(totals.commission)}`);
-  setText("#mobileDailyMaterial", `-${money(totals.material)}`);
-  setText("#mobileDailyProfit", money(profit));
-  setText("#mobileDailyProfitSmall", money(profit));
+  setText("#mobileDailyPageIncome", money(totals.income));
+  setText("#mobileDailyPageCommission", money(totals.commission));
+  setText("#mobileDailyPageMaterial", money(totals.material));
+  setText("#mobileDailyPageExpense", money(totals.manualExpense));
+  setText("#mobileDailyPageProfit", money(profit));
+  const dateLabel = date === isoToday ? `Bugün · ${formatDisplayDate(date)}` : formatDisplayDate(date);
+  setText("#mobileDailyCashPageDate", dateLabel);
+}
+
+function mobileOpenDailyCashPage() {
+  mobileRenderDailyCash();
+  const page = document.querySelector("#mobileDailyCashPage");
+  if (!page) return;
+  page.hidden = false;
+  requestAnimationFrame(() => page.classList.add("is-open"));
+}
+
+function mobileCloseDailyCashPage() {
+  const page = document.querySelector("#mobileDailyCashPage");
+  if (!page) return;
+  page.classList.remove("is-open");
+  setTimeout(() => { page.hidden = true; }, 180);
 }
 
 function mobileServiceCard(service) {
@@ -2757,6 +2774,14 @@ document.addEventListener("keydown", (event) => {
     const serviceId = mobileAction.dataset.serviceId;
     if (action === "open-new-service") {
       openMobileNewServiceWizard();
+      return;
+    }
+    if (action === "open-daily-cash") {
+      mobileOpenDailyCashPage();
+      return;
+    }
+    if (action === "close-daily-cash") {
+      mobileCloseDailyCashPage();
       return;
     }
     if (action === "today-date") {
