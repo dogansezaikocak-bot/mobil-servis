@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.3.8</title>
-  <link rel="stylesheet" href="./styles.css?v=v3-3-8-mobile-fis-bottom-sheet">
+  <title>Ekzen Servis Takip V3.3.10</title>
+  <link rel="stylesheet" href="./styles.css?v=v3-3-10-mobile-detail-single">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -173,13 +173,14 @@
 
     <div class="mobile-list-head">
       <h2 id="mobileListTitle">Bugünkü Servisler</h2>
-      <button class="mobile-date-button" type="button" data-mobile-filter="remaining"><span id="mobileListDate">--.--.----</span> 📅</button>
+      <button id="mobileDateButton" class="mobile-date-button" type="button"><span id="mobileListDate">--.--.----</span> 📅</button>
+      <input id="mobileDatePicker" class="mobile-date-picker" type="date" aria-label="Mobil servis tarihi">
     </div>
 
     <main id="mobileServiceList" class="mobile-service-list"></main>
 
     <button class="mobile-new-service-bar" type="button" data-action="open-service-modal">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.3.8</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V3.3.10</div>
 
     <div id="mobileDetailSheet" class="mobile-detail-sheet" hidden>
       <div class="mobile-sheet-backdrop" data-mobile-action="close-detail"></div>

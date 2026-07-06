@@ -4839,3 +4839,11 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
     border: 1px solid #e2e8f0 !important;
   }
 }
+
+.mobile-date-picker {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

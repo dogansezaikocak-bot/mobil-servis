@@ -375,7 +375,11 @@ function bindEvents() {
       switchView(view);
     }
     if (jump) switchView(jump);
-    if (serviceRow && !event.target.closest("button, a") && !event.target.matches("input")) openDetail(serviceRow.dataset.serviceId);
+
+    // Mobil teknisyen ekranında servis kartına basınca sadece alttan açılan
+    // mobil detay paneli açılsın. Masaüstü detay penceresi ayrıca açılmasın.
+    const isMobileTechClick = Boolean(event.target.closest("#mobileTechApp"));
+    if (!isMobileTechClick && serviceRow && !event.target.closest("button, a") && !event.target.matches("input")) openDetail(serviceRow.dataset.serviceId);
     if (action === "toggle-source-menu") toggleTopSourceMenu();
     if (action === "quick-source-filter") applyTopSourceFilter(button.dataset.source);
     if (action === "clear-top-source-filter") applyTopSourceFilter("");
@@ -2224,6 +2228,7 @@ function fileToDataUrl(file) {
 /* V3.3 - Mobile-first teknisyen paneli */
 let mobileTechFilter = "remaining";
 let mobileActiveServiceId = "";
+let mobileSelectedDate = isoToday;
 
 function isMobileTechViewport() {
   return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
@@ -2238,7 +2243,7 @@ function mobileStatusBucket(status) {
 }
 
 function mobileFilteredServices() {
-  let services = sortServices(state.services || []);
+  let services = sortServices(state.services || []).filter((service) => serviceHasDate(service, mobileSelectedDate || isoToday));
   if (mobileTechFilter === "new") services = services.filter((service) => isStatus(service.status, "Yeni Kayıt"));
   if (mobileTechFilter === "done") services = services.filter((service) => isStatus(service.status, "İşlem Tamam"));
   if (mobileTechFilter === "remaining") services = services.filter((service) => !isStatus(service.status, "İşlem Tamam") && statusGroup(service.status) !== "danger");
@@ -2246,7 +2251,7 @@ function mobileFilteredServices() {
 }
 
 function mobileServiceCounts() {
-  const services = state.services || [];
+  const services = (state.services || []).filter((service) => serviceHasDate(service, mobileSelectedDate || isoToday));
   return {
     remaining: services.filter((service) => !isStatus(service.status, "İşlem Tamam") && statusGroup(service.status) !== "danger").length,
     new: services.filter((service) => isStatus(service.status, "Yeni Kayıt")).length,
@@ -2269,10 +2274,13 @@ function mobileRenderTechPanel() {
   const newCounter = document.querySelector("#mobileCountNew");
   if (newCounter) newCounter.textContent = counts.new;
   document.querySelector("#mobileCountDone").textContent = counts.done;
+  const activeMobileDate = mobileSelectedDate || isoToday;
   const dateEl = document.querySelector("#mobileListDate");
-  if (dateEl) dateEl.textContent = formatServiceCardDate(isoToday);
+  if (dateEl) dateEl.textContent = formatServiceCardDate(activeMobileDate);
+  const pickerEl = document.querySelector("#mobileDatePicker");
+  if (pickerEl && pickerEl.value !== activeMobileDate) pickerEl.value = activeMobileDate;
   const titleEl = document.querySelector("#mobileListTitle");
-  if (titleEl) titleEl.textContent = mobileTechFilter === "done" ? "Biten Servisler" : "Bugünkü Servisler";
+  if (titleEl) titleEl.textContent = activeMobileDate === isoToday ? (mobileTechFilter === "done" ? "Bugünkü Biten Servisler" : "Bugünkü Servisler") : (mobileTechFilter === "done" ? "Seçili Tarihte Bitenler" : "Seçili Tarihte Servisler");
   document.querySelectorAll("[data-mobile-filter]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mobileFilter === mobileTechFilter);
   });
@@ -2427,14 +2435,52 @@ function mobileFinishService(serviceId) {
 function mobileDelayService(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
-  const nextDate = prompt("Yeni servis tarihini yaz (YYYY-AA-GG):", service.availableDate || isoToday);
-  if (!nextDate) return;
-  service.availableDate = nextDate;
-  service.visitDate = nextDate;
-  mobileSaveWorkNote(serviceId);
-  saveState();
-  render();
-  mobileCloseDetail();
+
+  // Mobilde eski tarayıcı prompt kutusu yerine cihazın kendi takvim seçicisini açar.
+  const input = document.createElement("input");
+  input.type = "date";
+  input.value = service.availableDate || service.visitDate || isoToday;
+  input.min = "2000-01-01";
+  input.max = "2100-12-31";
+  input.setAttribute("aria-label", "Yeni servis tarihi");
+  Object.assign(input.style, {
+    position: "fixed",
+    left: "50%",
+    bottom: "24px",
+    width: "1px",
+    height: "1px",
+    opacity: "0.01",
+    zIndex: "999999",
+    pointerEvents: "none"
+  });
+
+  let handled = false;
+  const cleanup = () => {
+    setTimeout(() => input.remove(), 250);
+  };
+  const applyDate = () => {
+    if (handled || !input.value) return;
+    handled = true;
+    const nextDate = input.value;
+    service.availableDate = nextDate;
+    service.visitDate = nextDate;
+    mobileSaveWorkNote(serviceId);
+    saveState();
+    render();
+    mobileCloseDetail();
+    cleanup();
+  };
+
+  input.addEventListener("change", applyDate, { once: true });
+  input.addEventListener("blur", cleanup, { once: true });
+  document.body.appendChild(input);
+
+  try {
+    if (typeof input.showPicker === "function") input.showPicker();
+    else input.click();
+  } catch (error) {
+    input.click();
+  }
 }
 
 (function setupMobileTechPanel(){
@@ -2445,6 +2491,13 @@ function mobileDelayService(serviceId) {
   };
 
   document.addEventListener("click", (event) => {
+    const dateButton = event.target.closest("#mobileDateButton");
+    if (dateButton) {
+      const picker = document.querySelector("#mobileDatePicker");
+      if (picker?.showPicker) picker.showPicker();
+      else picker?.click();
+      return;
+    }
     const filterButton = event.target.closest("[data-mobile-filter]");
     if (filterButton) {
       mobileTechFilter = filterButton.dataset.mobileFilter || "remaining";
@@ -2468,6 +2521,12 @@ function mobileDelayService(serviceId) {
   });
 
   document.addEventListener("change", (event) => {
+    const datePicker = event.target.closest("#mobileDatePicker");
+    if (datePicker) {
+      mobileSelectedDate = datePicker.value || isoToday;
+      mobileRenderTechPanel();
+      return;
+    }
     const select = event.target.closest("[data-mobile-status-service]");
     if (!select) return;
     const service = state.services.find((item) => item.id === select.dataset.mobileStatusService);
