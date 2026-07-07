@@ -1,5 +1,14 @@
-# Ekzen Servis Takip V3.5.6
+# Ekzen Servis Takip V3.5.7
 
-- Kasa hareketi ekranına açıklama alanı eklendi.
-- Kasa hareketleri listesinde açıklama görünür.
-- Mevcut V3.5.5 görünümü ve hesap mantığı korunmuştur.
+Bu sürüm V3.5.6 üzerine hazırlanmıştır.
+
+## Değişiklik
+
+- Ana sayfadaki **Kazanç** sayacının çalışma mantığı değiştirildi.
+- Ana sayfa Kazanç artık sadece servis fişlerinden hesaplanır:
+  - Müşteriden alınan toplam tutar
+  - Eksi komisyon
+  - Eksi malzeme gideri
+- Kasa sayfasından manuel girilen gelir ve giderler ana sayfadaki Kazanç sayacını etkilemez.
+- Tarih ve servis kaynağı filtreleri korunmuştur.
+- Kasa sayfasının kendi hesap mantığı değiştirilmemiştir.

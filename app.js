@@ -681,6 +681,8 @@ function renderSourceMetrics(services, cashItems, cashBalanceItems) {
     return;
   }
 
+  const serviceProfit = dashboardServiceProfit(cashItems);
+
   document.querySelector("#sourceMetrics").innerHTML = `
     <article class="metric-card finance-card income-card">
       <span>Toplam Hasılat</span>
@@ -696,7 +698,7 @@ function renderSourceMetrics(services, cashItems, cashBalanceItems) {
     </article>
     <article class="metric-card finance-card cash-status-card">
       <span>Kazanç</span>
-      <b>${money(totals.income - totals.commission - totals.material - totals.manualExpense)}</b>
+      <b>${money(serviceProfit)}</b>
     </article>
   `;
 }
@@ -1219,6 +1221,15 @@ function cashBreakdown(items = state.cash) {
     totals.balance = totals.income - totals.manualExpense - totals.commission - totals.material;
     return totals;
   }, { income: 0, manualExpense: 0, commission: 0, material: 0, balance: 0 });
+}
+
+function serviceOnlyCashBreakdown(items = state.cash) {
+  return cashBreakdown((items || []).filter((item) => item.serviceId));
+}
+
+function dashboardServiceProfit(items = state.cash) {
+  const totals = serviceOnlyCashBreakdown(items);
+  return totals.income - totals.commission - totals.material;
 }
 
 function dashboardOwnerCashStatus(items = state.cash) {
