@@ -569,8 +569,8 @@ function fillSelect(select, options) {
 }
 
 function setDefaultDates() {
-  cashStartDate.value = "";
-  cashEndDate.value = "";
+  cashStartDate.value = isoToday;
+  cashEndDate.value = isoToday;
   if (dashboardStartDate && !dashboardStartDate.value) dashboardStartDate.value = isoToday;
   if (dashboardEndDate && !dashboardEndDate.value) dashboardEndDate.value = isoToday;
 }
@@ -675,7 +675,7 @@ function renderSourceMetrics(services, cashItems, cashBalanceItems) {
       </article>
       <article class="metric-card finance-card cash-status-card">
         <span>Kalan Ödeme</span>
-        <b>${money(totals.commission - totals.manualExpense)}</b>
+        <b>${money(totals.balance)}</b>
       </article>
     `;
     return;
@@ -1025,7 +1025,7 @@ function renderCashSummary(items, totals, breakdown) {
     expense: `-${money(breakdown.manualExpense)}`,
     commission: `-${money(breakdown.commission)}`,
     material: `-${money(breakdown.material)}`,
-    balance: money(cashRemainingBalance(items)),
+    balance: money(breakdown.balance),
   };
   document.querySelector("#cashSummary").innerHTML = cashCounterList().map((counter) => `
     <article>
@@ -1125,9 +1125,10 @@ function cashRow(item) {
   const source = cashItemSource(item);
   const badge = item.autoMaterialExpense ? "Malzeme" : item.autoCommissionExpense ? "Komisyon" : item.autoServiceIncome ? "Otomatik" : item.parentCashId ? "Bağlı" : "";
   const title = visibleCashTitle(item);
+  const description = (item.description || "").trim();
   return `
     <div class="data-row cash-row ${item.type === "expense" ? "is-expense" : ""}">
-      <strong class="cash-row-title">${escapeHtml(title)}${badge ? `<small>${badge}</small>` : ""}</strong>
+      <strong class="cash-row-title">${escapeHtml(title)}${badge ? `<small>${badge}</small>` : ""}${description ? `<em>${escapeHtml(description)}</em>` : ""}</strong>
       <span>${formatDate(item.date)}</span>
       <span>${item.type === "expense" ? "Gider" : "Tahsilat"}${item.serviceId ? ` · ${escapeHtml(item.serviceId)}` : ""}</span>
       <span>${escapeHtml(source || "-")}</span>
@@ -1657,6 +1658,7 @@ function saveCash(formData) {
     type: cashType,
     title: (data.title || "").trim() || (cashType === "income" ? "Tahsilat" : "Gider"),
     amount: Number(data.amount) || 0,
+    description: (data.description || "").trim(),
     materialCost,
     otherExpense,
     commission50: commissionRate > 0,

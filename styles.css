@@ -568,6 +568,16 @@ textarea {
   line-height: 1;
 }
 
+.cash-row-title em {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .cash-row.is-expense > strong {
   color: var(--red);
 }
@@ -840,6 +850,15 @@ label {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.cash-form-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.cash-description-label textarea {
+  min-height: 84px;
+  resize: vertical;
 }
 
 fieldset {
