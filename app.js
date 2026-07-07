@@ -664,18 +664,23 @@ function renderSourceMetrics(services, cashItems, cashBalanceItems) {
   const isSourceFiltered = Boolean(activeDashboardSource);
 
   if (isSourceFiltered) {
+    const sourceTotals = serviceSourceCounterBreakdown(cashItems);
     document.querySelector("#sourceMetrics").innerHTML = `
       <article class="metric-card finance-card income-card">
         <span>Toplam Kazanç</span>
-        <b>${money(totals.commission)}</b>
+        <b>${money(sourceTotals.customerMoney)}</b>
       </article>
-      <article class="metric-card finance-card expense-card">
-        <span>Yapılan Ödeme</span>
-        <b>${money(totals.manualExpense)}</b>
+      <article class="metric-card finance-card material-card">
+        <span>Toplam Malzeme</span>
+        <b>${money(sourceTotals.material)}</b>
+      </article>
+      <article class="metric-card finance-card commission-card">
+        <span>Hakediş</span>
+        <b>${money(sourceTotals.hakedis)}</b>
       </article>
       <article class="metric-card finance-card cash-status-card">
         <span>Kalan Ödeme</span>
-        <b>${money(totals.balance)}</b>
+        <b>${money(sourceTotals.remainingPayment)}</b>
       </article>
     `;
     return;
@@ -719,7 +724,8 @@ function renderDailyCashSummary(cashItems) {
   if (!days.size && start === end) days.set(start, []);
   const rows = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([date, items]) => {
     const totals = cashBreakdown(items);
-    const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
+    const serviceTotals = serviceOnlyCashBreakdown(items);
+    const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material;
     return `
       <article class="daily-cash-card">
         <div class="daily-cash-date">
@@ -1022,6 +1028,18 @@ function renderCash() {
 }
 
 function renderCashSummary(items, totals, breakdown) {
+  const selectedSource = isSourcePortal() ? portalSourceName() : cashSourceFilter.value;
+  if (selectedSource) {
+    const sourceTotals = serviceSourceCounterBreakdown(items);
+    document.querySelector("#cashSummary").innerHTML = `
+      <article><span>Toplam Kazanç</span><b>${money(sourceTotals.customerMoney)}</b></article>
+      <article><span>Toplam Malzeme</span><b class="cash-negative">-${money(sourceTotals.material)}</b></article>
+      <article><span>Hakediş</span><b>${money(sourceTotals.hakedis)}</b></article>
+      <article><span>Kalan Ödeme</span><b>${money(sourceTotals.remainingPayment)}</b></article>
+    `;
+    return;
+  }
+
   const values = {
     income: money(totals.income),
     expense: `-${money(breakdown.manualExpense)}`,
@@ -1223,8 +1241,61 @@ function cashBreakdown(items = state.cash) {
   }, { income: 0, manualExpense: 0, commission: 0, material: 0, balance: 0 });
 }
 
+function isServicePrimaryIncome(item) {
+  return Boolean(item?.serviceId)
+    && item.type === "income"
+    && !item.parentCashId
+    && !item.autoMaterialExpense
+    && !item.autoCommissionExpense
+    && !item.autoOtherExpense;
+}
+
+function isServiceSettlementExpense(item) {
+  return Boolean(item?.serviceId) && (item.autoMaterialExpense || item.autoCommissionExpense);
+}
+
 function serviceOnlyCashBreakdown(items = state.cash) {
-  return cashBreakdown((items || []).filter((item) => item.serviceId));
+  return cashBreakdown((items || []).filter((item) => isServicePrimaryIncome(item) || isServiceSettlementExpense(item)));
+}
+
+function serviceSourceCounterBreakdown(items = state.cash) {
+  const postedItems = postedCashItems(items || []);
+  const primaryIncomeItems = postedItems.filter(isServicePrimaryIncome);
+  const customerMoney = primaryIncomeItems
+    .reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const material = postedItems
+    .filter((item) => Boolean(item?.serviceId) && item.autoMaterialExpense)
+    .reduce((total, item) => total + (Number(item.amount) || 0), 0);
+
+  // Servis kaynaklarında fişte seçilen yüzde bize kalan orandır.
+  // Hakediş sayacı ise servis kaynağına ödenecek payı gösterir:
+  // (müşteriden alınan - malzeme - diğer gider) x (100 - seçilen oran).
+  // Bu hesap sadece servis kaynakları için geçerlidir; Kendi İşim genel mantığı korunur.
+  const hakedis = primaryIncomeItems.reduce((total, item) => total + sourcePayAmountForCashItem(item), 0);
+
+  const manualExpense = postedItems
+    .filter((item) => item.type === "expense" && !item.serviceId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense)
+    .reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  return {
+    customerMoney,
+    material,
+    hakedis,
+    manualExpense,
+    remainingPayment: hakedis - manualExpense,
+  };
+}
+
+function sourcePayAmountForCashItem(item) {
+  if (!item || !isServicePrimaryIncome(item)) return 0;
+  const receivedAmount = Number(item.amount) || 0;
+  const materialCost = Number(item.materialCost) || 0;
+  const otherExpense = Number(item.otherExpense) || 0;
+  const base = Math.max(receivedAmount - materialCost - otherExpense, 0);
+  const rate = Number(item.commissionRate !== undefined ? item.commissionRate : (item.commission50 ? 50 : 0)) || 0;
+  if (isOwnWorkSource(cashItemSource(item))) {
+    return base * rate / 100;
+  }
+  return base * Math.max(100 - rate, 0) / 100;
 }
 
 function dashboardServiceProfit(items = state.cash) {
@@ -2062,7 +2133,9 @@ function syncSettlementCash(cashItem) {
       date: cashItem.date,
       type: "expense",
       title: "",
-      amount: commissionBase * commissionRate / 100,
+      amount: isOwnWorkSource(cashItemSource(cashItem))
+        ? commissionBase * commissionRate / 100
+        : commissionBase * Math.max(100 - commissionRate, 0) / 100,
       materialCost: 0,
       commission50: false,
       commissionRate: 0,
@@ -2457,7 +2530,8 @@ function mobileRenderDailyCash() {
   const date = mobileSelectedDate || isoToday;
   const items = (state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (item.date || "") === date);
   const totals = cashBreakdown(items);
-  const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
+  const serviceTotals = serviceOnlyCashBreakdown(items);
+  const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material;
   const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
   setText("#mobileDailyPageIncome", money(totals.income));
   setText("#mobileDailyPageCommission", money(totals.commission));
@@ -2902,7 +2976,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V3.5.3";
+  const VERSION = "V3.5.8";
   let mode = "services";
 
   function selectedDate() {
@@ -3040,7 +3114,8 @@ document.addEventListener("keydown", (event) => {
       return cashIsPosted(item) && matchesPortalSource(itemSource) && (!source || itemSource === source) && itemDate === date;
     });
     const totals = cashBreakdown(items);
-    const profit = totals.income - totals.commission - totals.material - totals.manualExpense;
+    const serviceTotals = serviceOnlyCashBreakdown(items);
+    const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material;
     const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
     setText("#mobileDailyPageIncome", money(totals.income));
     setText("#mobileDailyPageCommission", money(totals.commission));

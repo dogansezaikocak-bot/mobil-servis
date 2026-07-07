@@ -1,14 +1,7 @@
-# Ekzen Servis Takip V3.5.7
+# Ekzen Servis Takip V3.6.0
 
-Bu sürüm V3.5.6 üzerine hazırlanmıştır.
-
-## Değişiklik
-
-- Ana sayfadaki **Kazanç** sayacının çalışma mantığı değiştirildi.
-- Ana sayfa Kazanç artık sadece servis fişlerinden hesaplanır:
-  - Müşteriden alınan toplam tutar
-  - Eksi komisyon
-  - Eksi malzeme gideri
-- Kasa sayfasından manuel girilen gelir ve giderler ana sayfadaki Kazanç sayacını etkilemez.
-- Tarih ve servis kaynağı filtreleri korunmuştur.
-- Kasa sayfasının kendi hesap mantığı değiştirilmemiştir.
+- Hakediş ters mantık düzeltildi.
+- Servis kaynaklarında fişte seçilen yüzde kullanıcıya kalan paydır.
+- Hakediş sayacı servis kaynağına ödenecek payı gösterir.
+- Malzeme düştükten sonra yüzde hesabı yapılır.
+- Bu kural yalnızca servis kaynakları için uygulanır.
