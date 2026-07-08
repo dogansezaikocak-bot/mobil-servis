@@ -816,8 +816,18 @@ function dashboardCounterClass(label) {
   return "stat-neutral";
 }
 
+function dashboardCounterBaseServices(label, services) {
+  // V3.6.1: Yarın ve Açık Fişler sayaçları ana sayfa tarih aralığına takılmasın.
+  // Yarın her zaman bugünden yarının açık fişlerini, Açık Fişler ise tüm açık fişleri sayar.
+  if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler")) {
+    return (state.services || []).filter((service) => matchesPortalSource(service.source)
+      && (!activeDashboardSource || service.source === activeDashboardSource));
+  }
+  return services || [];
+}
+
 function dashboardCounterCount(label, services) {
-  return services.filter((service) => matchesDashboardCounter(service, label)).length;
+  return dashboardCounterBaseServices(label, services).filter((service) => matchesDashboardCounter(service, label)).length;
 }
 
 function renderServices() {

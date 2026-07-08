@@ -1,7 +1,5 @@
-# Ekzen Servis Takip V3.6.0
+# Ekzen Servis Takip V3.6.1
 
-- Hakediş ters mantık düzeltildi.
-- Servis kaynaklarında fişte seçilen yüzde kullanıcıya kalan paydır.
-- Hakediş sayacı servis kaynağına ödenecek payı gösterir.
-- Malzeme düştükten sonra yüzde hesabı yapılır.
-- Bu kural yalnızca servis kaynakları için uygulanır.
+- Yarın sayacı bugünden yarının açık fişlerini gösterir.
+- Açık Fişler sayacı tarih filtresine takılmaz; tüm açık fişleri gösterir.
+- V3.6.0 görünüm ve hakediş mantığı korunmuştur.
