@@ -1241,6 +1241,7 @@ function dateInRange(date, start, end) {
 
 function cashBreakdown(items = state.cash) {
   return postedCashItems(items).reduce((totals, item) => {
+    if (!affectsRealCash(item)) return totals;
     const amount = Number(item.amount) || 0;
     if (item.type === "income") totals.income += amount;
     else if (item.autoCommissionExpense) totals.commission += amount;
@@ -1264,6 +1265,26 @@ function isServiceSettlementExpense(item) {
   return Boolean(item?.serviceId) && (item.autoMaterialExpense || item.autoCommissionExpense);
 }
 
+function cashItemCollectedBy(item) {
+  return item?.collectedBy === "source" ? "source" : "me";
+}
+
+function isSourceCollectedPrimaryIncome(item) {
+  return isServicePrimaryIncome(item) && cashItemCollectedBy(item) === "source";
+}
+
+function parentCashItem(item) {
+  if (!item?.parentCashId) return null;
+  return (state.cash || []).find((candidate) => candidate.id === item.parentCashId) || null;
+}
+
+function affectsRealCash(item) {
+  if (isSourceCollectedPrimaryIncome(item)) return false;
+  const parent = parentCashItem(item);
+  if (parent && isSourceCollectedPrimaryIncome(parent)) return false;
+  return true;
+}
+
 function serviceOnlyCashBreakdown(items = state.cash) {
   return cashBreakdown((items || []).filter((item) => isServicePrimaryIncome(item) || isServiceSettlementExpense(item)));
 }
@@ -1278,20 +1299,30 @@ function serviceSourceCounterBreakdown(items = state.cash) {
     .reduce((total, item) => total + (Number(item.amount) || 0), 0);
 
   // Servis kaynaklarında fişte seçilen yüzde bize kalan orandır.
-  // Hakediş sayacı ise servis kaynağına ödenecek payı gösterir:
-  // (müşteriden alınan - malzeme - diğer gider) x (100 - seçilen oran).
-  // Bu hesap sadece servis kaynakları için geçerlidir; Kendi İşim genel mantığı korunur.
-  const hakedis = primaryIncomeItems.reduce((total, item) => total + sourcePayAmountForCashItem(item), 0);
+  // Hakediş toplamı tahsilat yapan kişiden bağımsızdır; sayaçta her zaman toplam kaynak payı görünür.
+  // Tahsilat yapan kişi sadece Kalan Ödeme yönünü belirler:
+  // - Ben aldıysam kaynak payı Kalan Ödeme'yi artırır.
+  // - Servis kaynağı aldıysa benim hakedişim Kalan Ödeme'den düşer; gerekirse bakiye eksiye iner.
+  const hakedis = primaryIncomeItems
+    .reduce((total, item) => total + sourcePayAmountForCashItem(item), 0);
+  const sourceCollectedReceivable = primaryIncomeItems
+    .filter((item) => cashItemCollectedBy(item) === "source")
+    .reduce((total, item) => total + ownerPayAmountForCashItem(item), 0);
 
   const manualExpense = postedItems
     .filter((item) => item.type === "expense" && !item.serviceId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense)
+    .reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const manualIncome = postedItems
+    .filter((item) => item.type === "income" && !item.serviceId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense)
     .reduce((total, item) => total + (Number(item.amount) || 0), 0);
   return {
     customerMoney,
     material,
     hakedis,
+    sourceCollectedReceivable,
     manualExpense,
-    remainingPayment: hakedis - manualExpense,
+    manualIncome,
+    remainingPayment: hakedis - manualExpense - sourceCollectedReceivable + manualIncome,
   };
 }
 
@@ -1306,6 +1337,19 @@ function sourcePayAmountForCashItem(item) {
     return base * rate / 100;
   }
   return base * Math.max(100 - rate, 0) / 100;
+}
+
+function ownerPayAmountForCashItem(item) {
+  if (!item || !isServicePrimaryIncome(item)) return 0;
+  const receivedAmount = Number(item.amount) || 0;
+  const materialCost = Number(item.materialCost) || 0;
+  const otherExpense = Number(item.otherExpense) || 0;
+  const base = Math.max(receivedAmount - materialCost - otherExpense, 0);
+  const rate = Number(item.commissionRate !== undefined ? item.commissionRate : (item.commission50 ? 50 : 0)) || 0;
+  if (isOwnWorkSource(cashItemSource(item))) {
+    return base * Math.max(100 - rate, 0) / 100;
+  }
+  return base * rate / 100;
 }
 
 function dashboardServiceProfit(items = state.cash) {
@@ -1637,6 +1681,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.materialCost.value = "";
   if (completeForm.elements.otherExpense) completeForm.elements.otherExpense.value = "";
   completeForm.elements.commissionRate.value = "50";
+  if (completeForm.elements.collectedBy) completeForm.elements.collectedBy.value = "me";
   completeForm.elements.source.value = service.source || "";
   completeForm.elements.workNote.value = "";
   completeDialog.showModal();
@@ -1676,6 +1721,7 @@ function completeServiceFromForm(formData) {
     otherExpense,
     commission50: commissionRate > 0,
     commissionRate,
+    collectedBy: data.collectedBy === "source" ? "source" : "me",
     source: data.source || service.source || "",
     serviceId: service.id,
   };
@@ -2170,10 +2216,11 @@ function syncServiceCash(service) {
     existing.amount = service.price;
     existing.source = service.source || "";
     existing.autoServiceIncome = true;
+    existing.collectedBy = existing.collectedBy || "me";
     return;
   }
   if (shouldHaveIncome && !existing) {
-    state.cash.unshift({ id: uid(), serviceId: service.id, source: service.source || "", autoServiceIncome: true, date: toIsoDate(new Date()), type: "income", title: `Servis tahsilatı ${service.id}`, amount: service.price });
+    state.cash.unshift({ id: uid(), serviceId: service.id, source: service.source || "", autoServiceIncome: true, collectedBy: "me", date: toIsoDate(new Date()), type: "income", title: `Servis tahsilatı ${service.id}`, amount: service.price });
   }
 }
 
@@ -3233,6 +3280,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.materialCost.value = existingCash ? String(Number(existingCash.materialCost) || 0) : "";
   if (completeForm.elements.otherExpense) completeForm.elements.otherExpense.value = existingCash ? String(Number(existingCash.otherExpense) || 0) : "";
   completeForm.elements.commissionRate.value = existingCash ? String(Number(existingCash.commissionRate) || 0) : "50";
+  if (completeForm.elements.collectedBy) completeForm.elements.collectedBy.value = existingCash?.collectedBy === "source" ? "source" : "me";
   completeForm.elements.source.value = existingCash?.source || service.source || "";
   completeForm.elements.workNote.value = existingNote?.text || "";
   completeDialog.showModal();
@@ -3274,6 +3322,7 @@ function completeServiceFromForm(formData) {
     otherExpense,
     commission50: commissionRate > 0,
     commissionRate,
+    collectedBy: data.collectedBy === "source" ? "source" : "me",
     source: data.source || service.source || "",
     serviceId: service.id,
   };

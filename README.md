@@ -1,5 +1,13 @@
-# Ekzen Servis Takip V3.6.1
+# Ekzen Servis Takip V3.6.3 - Tahsilat Yapan Hakediş Fix
 
-- Yarın sayacı bugünden yarının açık fişlerini gösterir.
-- Açık Fişler sayacı tarih filtresine takılmaz; tüm açık fişleri gösterir.
-- V3.6.0 görünüm ve hakediş mantığı korunmuştur.
+Bu sürüm V3.6.2 üzerine düzeltmedir.
+
+## Düzeltme
+- "Tahsilat Yapan: Servis Kaynağı Aldı" seçildiğinde Hakediş sayacı artık düşmez.
+- Hakediş sayacı, tahsilatı kimin aldığından bağımsız olarak toplam hakedişi gösterir.
+- Tahsilat yapan seçimi sadece Kalan Ödeme hesabını etkiler.
+
+## Mantık
+- Ben Aldım: Kalan Ödeme artar.
+- Servis Kaynağı Aldı: Kalan Ödeme düşer.
+- Kalan Ödeme eksiye düşerse servis kaynağı sana borçlu demektir.

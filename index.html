@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.5.9</title>
-  <link rel="stylesheet" href="./styles.css?v=v3-5-9">
+  <title>Ekzen Servis Takip V3.6.2</title>
+  <link rel="stylesheet" href="./styles.css?v=v3-6-2">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -233,7 +233,7 @@
     <main id="mobileServiceList" class="mobile-service-list"></main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.5.9</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V3.6.2</div>
 
 
 
@@ -367,6 +367,12 @@
             </select>
           </label>
           <label>Tahsil Edilen Tutar<input name="amount" type="number" min="0" step="0.01" required placeholder="0"></label>
+          <label>Tahsilat Yapan
+            <select name="collectedBy">
+              <option value="me">Ben Aldım</option>
+              <option value="source">Servis Kaynağı Aldı</option>
+            </select>
+          </label>
           <label>Malzeme Gideri<input name="materialCost" type="number" min="0" step="0.01" placeholder="0"></label>
           <label>Diğer Gider<input name="otherExpense" type="number" min="0" step="0.01" placeholder="0"></label>
           <label>Komisyon
@@ -478,6 +484,6 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=v3-6-1"></script>
+  <script src="./app.js?v=v3-6-2"></script>
 </body>
 </html>
