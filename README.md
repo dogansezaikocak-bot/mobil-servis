@@ -1,13 +1,15 @@
-# Ekzen Servis Takip V3.6.3 - Tahsilat Yapan Hakediş Fix
+# Ekzen Servis Takip V3.6.4
 
-Bu sürüm V3.6.2 üzerine düzeltmedir.
+Bu sürümde mobil görünümde fiş kapatma işlemi soru-soru ilerleyen sihirbaz haline getirildi.
 
-## Düzeltme
-- "Tahsilat Yapan: Servis Kaynağı Aldı" seçildiğinde Hakediş sayacı artık düşmez.
-- Hakediş sayacı, tahsilatı kimin aldığından bağımsız olarak toplam hakedişi gösterir.
-- Tahsilat yapan seçimi sadece Kalan Ödeme hesabını etkiler.
+## Mobil Fiş Kapatma Akışı
+1. Yapılan İşlem
+2. Tahsil Edilen Tutar
+3. Tahsilatı Kim Aldı?
+4. Malzeme Gideri
+5. Diğer Gider
+6. Komisyon Oranı
+7. Kapanış Tipi
+8. Servis Kaynağı
 
-## Mantık
-- Ben Aldım: Kalan Ödeme artar.
-- Servis Kaynağı Aldı: Kalan Ödeme düşer.
-- Kalan Ödeme eksiye düşerse servis kaynağı sana borçlu demektir.
+Önceki V3.6.3 mantığı korunur: Hakediş değişmez, sadece Kalan Ödeme tahsilat yapan kişiye göre artar veya düşer.

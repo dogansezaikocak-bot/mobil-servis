@@ -3372,3 +3372,147 @@ document.addEventListener("click", function(event) {
     openCompleteForm(serviceId);
   }
 });
+
+/* V3.6.4 - Mobil fiş kapatma sihirbazı: fişi kapatma alanları sırayla sorulur */
+let mobileCloseServiceData = {};
+let mobileCloseServiceIndex = 0;
+const mobileCloseServiceSteps = [
+  { key: "workNote", label: "Yapılan İşlem", type: "textarea", placeholder: "Örn: Pompa temizlendi, test edildi.", required: true },
+  { key: "amount", label: "Tahsil Edilen Tutar", type: "number", placeholder: "0", required: true },
+  { key: "collectedBy", label: "Tahsilatı Kim Aldı?", type: "select", required: true, options: [{ value: "me", text: "Ben Aldım" }, { value: "source", text: "Servis Kaynağı Aldı" }] },
+  { key: "materialCost", label: "Malzeme Gideri", type: "number", placeholder: "0", required: false },
+  { key: "otherExpense", label: "Diğer Gider", type: "number", placeholder: "0", required: false },
+  { key: "commissionRate", label: "Komisyon Oranı", type: "select", required: true, options: [{ value: "70", text: "%70" }, { value: "60", text: "%60" }, { value: "50", text: "%50" }, { value: "40", text: "%40" }, { value: "30", text: "%30" }, { value: "20", text: "%20" }, { value: "10", text: "%10" }, { value: "0", text: "Komisyon Yok" }] },
+  { key: "paymentMode", label: "Kapanış Tipi", type: "select", required: true, options: [{ value: "Tahsilat Yapıldı", text: "Tahsilat Yapıldı" }, { value: "Havale Bekleniyor", text: "Havale Bekleniyor" }, { value: "Sonra Tahsil Edilecek", text: "Sonra Tahsil Edilecek" }, { value: "Ücretsiz İşlem", text: "Ücretsiz İşlem" }, { value: "Garanti Kapsamında", text: "Garanti Kapsamında" }] },
+  { key: "source", label: "Servis Kaynağı", type: "source", required: false }
+];
+
+function mobileCloseExistingData(service) {
+  const existingCash = primaryCashForService(service.id);
+  const noteFromDetail = document.querySelector(`[data-mobile-work-note="${CSS.escape(service.id)}"]`)?.value?.trim();
+  const existingNote = serviceCloseNote(service)?.text || "";
+  return {
+    serviceId: service.id,
+    workNote: noteFromDetail || existingNote || "",
+    amount: existingCash ? String(Number(existingCash.amount) || 0) : (service.price && Number(service.price) > 0 ? String(service.price) : ""),
+    collectedBy: existingCash?.collectedBy === "source" ? "source" : "me",
+    materialCost: existingCash ? String(Number(existingCash.materialCost) || 0) : "",
+    otherExpense: existingCash ? String(Number(existingCash.otherExpense) || 0) : "",
+    commissionRate: existingCash ? String(Number(existingCash.commissionRate) || 0) : "50",
+    paymentMode: existingCash?.title || "Tahsilat Yapıldı",
+    source: existingCash?.source || service.source || "Kendi İşim"
+  };
+}
+
+function openMobileCloseServiceWizard(serviceId) {
+  const service = state.services.find((item) => item.id === serviceId);
+  if (!service) return;
+  mobileCloseServiceData = mobileCloseExistingData(service);
+  mobileCloseServiceIndex = 0;
+  let overlay = document.querySelector("#mobileCloseServiceWizard");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "mobileCloseServiceWizard";
+    overlay.className = "mobile-wizard mobile-close-service-wizard";
+    document.body.appendChild(overlay);
+  }
+  overlay.removeAttribute("hidden");
+  renderMobileCloseServiceStep();
+}
+
+function closeMobileCloseServiceWizard() {
+  document.querySelector("#mobileCloseServiceWizard")?.setAttribute("hidden", "");
+}
+
+function mobileCloseStepOptions(step) {
+  if (step.type === "source") {
+    const sources = ["Kendi İşim", ...settingsList("sources")].filter(Boolean);
+    return [...new Set(sources)].map((item) => ({ value: item, text: item }));
+  }
+  return step.options || [];
+}
+
+function renderMobileCloseServiceStep() {
+  const overlay = document.querySelector("#mobileCloseServiceWizard");
+  if (!overlay) return;
+  const step = mobileCloseServiceSteps[mobileCloseServiceIndex];
+  const progress = `${mobileCloseServiceIndex + 1}/${mobileCloseServiceSteps.length}`;
+  const value = mobileCloseServiceData[step.key] ?? "";
+  let field = "";
+  if (step.type === "textarea") {
+    field = `<textarea id="mobileCloseWizardField" rows="6" placeholder="${escapeAttr(step.placeholder || "")}" ${step.required ? "required" : ""}>${escapeHtml(value)}</textarea>`;
+  } else if (step.type === "select" || step.type === "source") {
+    field = `<select id="mobileCloseWizardField" ${step.required ? "required" : ""}>${mobileCloseStepOptions(step).map((opt) => `<option value="${escapeAttr(opt.value)}" ${String(opt.value) === String(value) ? "selected" : ""}>${escapeHtml(opt.text)}</option>`).join("")}</select>`;
+  } else {
+    const numberAttrs = step.type === "number" ? ` inputmode="decimal" min="0" step="0.01"` : "";
+    field = `<input id="mobileCloseWizardField" type="${escapeAttr(step.type || "text")}"${numberAttrs} value="${escapeAttr(value)}" placeholder="${escapeAttr(step.placeholder || "")}" ${step.required ? "required" : ""}>`;
+  }
+  overlay.innerHTML = `
+    <div class="mobile-wizard-backdrop" data-mobile-close-wizard="close"></div>
+    <section class="mobile-wizard-card" role="dialog" aria-modal="true" aria-label="Fişi kapat">
+      <header>
+        <div><small>Fişi Kapat · ${progress}</small><h2>${escapeHtml(step.label)}</h2></div>
+        <button type="button" data-mobile-close-wizard="close">×</button>
+      </header>
+      <div class="mobile-wizard-body">
+        <label><span>${escapeHtml(step.label)}</span>${field}</label>
+        <p class="mobile-close-wizard-hint">${mobileCloseServiceIndex === 0 ? "Bu alan zorunlu. Müşteriye yapılan işi kısa ve net yaz." : "İleri diyerek sıradaki bilgiyi gir."}</p>
+      </div>
+      <footer>
+        <button type="button" class="secondary" data-mobile-close-wizard="back" ${mobileCloseServiceIndex === 0 ? "disabled" : ""}>Geri</button>
+        <button type="button" class="primary" data-mobile-close-wizard="next">${mobileCloseServiceIndex === mobileCloseServiceSteps.length - 1 ? "Fişi Kapat" : "İleri"}</button>
+      </footer>
+    </section>`;
+  setTimeout(() => document.querySelector("#mobileCloseWizardField")?.focus({ preventScroll: true }), 60);
+}
+
+function saveMobileCloseCurrentStep() {
+  const step = mobileCloseServiceSteps[mobileCloseServiceIndex];
+  const field = document.querySelector("#mobileCloseWizardField");
+  if (!step || !field) return false;
+  const value = String(field.value ?? "").trim();
+  if (step.required && value === "") {
+    alert(`${step.label} zorunlu.`);
+    field.focus({ preventScroll: true });
+    return false;
+  }
+  mobileCloseServiceData[step.key] = value;
+  return true;
+}
+
+function finishMobileCloseServiceWizard() {
+  const fd = new FormData();
+  ["serviceId", "paymentMode", "type", "amount", "collectedBy", "materialCost", "otherExpense", "commissionRate", "source", "workNote"].forEach((key) => {
+    fd.append(key, key === "type" ? "income" : (mobileCloseServiceData[key] ?? ""));
+  });
+  closeMobileCloseServiceWizard();
+  mobileCloseDetail();
+  completeServiceFromForm(fd);
+}
+
+document.addEventListener("click", function(event) {
+  const action = event.target.closest("[data-mobile-close-wizard]")?.dataset.mobileCloseWizard;
+  if (!action) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (action === "close") return closeMobileCloseServiceWizard();
+  if (action === "back") {
+    if (!saveMobileCloseCurrentStep()) return;
+    mobileCloseServiceIndex = Math.max(0, mobileCloseServiceIndex - 1);
+    renderMobileCloseServiceStep();
+    return;
+  }
+  if (action === "next") {
+    if (!saveMobileCloseCurrentStep()) return;
+    if (mobileCloseServiceIndex >= mobileCloseServiceSteps.length - 1) return finishMobileCloseServiceWizard();
+    mobileCloseServiceIndex += 1;
+    renderMobileCloseServiceStep();
+  }
+});
+
+// Mobilde fişi kapat butonu artık masaüstü formunu değil, soru-soru kapanış sihirbazını açar.
+mobileFinishService = function mobileFinishServiceV364(serviceId) {
+  const service = state.services.find((item) => item.id === serviceId);
+  if (!service) return;
+  openMobileCloseServiceWizard(serviceId);
+};
