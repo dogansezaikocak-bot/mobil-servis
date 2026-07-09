@@ -5685,3 +5685,661 @@ body { background: var(--ekzen-page) !important; color: var(--ekzen-text) !impor
     font-size: 12px !important;
   }
 }
+
+/* V3.6.5 - Google Ads tarzı tek pencereli ana sayfa tarih filtresi */
+.dashboard-single-date-filter {
+  margin-top: 0 !important;
+}
+.dashboard-single-date-filter input[type="hidden"] {
+  display: none !important;
+}
+.date-range-button {
+  min-width: 220px;
+  min-height: 54px;
+  border: 1px solid #d7e1ea;
+  background: #fff;
+  border-radius: 16px;
+  padding: 8px 14px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .06);
+}
+.date-range-button span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.date-range-button b {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 950;
+}
+.date-range-dialog {
+  width: min(920px, calc(100vw - 24px));
+  border: 0;
+  border-radius: 22px;
+  padding: 0;
+  box-shadow: 0 26px 80px rgba(15,23,42,.28);
+}
+.date-range-dialog::backdrop {
+  background: rgba(15, 23, 42, .35);
+}
+.date-range-shell {
+  background: #fff;
+  border-radius: 22px;
+  overflow: hidden;
+}
+.date-range-body {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  min-height: 360px;
+  border-top: 1px solid #e5edf5;
+  border-bottom: 1px solid #e5edf5;
+}
+.date-preset-list {
+  display: grid;
+  align-content: start;
+  border-right: 1px solid #e5edf5;
+  padding: 10px 0;
+  max-height: 430px;
+  overflow: auto;
+}
+.date-preset-list button {
+  border: 0;
+  background: transparent;
+  padding: 16px 22px;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 850;
+  color: #1f2937;
+  cursor: pointer;
+}
+.date-preset-list button:hover,
+.date-preset-list button.is-active {
+  background: #eef5ff;
+  color: #0f5bd8;
+}
+.date-custom-panel {
+  padding: 28px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+.date-custom-panel strong {
+  font-size: 24px;
+  color: #0f172a;
+}
+.date-custom-panel p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 700;
+}
+.date-custom-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.date-custom-inputs label {
+  display: grid;
+  gap: 7px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.date-custom-inputs input {
+  min-height: 52px;
+  border: 1px solid #d7e1ea;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #0f172a;
+}
+.date-range-preview {
+  margin-top: 10px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5edf5;
+  font-size: 20px;
+  font-weight: 950;
+  color: #0f172a;
+}
+@media (max-width: 760px) {
+  .date-range-body { grid-template-columns: 1fr; }
+  .date-preset-list { border-right: 0; border-bottom: 1px solid #e5edf5; max-height: 260px; }
+  .date-custom-inputs { grid-template-columns: 1fr; }
+  .date-range-button { width: 100%; }
+}
+
+
+/* V3.7.6 Fotoğraf büyütme / galeri */
+.photo-card img,
+.mobile-photo-strip img {
+  cursor: zoom-in;
+}
+
+body.photo-viewer-open {
+  overflow: hidden;
+}
+
+.photo-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  touch-action: none;
+}
+
+.photo-viewer.is-open {
+  display: flex;
+}
+
+.photo-viewer img {
+  max-width: 92vw;
+  max-height: 82vh;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  transition: transform 0.08s ease-out;
+  border-radius: 14px;
+}
+
+.photo-viewer img:active {
+  cursor: grabbing;
+}
+
+.photo-viewer-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 2;
+}
+
+.photo-viewer-toolbar strong {
+  display: block;
+  font-size: 15px;
+}
+
+.photo-viewer-toolbar span {
+  display: block;
+  opacity: 0.75;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.photo-viewer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.photo-viewer-actions button,
+.photo-viewer-nav {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+  border-radius: 12px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.photo-viewer-actions button:hover,
+.photo-viewer-nav:hover {
+  background: rgba(255, 255, 255, 0.23);
+}
+
+.photo-viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 72px;
+  font-size: 42px;
+  z-index: 2;
+}
+
+.photo-viewer-nav.prev { left: 14px; }
+.photo-viewer-nav.next { right: 14px; }
+.photo-viewer-nav:disabled { opacity: 0.35; cursor: default; }
+
+@media (max-width: 700px) {
+  .photo-viewer-toolbar {
+    align-items: flex-start;
+  }
+  .photo-viewer-actions button {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 10px;
+  }
+  .photo-viewer-nav {
+    bottom: 18px;
+    top: auto;
+    transform: none;
+    height: 54px;
+    width: 54px;
+  }
+  .photo-viewer img {
+    max-width: 96vw;
+    max-height: 76vh;
+  }
+}
+
+.accounting-card { max-width: 980px; }
+.accounting-check-content { display: grid; gap: 14px; }
+.accounting-status { border-radius: 18px; padding: 16px; display: grid; gap: 4px; border: 1px solid rgba(148, 163, 184, .35); }
+.accounting-status strong { font-size: 20px; }
+.accounting-ok { background: rgba(34, 197, 94, .12); border-color: rgba(34, 197, 94, .35); }
+.accounting-bad { background: rgba(239, 68, 68, .12); border-color: rgba(239, 68, 68, .35); }
+.accounting-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.accounting-grid article { border: 1px solid rgba(148, 163, 184, .25); border-radius: 16px; padding: 14px; background: rgba(15, 23, 42, .04); display: grid; gap: 6px; }
+.accounting-grid span { color: #64748b; font-size: 13px; }
+.accounting-grid b { font-size: 18px; }
+.accounting-section { border: 1px solid rgba(148, 163, 184, .25); border-radius: 18px; padding: 14px; display: grid; gap: 8px; }
+.accounting-section h3 { margin: 0 0 4px; }
+.accounting-help { margin: 0; color: #64748b; font-size: 13px; }
+.accounting-check-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr .8fr; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(15, 23, 42, .04); }
+.accounting-check-row b, .accounting-check-row strong { text-align: right; }
+.accounting-check-row.is-ok strong { color: #16a34a; }
+.accounting-check-row.is-bad { background: rgba(239, 68, 68, .10); }
+.accounting-check-row.is-bad strong { color: #dc2626; }
+.accounting-error-row { padding: 10px 12px; border-radius: 12px; background: rgba(239, 68, 68, .10); color: #991b1b; font-weight: 700; }
+@media (max-width: 760px) {
+  .accounting-grid { grid-template-columns: 1fr; }
+  .accounting-check-row { grid-template-columns: 1fr; }
+  .accounting-check-row b, .accounting-check-row strong { text-align: left; }
+}
+
+/* V3.8.0 - Ana sayfa sayaçları kasa sayfası gibi yatay ve sıkı görünüm */
+.dashboard-band {
+  grid-template-columns: minmax(220px, .58fr) minmax(760px, 2.42fr) !important;
+}
+.metric-grid {
+  grid-template-columns: repeat(5, minmax(104px, 1fr)) !important;
+  gap: 8px !important;
+}
+.metric-card.finance-card {
+  min-height: 86px !important;
+  padding: 11px 12px !important;
+  border-radius: 16px !important;
+}
+.metric-card.finance-card span {
+  font-size: clamp(12px, .95vw, 14px) !important;
+  line-height: 1.12 !important;
+  white-space: nowrap;
+}
+.metric-card.finance-card b {
+  margin-top: 8px !important;
+  font-size: clamp(17px, 1.35vw, 23px) !important;
+  letter-spacing: -.05em !important;
+  white-space: nowrap;
+}
+@media (max-width: 1180px) {
+  .dashboard-band { grid-template-columns: 1fr !important; }
+  .metric-grid { grid-template-columns: repeat(5, minmax(92px, 1fr)) !important; }
+}
+@media (max-width: 860px) {
+  .metric-grid { grid-template-columns: repeat(2, minmax(138px, 1fr)) !important; }
+  .metric-card.finance-card span,
+  .metric-card.finance-card b { white-space: normal; }
+}
+@media (max-width: 520px) {
+  .metric-grid { grid-template-columns: 1fr !important; }
+}
+
+/* V3.8.1 - Kaynak seçiliyken 5 finans sayacını tek satıra sığdır */
+.metric-grid:has(> article:nth-child(5)) {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+.metric-grid:has(> article:nth-child(5)) .metric-card.finance-card {
+  min-width: 0 !important;
+  min-height: 100px !important;
+  padding: 14px 14px !important;
+}
+.metric-grid:has(> article:nth-child(5)) .metric-card.finance-card span {
+  font-size: clamp(12px, 1.05vw, 15px) !important;
+  white-space: nowrap !important;
+}
+.metric-grid:has(> article:nth-child(5)) .metric-card.finance-card b {
+  font-size: clamp(20px, 1.7vw, 27px) !important;
+  white-space: nowrap !important;
+}
+@media (max-width: 1180px) {
+  .metric-grid:has(> article:nth-child(5)) {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+  .metric-grid:has(> article:nth-child(5)) .metric-card.finance-card {
+    padding: 12px 10px !important;
+  }
+  .metric-grid:has(> article:nth-child(5)) .metric-card.finance-card span {
+    font-size: 12px !important;
+  }
+  .metric-grid:has(> article:nth-child(5)) .metric-card.finance-card b {
+    font-size: 22px !important;
+  }
+}
+@media (max-width: 900px) {
+  .metric-grid:has(> article:nth-child(5)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 560px) {
+  .metric-grid:has(> article:nth-child(5)) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* V3.8.2 - Servis kaynaklarında 6 sayaç: 3 üstte, 3 altta */
+.metric-grid:has(> article:nth-child(6)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+.metric-grid:has(> article:nth-child(6)) .metric-card.finance-card {
+  min-width: 0 !important;
+  min-height: 92px !important;
+  padding: 14px 16px !important;
+}
+.metric-grid:has(> article:nth-child(6)) .metric-card.finance-card span {
+  font-size: clamp(12px, 1.05vw, 15px) !important;
+  white-space: nowrap !important;
+}
+.metric-grid:has(> article:nth-child(6)) .metric-card.finance-card b {
+  font-size: clamp(21px, 1.8vw, 30px) !important;
+  white-space: nowrap !important;
+}
+.cash-summary:has(> article:nth-child(6)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+@media (max-width: 900px) {
+  .metric-grid:has(> article:nth-child(6)),
+  .cash-summary:has(> article:nth-child(6)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 560px) {
+  .metric-grid:has(> article:nth-child(6)),
+  .cash-summary:has(> article:nth-child(6)) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* V3.9.1 - Kasa sayfası servis hareketleri tek kart */
+.cash-service-card {
+  margin: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(29, 48, 77, .07);
+}
+.cash-service-card-head {
+  min-height: 62px;
+  padding: 12px 14px;
+  background: #f4f8fc;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.cash-service-card-head b {
+  display: block;
+  font-size: 15px;
+}
+.cash-service-card-head span,
+.cash-service-status small {
+  color: var(--muted);
+}
+.cash-service-status {
+  text-align: right;
+  display: grid;
+  gap: 4px;
+}
+.cash-service-status strong {
+  color: var(--green);
+  white-space: nowrap;
+}
+.cash-service-card-grid {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.cash-service-card-grid > div {
+  min-height: 74px;
+  padding: 10px;
+  border: 1px solid #e6edf4;
+  border-radius: 10px;
+  background: #fbfdff;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+.cash-service-card-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.cash-service-card-grid b {
+  font-size: 18px;
+  white-space: nowrap;
+}
+.cash-service-details {
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+.cash-service-details summary {
+  padding: 10px 14px;
+  color: var(--blue-dark);
+  font-weight: 700;
+  cursor: pointer;
+}
+.cash-service-detail-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(100px, auto) minmax(110px, auto);
+  gap: 10px;
+  padding: 9px 14px;
+  border-top: 1px solid #eef2f6;
+  align-items: center;
+}
+.cash-service-detail-row small {
+  color: var(--muted);
+}
+.cash-service-detail-row b {
+  text-align: right;
+}
+.cash-service-detail-row.is-expense b {
+  color: var(--red);
+}
+@media (max-width: 1080px) {
+  .cash-service-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .cash-service-card-head { align-items: flex-start; flex-direction: column; }
+  .cash-service-status { text-align: left; }
+  .cash-service-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cash-service-detail-row { grid-template-columns: 1fr; }
+  .cash-service-detail-row b { text-align: left; }
+}
+@media (max-width: 460px) {
+  .cash-service-card-grid { grid-template-columns: 1fr; }
+}
+
+
+/* V3.9.2 Kasa/servis hareketleri ayrımı */
+.cash-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.cash-mode-tab {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--muted);
+  padding: 12px 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.cash-mode-tab.is-active {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(59, 130, 246, 0.16));
+  border-color: rgba(34, 197, 94, 0.55);
+  color: var(--text);
+}
+@media (max-width: 640px) {
+  .cash-mode-tabs { grid-template-columns: 1fr; }
+}
+
+
+/* V3.9.3 - Kasa ödeme geçmişi ve cari detay */
+.cash-detail-counter { cursor: pointer; }
+.cash-detail-counter small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.cash-current-dialog-shell { max-width: 980px; }
+.cash-current-detail-body { display: grid; gap: 14px; }
+.cash-current-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.cash-current-summary article,
+.cash-current-section,
+.cash-current-formula {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.56);
+}
+.cash-current-summary article { padding: 12px; }
+.cash-current-summary span,
+.cash-current-formula span { color: var(--muted); font-size: 12px; }
+.cash-current-summary b { display: block; margin-top: 4px; font-size: 17px; }
+.cash-current-section { padding: 14px; }
+.cash-current-section h3 { margin: 0 0 10px; font-size: 15px; }
+.cash-current-formula { overflow: hidden; }
+.cash-current-formula div,
+.cash-current-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 140px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.cash-current-formula div { grid-template-columns: minmax(0, 1fr) 180px; }
+.cash-current-formula div:last-child,
+.cash-current-row:last-child { border-bottom: 0; }
+.cash-current-total { background: rgba(34, 197, 94, 0.10); }
+.cash-current-row b { display: block; }
+.cash-current-row small { display: block; margin-top: 3px; color: var(--muted); }
+.cash-current-row strong { text-align: right; }
+.cash-current-row.is-expense strong { color: var(--danger); }
+@media (max-width: 760px) {
+  .cash-current-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cash-current-formula div,
+  .cash-current-row { grid-template-columns: 1fr; }
+  .cash-current-row strong { text-align: left; }
+}
+
+/* V3.9.4 - Cari detay/ödeme geçmişi okunabilirlik düzeltmesi */
+#cashCurrentDetailDialog.dialog {
+  background: transparent;
+}
+#cashCurrentDetailDialog .dialog-shell,
+.cash-current-dialog-shell {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 22px;
+  overflow: hidden;
+}
+#cashCurrentDetailDialog .dialog-shell > header {
+  background: linear-gradient(135deg, #0f766e, #14b8a6) !important;
+  color: #ffffff !important;
+  padding: 18px 20px;
+}
+#cashCurrentDetailDialog .dialog-shell > footer {
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0;
+}
+#cashCurrentDetailDialog .dialog-body {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  padding: 14px;
+}
+.cash-current-summary article,
+.cash-current-section,
+.cash-current-formula {
+  background: #f8fafc !important;
+  border: 1px solid #dbe4ef !important;
+  color: #0f172a !important;
+}
+.cash-current-summary article {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+}
+.cash-current-summary span,
+.cash-current-formula span,
+.cash-current-row small {
+  color: #64748b !important;
+}
+.cash-current-summary b,
+.cash-current-formula b,
+.cash-current-row b,
+.cash-current-row strong {
+  color: #0f172a !important;
+}
+.cash-current-section h3 {
+  color: #0f172a !important;
+}
+.cash-current-formula div,
+.cash-current-row {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+.cash-current-formula {
+  background: #ffffff !important;
+}
+.cash-current-total {
+  background: #dcfce7 !important;
+}
+.cash-current-row.is-expense strong,
+.cash-current-formula .cash-negative,
+.cash-current-summary .cash-negative {
+  color: #dc2626 !important;
+}
+.cash-current-section .empty {
+  color: #64748b !important;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 14px;
+}
+@media (max-width: 760px) {
+  #cashCurrentDetailDialog .dialog-body { padding: 10px; }
+  .cash-current-summary { grid-template-columns: 1fr; }
+}

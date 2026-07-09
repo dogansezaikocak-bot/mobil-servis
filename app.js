@@ -45,6 +45,7 @@ let currentView = "dashboard";
 let activeDetailId = null;
 let activeDashboardStat = "";
 let activeDashboardSource = "";
+let cashListMode = "service";
 let cloudRef = null;
 let cloudReady = false;
 let cloudApplyingState = false;
@@ -84,6 +85,11 @@ const cashStartDate = document.querySelector("#cashStartDate");
 const cashEndDate = document.querySelector("#cashEndDate");
 const dashboardStartDate = document.querySelector("#dashboardStartDate");
 const dashboardEndDate = document.querySelector("#dashboardEndDate");
+const dashboardDateRangeDialog = document.querySelector("#dashboardDateRangeDialog");
+const dashboardDateRangeLabel = document.querySelector("#dashboardDateRangeLabel");
+const dashboardRangeStartPicker = document.querySelector("#dashboardRangeStartPicker");
+const dashboardRangeEndPicker = document.querySelector("#dashboardRangeEndPicker");
+const dashboardDateRangePreview = document.querySelector("#dashboardDateRangePreview");
 const backupFileInput = document.querySelector("#backupFileInput");
 
 init();
@@ -364,6 +370,7 @@ function importBackup(event) {
 }
 
 function bindEvents() {
+  setupPhotoViewerGestures();
   document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-action]");
     const action = button?.dataset.action;
@@ -372,7 +379,7 @@ function bindEvents() {
     const serviceRow = event.target.closest("[data-service-id]");
 
     if (view) {
-      if (view === "services") prepareTodayServiceList();
+      if (view === "services") prepareServiceListFromCurrentDate();
       switchView(view);
     }
     if (jump) switchView(jump);
@@ -390,6 +397,10 @@ function bindEvents() {
       "delete-service", "add-cash", "edit-cash", "delete-cash", "change-status", "add-note", "edit-note", "delete-note", "add-photo", "edit-photo", "delete-photo",
     ].includes(action)) return;
 
+    if (action === "open-dashboard-date-range") openDashboardDateRangeDialog();
+    if (action === "close-dashboard-date-range") closeDashboardDateRangeDialog();
+    if (action === "dashboard-date-preset") applyDashboardDatePreset(button.dataset.range, true);
+    if (action === "apply-dashboard-date-range") applyDashboardCustomDateRange();
     if (action === "toggle-nav") document.body.classList.toggle("nav-open");
     if (action === "open-service-modal") {
       if (isMobileTechViewport() && isMobileTechClick) openMobileNewServiceWizard();
@@ -406,12 +417,26 @@ function bindEvents() {
     if (action === "close-note-modal") noteDialog.close();
     if (action === "close-source-modal") sourceDialog.close();
     if (action === "close-photo-modal") photoDialog.close();
+    if (action === "open-photo-viewer") openPhotoViewer(button.dataset.serviceId, button.dataset.photoId);
+    if (action === "close-photo-viewer") closePhotoViewer();
+    if (action === "photo-viewer-prev") movePhotoViewer(-1);
+    if (action === "photo-viewer-next") movePhotoViewer(1);
+    if (action === "photo-viewer-zoom-in") zoomPhotoViewer(0.25);
+    if (action === "photo-viewer-zoom-out") zoomPhotoViewer(-0.25);
+    if (action === "photo-viewer-reset") resetPhotoViewer();
     if (action === "delete-service") deleteCurrentService();
     if (action === "print" || action === "print-list") window.print();
     if (action === "print-cash") printCash();
+    if (action === "set-cash-list-mode") setCashListMode(button.dataset.mode);
+    if (action === "open-cash-current-detail") openCashCurrentDetail(button.dataset.detailType || "balance");
+    if (action === "close-cash-current-detail") closeCashCurrentDetail();
     if (action === "dashboard-stat") applyDashboardStatFilter(button.dataset.stat);
     if (action === "dashboard-source") applyDashboardSourceFilter(button.dataset.source);
     if (action === "show-open-services") showOpenServicesFromTopbar();
+    if (action === "show-all-records") showAllRecords();
+    if (action === "accounting-check") openAccountingCheck();
+    if (action === "close-accounting-check") closeAccountingCheck();
+    if (action === "print-accounting-check") window.print();
     if (action === "clear-selected") clearServiceSelection();
     if (action === "add-cash") openCashForm(button.dataset.serviceId ? { serviceId: button.dataset.serviceId } : {});
     if (action === "edit-cash") openCashForm({ id: button.dataset.cashId });
@@ -450,8 +475,11 @@ function bindEvents() {
   sortSelect?.addEventListener("change", renderServices);
   topSourceFilter.addEventListener("change", () => {
     activeDashboardStat = "";
-    activeDashboardSource = "";
+    activeDashboardSource = topSourceFilter.value || "";
+    renderTopSourceMenu();
+    renderDashboard();
     renderServices();
+    renderCash();
   });
   topStatusFilter.addEventListener("change", () => {
     activeDashboardStat = "";
@@ -464,10 +492,10 @@ function bindEvents() {
     renderServices();
   });
   cashSourceFilter.addEventListener("change", renderCash);
-  cashStartDate.addEventListener("change", renderCash);
-  cashEndDate.addEventListener("change", renderCash);
-  dashboardStartDate.addEventListener("change", renderDashboard);
-  dashboardEndDate.addEventListener("change", renderDashboard);
+  cashStartDate?.addEventListener("change", renderCash);
+  cashEndDate?.addEventListener("change", renderCash);
+  dashboardRangeStartPicker?.addEventListener("change", updateDashboardDateRangePreview);
+  dashboardRangeEndPicker?.addEventListener("change", applyDashboardCustomDateRange);
   backupFileInput.addEventListener("change", importBackup);
 
   serviceForm.addEventListener("submit", (event) => {
@@ -569,20 +597,22 @@ function fillSelect(select, options) {
 }
 
 function setDefaultDates() {
-  cashStartDate.value = isoToday;
-  cashEndDate.value = isoToday;
+  if (cashStartDate) cashStartDate.value = isoToday;
+  if (cashEndDate) cashEndDate.value = isoToday;
   if (dashboardStartDate && !dashboardStartDate.value) dashboardStartDate.value = isoToday;
   if (dashboardEndDate && !dashboardEndDate.value) dashboardEndDate.value = isoToday;
+  syncDashboardDateRangeControls();
 }
 
-function prepareTodayServiceList() {
+function prepareServiceListFromCurrentDate() {
+  // V3.6.8: Servisler sekmesi otomatik Bugün'e zorlamaz.
+  // Seçili tarih aralığı neyse onu korur; durum/sayaç filtresini temizleyip tüm durumları gösterir.
   activeDashboardStat = "";
   activeDashboardSource = "";
   filterForm?.reset();
   if (topSourceFilter) topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
   if (topStatusFilter) topStatusFilter.value = "";
-  const serviceDateFilter = document.querySelector("#serviceDateFilter");
-  if (serviceDateFilter) serviceDateFilter.value = isoToday;
+  updateDashboardDateRangeLabel();
 }
 
 function showOpenServicesFromTopbar() {
@@ -591,10 +621,8 @@ function showOpenServicesFromTopbar() {
   filterForm?.reset();
   if (topSourceFilter) topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
   if (topStatusFilter) topStatusFilter.value = "";
-  const serviceDateFilter = document.querySelector("#serviceDateFilter");
-  if (serviceDateFilter) serviceDateFilter.value = isoToday;
   switchView("services");
-  document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("is-active", item.dataset.action === "show-open-services"));
+  renderServices();
 }
 
 function switchView(view) {
@@ -637,10 +665,9 @@ function render() {
 function renderDashboard() {
   const services = filteredDashboardServices();
   const cashItems = filteredDashboardCash();
-  const cashBalanceItems = filteredDashboardCashForBalance();
   document.querySelector("#dashboardTitle").textContent = portalTitle();
   document.querySelector("#dashboardOwnerLine").hidden = isSourcePortal();
-  renderSourceMetrics(services, cashItems, cashBalanceItems);
+  renderSourceMetrics(services, cashItems);
   renderDailyCashSummary(cashItems);
   renderDashboardCounters(services);
 
@@ -659,39 +686,71 @@ function renderDashboard() {
   `).join("") : `<p class="empty">Plan bulunamadı.</p>`;
 }
 
-function renderSourceMetrics(services, cashItems, cashBalanceItems) {
+function renderSourceMetrics(services, cashItems) {
   const totals = cashBreakdown(cashItems);
   const isSourceFiltered = Boolean(activeDashboardSource);
 
   if (isSourceFiltered) {
-    const sourceTotals = serviceSourceCounterBreakdown(cashItems);
+    // Kaynak seçiliyken tüm sayaçlar seçili tarih filtresine uyar.
+    // Kendi İşim kaynağında komisyon/cari hesap yoktur; kalan miktar sadece hasılat - malzemedir.
+    // Diğer kaynaklarda Yapılan Ödeme ve Kalan Ödeme de tarih filtresine göre hesaplanır.
+    const datedSourceTotals = serviceSourceCounterBreakdown(cashItems);
+
+    if (isOwnWorkSource(activeDashboardSource)) {
+      const remainingAmount = datedSourceTotals.customerMoney - datedSourceTotals.material;
+      document.querySelector("#sourceMetrics").innerHTML = `
+        <article class="metric-card finance-card income-card">
+          <span>Toplam Kazanç</span>
+          <b>${money(datedSourceTotals.customerMoney)}</b>
+        </article>
+        <article class="metric-card finance-card material-card">
+          <span>Toplam Malzeme</span>
+          <b>${money(datedSourceTotals.material)}</b>
+        </article>
+        <article class="metric-card finance-card cash-status-card">
+          <span>Kalan Miktar</span>
+          <b>${money(remainingAmount)}</b>
+        </article>
+      `;
+      return;
+    }
+
     document.querySelector("#sourceMetrics").innerHTML = `
       <article class="metric-card finance-card income-card">
         <span>Toplam Kazanç</span>
-        <b>${money(sourceTotals.customerMoney)}</b>
+        <b>${money(datedSourceTotals.customerMoney)}</b>
       </article>
       <article class="metric-card finance-card material-card">
         <span>Toplam Malzeme</span>
-        <b>${money(sourceTotals.material)}</b>
+        <b>${money(datedSourceTotals.material)}</b>
       </article>
       <article class="metric-card finance-card commission-card">
         <span>Hakediş</span>
-        <b>${money(sourceTotals.hakedis)}</b>
+        <b>${money(datedSourceTotals.hakedis)}</b>
+      </article>
+      <article class="metric-card finance-card income-card">
+        <span>Ekzen Teknik</span>
+        <b>${money(datedSourceTotals.ekzenTechnical)}</b>
+      </article>
+      <article class="metric-card finance-card expense-card">
+        <span>Yapılan Ödeme</span>
+        <b>${money(Math.max(0, datedSourceTotals.hakedis - datedSourceTotals.remainingPayment))}</b>
       </article>
       <article class="metric-card finance-card cash-status-card">
         <span>Kalan Ödeme</span>
-        <b>${money(sourceTotals.remainingPayment)}</b>
+        <b>${money(datedSourceTotals.remainingPayment)}</b>
       </article>
     `;
     return;
   }
 
+  const allSourceTotals = serviceSourceCounterBreakdown(cashItems);
   const serviceProfit = dashboardServiceProfit(cashItems);
 
   document.querySelector("#sourceMetrics").innerHTML = `
     <article class="metric-card finance-card income-card">
       <span>Toplam Hasılat</span>
-      <b>${money(totals.income)}</b>
+      <b>${money(allSourceTotals.customerMoney)}</b>
     </article>
     <article class="metric-card finance-card commission-card">
       <span>Komisyon</span>
@@ -821,7 +880,7 @@ function dashboardCounterBaseServices(label, services) {
   // Yarın her zaman bugünden yarının açık fişlerini, Açık Fişler ise tüm açık fişleri sayar.
   if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler")) {
     return (state.services || []).filter((service) => matchesPortalSource(service.source)
-      && (!activeDashboardSource || service.source === activeDashboardSource));
+      && (!activeDashboardSource || sourceMatches(service.source, activeDashboardSource)));
   }
   return services || [];
 }
@@ -863,25 +922,47 @@ function filteredServices() {
     ].join(" "));
     const sourceFilter = topSourceFilter.value;
     const statusFilter = topStatusFilter.value;
-    const dateFilter = document.querySelector("#serviceDateFilter")?.value || "";
+    const range = serviceDateRangeForCurrentFilter();
     return matchesPortalSource(service.source)
       && (!query || query.split(" ").every((word) => queryText.includes(word)))
       && (!statusFilter || service.status === statusFilter)
-      && (!dateFilter || serviceHasDate(service, dateFilter))
-      && (!sourceFilter || service.source === sourceFilter)
-      && (!activeDashboardSource || (service.source === activeDashboardSource && isOpenDashboardSourceStatus(service.status)))
+      && dateInRange(serviceMainDate(service), range.start, range.end)
+      && (!sourceFilter || sourceMatches(service.source, sourceFilter))
+      && (!activeDashboardSource || sourceMatches(service.source, activeDashboardSource))
       && matchesDashboardStat(service);
   });
 }
 
 function applyDashboardStatFilter(stat) {
+  const selectedSource = isSourcePortal() ? portalSourceName() : (activeDashboardSource || topSourceFilter?.value || "");
   activeDashboardStat = stat || "";
-  activeDashboardSource = "";
+  activeDashboardSource = selectedSource;
   filterForm.reset();
-  topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
+  topSourceFilter.value = selectedSource || "";
   topStatusFilter.value = "";
+  const range = dashboardCounterClickRange(stat);
+  if (range) {
+    if (dashboardStartDate) dashboardStartDate.value = range.start;
+    if (dashboardEndDate) dashboardEndDate.value = range.end;
+    syncDashboardDateRangeControls();
+  }
   switchView("services");
   renderServices();
+}
+
+function showAllRecords() {
+  activeDashboardStat = "";
+  activeDashboardSource = "";
+  filterForm?.reset();
+  if (topSourceFilter) topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
+  if (topStatusFilter) topStatusFilter.value = "";
+  if (dashboardStartDate) dashboardStartDate.value = "";
+  if (dashboardEndDate) dashboardEndDate.value = "";
+  syncDashboardDateRangeControls();
+  switchView("services");
+  renderDashboard();
+  renderServices();
+  renderCash();
 }
 
 function applyDashboardSourceFilter(source) {
@@ -900,10 +981,28 @@ function clearServiceSelection() {
   filterForm.reset();
   topSourceFilter.value = "";
   topStatusFilter.value = "";
-  const serviceDateFilter = document.querySelector("#serviceDateFilter");
-  if (serviceDateFilter) serviceDateFilter.value = "";
+  updateDashboardDateRangeLabel();
   document.querySelectorAll(".service-check").forEach((input) => { input.checked = false; });
   renderServices();
+}
+
+function serviceDateRangeForCurrentFilter() {
+  if (isStatus(activeDashboardStat, "Yarın")) {
+    const value = toIsoDate(tomorrow);
+    return { start: value, end: value };
+  }
+  if (isStatus(activeDashboardStat, "Açık Fişler")) return { start: "", end: "" };
+  return { start: dashboardStartDate?.value || "", end: dashboardEndDate?.value || (dashboardStartDate?.value || "") };
+}
+
+function dashboardCounterClickRange(stat) {
+  if (isStatus(stat, "Yarın")) {
+    const value = toIsoDate(tomorrow);
+    return { start: value, end: value };
+  }
+  if (isStatus(stat, "Bugün")) return { start: isoToday, end: isoToday };
+  if (isStatus(stat, "Açık Fişler")) return { start: "", end: "" };
+  return null;
 }
 
 function matchesDashboardStat(service) {
@@ -964,6 +1063,7 @@ function serviceRow(service) {
   const timeValue = service.availableTime || service.createdAt?.slice(11, 16) || "Saat yok";
   const phoneClean = String(service.phone || "").replace(/\D/g, "");
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
+  const paymentModeLabel = servicePaymentModeLabel(service);
   return `
     <article class="service-row service-card-row service-card-${serviceCardTheme(service.status)}" data-service-id="${service.id}">
       <div class="service-date-block">
@@ -983,6 +1083,7 @@ function serviceRow(service) {
       </div>
       <div class="service-status-block">
         <span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status || "Durum yok")}</span>
+        ${paymentModeLabel ? `<p class="service-payment-mode-line">${escapeHtml(paymentModeLabel)}</p>` : ""}
         <p class="service-fault-title">Şikayet:</p>
         <p class="service-fault-text">${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
       </div>
@@ -1019,8 +1120,8 @@ function renderSources() {
   document.querySelector("#sourceList").innerHTML = settingsList("sources").map((source) => `
     <div class="data-row">
       <strong>${escapeHtml(source)}</strong>
-      <span>${state.services.filter((service) => service.source === source).length} servis</span>
-      <span>${state.cash.filter((item) => cashItemSource(item) === source).length} kasa hareketi</span>
+      <span>${state.services.filter((service) => sourceMatches(service.source, source)).length} servis</span>
+      <span>${state.cash.filter((item) => sourceMatches(cashItemSource(item), source)).length} kasa hareketi</span>
       <div class="row-actions">
         <button class="mini-button" type="button" data-action="edit-source" data-source-name="${escapeAttr(source)}" title="Düzenle">✎</button>
         <button class="mini-button danger" type="button" data-action="delete-source" data-source-name="${escapeAttr(source)}" title="Sil">×</button>
@@ -1034,30 +1135,52 @@ function renderCash() {
   const totals = cashTotals(items);
   const breakdown = cashBreakdown(items);
   renderCashSummary(items, totals, breakdown);
-  document.querySelector("#cashList").innerHTML = renderCashGroups(items) || `<p class="empty">Para hareketi bulunamadı.</p>`;
+  const list = document.querySelector("#cashList");
+  if (list) list.innerHTML = renderCashGroups(items, cashListMode);
+  document.querySelectorAll("[data-action=\"set-cash-list-mode\"]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.mode === cashListMode);
+  });
+}
+
+function setCashListMode(mode) {
+  cashListMode = mode === "cash" ? "cash" : "service";
+  renderCash();
 }
 
 function renderCashSummary(items, totals, breakdown) {
   const selectedSource = isSourcePortal() ? portalSourceName() : cashSourceFilter.value;
   if (selectedSource) {
     const sourceTotals = serviceSourceCounterBreakdown(items);
+    if (isOwnWorkSource(selectedSource)) {
+      const remainingAmount = sourceTotals.customerMoney - sourceTotals.material;
+      document.querySelector("#cashSummary").innerHTML = `
+        <article><span>Toplam Kazanç</span><b>${money(sourceTotals.customerMoney)}</b></article>
+        <article><span>Toplam Malzeme</span><b class="cash-negative">-${money(sourceTotals.material)}</b></article>
+        <article><span>Kalan Miktar</span><b>${money(remainingAmount)}</b></article>
+      `;
+      return;
+    }
     document.querySelector("#cashSummary").innerHTML = `
       <article><span>Toplam Kazanç</span><b>${money(sourceTotals.customerMoney)}</b></article>
       <article><span>Toplam Malzeme</span><b class="cash-negative">-${money(sourceTotals.material)}</b></article>
       <article><span>Hakediş</span><b>${money(sourceTotals.hakedis)}</b></article>
-      <article><span>Kalan Ödeme</span><b>${money(sourceTotals.remainingPayment)}</b></article>
+      <article><span>Ekzen Teknik</span><b>${money(sourceTotals.ekzenTechnical)}</b></article>
+      <article class="is-clickable cash-detail-counter" data-action="open-cash-current-detail" data-detail-type="payment"><span>Yapılan Ödeme</span><b>${money(Math.max(0, sourceTotals.hakedis - sourceTotals.remainingPayment))}</b><small>Geçmiş</small></article>
+      <article class="is-clickable cash-detail-counter" data-action="open-cash-current-detail" data-detail-type="balance"><span>Kalan Ödeme</span><b>${money(sourceTotals.remainingPayment)}</b><small>Cari detay</small></article>
     `;
     return;
   }
 
+  const allSourceTotals = serviceSourceCounterBreakdown(items);
   const values = {
-    income: money(totals.income),
+    income: money(allSourceTotals.customerMoney),
     expense: `-${money(breakdown.manualExpense)}`,
     commission: `-${money(breakdown.commission)}`,
     material: `-${money(breakdown.material)}`,
     balance: money(breakdown.balance),
   };
-  document.querySelector("#cashSummary").innerHTML = cashCounterList().map((counter) => `
+  const visibleCounters = cashCounterList().filter((counter) => !["expense", "balance"].includes(counter.key));
+  document.querySelector("#cashSummary").innerHTML = visibleCounters.map((counter) => `
     <article>
       <span>${escapeHtml(counter.label)}</span>
       <b class="${["expense", "commission", "material"].includes(counter.key) ? "cash-negative" : ""}">${values[counter.key] || money(0)}</b>
@@ -1065,7 +1188,7 @@ function renderCashSummary(items, totals, breakdown) {
   `).join("");
 }
 
-function renderCashGroups(items) {
+function renderCashGroups(items, mode = "service") {
   const serviceGroups = [];
   const serviceMap = new Map();
   const manualItems = [];
@@ -1083,36 +1206,77 @@ function renderCashGroups(items) {
     serviceMap.get(item.serviceId).items.push(item);
   });
 
-  return [
-    ...serviceGroups.map(cashServiceGroup),
-    manualItems.length ? `
+  if (mode === "cash") {
+    return manualItems.length ? `
       <section class="cash-group manual-cash-group">
         <header>
           <div>
-            <b>Manuel kasa hareketleri</b>
-            <span>Servise bağlı olmayan kayıtlar</span>
+            <b>Kasa hareketleri</b>
+            <span>Servise bağlı olmayan manuel giriş/çıkışlar</span>
           </div>
           ${cashGroupSummary(manualItems)}
         </header>
         <div>${manualItems.map(cashRow).join("")}</div>
       </section>
-    ` : "",
-  ].join("");
+    ` : `<p class="empty">Bu filtrede manuel kasa hareketi yok.</p>`;
+  }
+
+  return serviceGroups.length
+    ? serviceGroups.map(cashServiceGroup).join("")
+    : `<p class="empty">Bu filtrede servis hareketi yok.</p>`;
 }
 
 function cashServiceGroup(group) {
   const service = state.services.find((item) => item.id === group.serviceId);
   const sortedItems = sortCashGroupItems(group.items);
+  const primaryItems = sortedItems.filter(isServicePrimaryIncome);
+  const income = primaryItems.reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const material = sortedItems.filter((item) => item.autoMaterialExpense || norm(item.title).includes("malzeme")).reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const otherExpense = sortedItems.filter((item) => item.autoOtherExpense || norm(item.title).includes("diger gider") || norm(item.title).includes("diğer gider")).reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const hakedis = primaryItems.reduce((total, item) => total + sourcePayAmountForCashItem(item), 0);
+  const ekzenTechnical = primaryItems.reduce((total, item) => total + ownerPayAmountForCashItem(item), 0);
+  const firstPrimary = primaryItems[0];
+  const collectedLabel = firstPrimary
+    ? (cashItemCollectedBy(firstPrimary) === "source" ? "Servis Kaynağı Aldı" : "Ben Aldım")
+    : "Tahsilat bilgisi yok";
+  const paymentModeLabel = service ? servicePaymentModeLabel(service) : "";
+  const sourceName = service?.source || cashItemSource(group.items[0]) || "-";
+  const serviceInfo = [service?.brand, service?.device].filter(Boolean).join(" ") || "Bağlı servis";
+  const netBase = Math.max(income - material - otherExpense, 0);
+  const detailsRows = sortedItems.map((item) => {
+    const title = visibleCashTitle(item) || (item.autoMaterialExpense ? "Malzeme" : item.autoCommissionExpense ? "Hakediş" : item.autoOtherExpense ? "Diğer Gider" : "Tahsilat");
+    return `
+      <div class="cash-service-detail-row ${item.type === "expense" ? "is-expense" : ""}">
+        <span>${escapeHtml(title)}</span>
+        <small>${escapeHtml(formatDate(item.date))}</small>
+        <b>${item.type === "expense" ? "-" : "+"}${money(item.amount)}</b>
+      </div>
+    `;
+  }).join("");
   return `
-    <section class="cash-group">
-      <header>
+    <section class="cash-service-card">
+      <header class="cash-service-card-head">
         <div>
           <b>Servis ${escapeHtml(group.serviceId)} · ${escapeHtml(service?.customerName || "Servis kaydı")}</b>
-          <span>${escapeHtml(service ? `${service.brand} ${service.device}` : "Bağlı servis")} · ${escapeHtml(service?.source || cashItemSource(group.items[0]) || "-")}</span>
+          <span>${escapeHtml(serviceInfo)} · ${escapeHtml(sourceName)}</span>
         </div>
-        ${cashServiceSummary(sortedItems)}
+        <div class="cash-service-status">
+          ${paymentModeLabel ? `<strong>${escapeHtml(paymentModeLabel)}</strong>` : ""}
+          <small>${escapeHtml(collectedLabel)}</small>
+        </div>
       </header>
-      <div>${sortedItems.map(cashRow).join("")}</div>
+      <div class="cash-service-card-grid">
+        <div><span>Alınan Tutar</span><b>${money(income)}</b></div>
+        <div><span>Toplam Malzeme</span><b class="cash-negative">-${money(material)}</b></div>
+        <div><span>Komisyona Esas</span><b>${money(netBase)}</b></div>
+        <div><span>Ekzen Teknik</span><b>${money(ekzenTechnical)}</b></div>
+        <div><span>Hakediş</span><b>${money(hakedis)}</b></div>
+        ${otherExpense ? `<div><span>Diğer Gider</span><b class="cash-negative">-${money(otherExpense)}</b></div>` : ""}
+      </div>
+      <details class="cash-service-details">
+        <summary>Hareket detayları</summary>
+        <div>${detailsRows}</div>
+      </details>
     </section>
   `;
 }
@@ -1173,14 +1337,13 @@ function cashRow(item) {
 
 function filteredCash() {
   const source = isSourcePortal() ? portalSourceName() : cashSourceFilter.value;
-  const start = cashStartDate.value;
-  const end = cashEndDate.value;
+  const start = dashboardStartDate?.value || cashStartDate?.value || "";
+  const end = dashboardEndDate?.value || cashEndDate?.value || start;
   return state.cash.filter((item) => {
-    const date = item.date || "";
+    const date = cashFilterDate(item);
     return cashIsPosted(item)
-      && (!source || cashItemSource(item) === source)
-      && (!start || date >= start)
-      && (!end || date <= end);
+      && (!source || sourceMatches(cashItemSource(item), source))
+      && dateInRange(date, start, end);
   });
 }
 
@@ -1201,7 +1364,7 @@ function filteredDashboardServices() {
   const start = dashboardStartDate.value;
   const end = dashboardEndDate.value;
   return state.services.filter((service) => matchesPortalSource(service.source)
-    && (!activeDashboardSource || service.source === activeDashboardSource)
+    && (!activeDashboardSource || sourceMatches(service.source, activeDashboardSource))
     && dateInRange(serviceMainDate(service), start, end));
 }
 
@@ -1210,20 +1373,26 @@ function filteredDashboardCash() {
   const end = dashboardEndDate.value;
   return state.cash.filter((item) => cashIsPosted(item)
     && matchesPortalSource(cashItemSource(item))
-    && (!activeDashboardSource || cashItemSource(item) === activeDashboardSource)
-    && dateInRange(item.date || "", start, end));
+    && (!activeDashboardSource || sourceMatches(cashItemSource(item), activeDashboardSource))
+    && dateInRange(cashFilterDate(item), start, end));
 }
 
 function filteredDashboardCashForBalance() {
-  const start = dashboardStartDate.value;
-  const end = dashboardEndDate.value;
-  if (isSourcePortal()) return filteredDashboardCash();
-  if (start || end) return filteredDashboardCash();
-  const week = currentWeekRange();
-  return state.cash.filter((item) => cashIsPosted(item)
-    && matchesPortalSource(cashItemSource(item))
-    && (!activeDashboardSource || cashItemSource(item) === activeDashboardSource)
-    && dateInRange(item.date || "", week.start, week.end));
+  if (activeDashboardSource || isSourcePortal()) {
+    const source = isSourcePortal() ? portalSourceName() : activeDashboardSource;
+    return state.cash.filter((item) => cashIsPosted(item)
+      && matchesPortalSource(cashItemSource(item))
+      && (!source || sourceMatches(cashItemSource(item), source)));
+  }
+  return filteredDashboardCash();
+}
+
+function cashFilterDate(item) {
+  if (item?.serviceId) {
+    const service = state.services.find((entry) => entry.id === item.serviceId);
+    if (service) return serviceMainDate(service) || item.date || "";
+  }
+  return item?.date || "";
 }
 
 function currentWeekRange() {
@@ -1237,6 +1406,130 @@ function currentWeekRange() {
 
 function dateInRange(date, start, end) {
   return (!start || date >= start) && (!end || date <= end);
+}
+
+function openDashboardDateRangeDialog() {
+  syncDashboardDateRangeControls();
+  dashboardDateRangeDialog?.showModal();
+}
+
+function closeDashboardDateRangeDialog() {
+  dashboardDateRangeDialog?.close();
+}
+
+function syncDashboardDateRangeControls() {
+  if (dashboardRangeStartPicker) dashboardRangeStartPicker.value = dashboardStartDate?.value || "";
+  if (dashboardRangeEndPicker) dashboardRangeEndPicker.value = dashboardEndDate?.value || "";
+  updateDashboardDateRangePreview();
+  updateDashboardDateRangeLabel();
+  markActiveDashboardPreset();
+}
+
+function updateDashboardDateRangePreview() {
+  if (!dashboardDateRangePreview) return;
+  const start = dashboardRangeStartPicker?.value ?? dashboardStartDate?.value ?? "";
+  const end = dashboardRangeEndPicker?.value ?? dashboardEndDate?.value ?? start;
+  dashboardDateRangePreview.textContent = dashboardRangeText(start, end);
+}
+
+function updateDashboardDateRangeLabel() {
+  if (!dashboardDateRangeLabel) return;
+  const start = dashboardStartDate?.value || "";
+  const end = dashboardEndDate?.value || start;
+  const text = dashboardRangeText(start, end);
+  dashboardDateRangeLabel.textContent = text;
+  document.querySelectorAll("[data-date-range-label]").forEach((item) => { item.textContent = text; });
+}
+
+function dashboardRangeText(start, end) {
+  if (!start && !end) return "Tüm zamanlar";
+  if (start && !end) return `${formatDate(start)} sonrası`;
+  if (!start && end) return `${formatDate(end)} öncesi`;
+  if (start === end) {
+    if (start === isoToday) return "Bugün";
+    if (start === addDaysIso(isoToday, -1)) return "Dün";
+    if (start === toIsoDate(tomorrow)) return "Yarın";
+    return formatDate(start);
+  }
+  return `${formatDate(start)} - ${formatDate(end)}`;
+}
+
+function applyDashboardDatePreset(rangeKey, closeAfterApply = true) {
+  const range = dashboardPresetRange(rangeKey);
+  if (!range) return;
+  if (dashboardRangeStartPicker) dashboardRangeStartPicker.value = range.start;
+  if (dashboardRangeEndPicker) dashboardRangeEndPicker.value = range.end;
+  if (dashboardStartDate) dashboardStartDate.value = range.start;
+  if (dashboardEndDate) dashboardEndDate.value = range.end;
+  updateDashboardDateRangePreview();
+  updateDashboardDateRangeLabel();
+  markActiveDashboardPreset(rangeKey);
+  renderDashboard();
+  renderServices();
+  renderCash();
+  if (closeAfterApply) closeDashboardDateRangeDialog();
+}
+
+function applyDashboardCustomDateRange() {
+  let start = dashboardRangeStartPicker?.value || "";
+  let end = dashboardRangeEndPicker?.value || start;
+  if (start && end && start > end) [start, end] = [end, start];
+  if (dashboardStartDate) dashboardStartDate.value = start;
+  if (dashboardEndDate) dashboardEndDate.value = end;
+  updateDashboardDateRangeLabel();
+  markActiveDashboardPreset();
+  closeDashboardDateRangeDialog();
+  renderDashboard();
+  renderServices();
+  renderCash();
+}
+
+function markActiveDashboardPreset() {
+  const start = dashboardRangeStartPicker?.value ?? dashboardStartDate?.value ?? "";
+  const end = dashboardRangeEndPicker?.value ?? dashboardEndDate?.value ?? start;
+  document.querySelectorAll('[data-action="dashboard-date-preset"]').forEach((button) => {
+    const range = dashboardPresetRange(button.dataset.range);
+    button.classList.toggle("is-active", Boolean(range && range.start === start && range.end === end));
+  });
+}
+
+function dashboardPresetRange(key) {
+  const todayDate = parseIsoDate(isoToday);
+  const day = todayDate.getDay() || 7;
+  const startOfThisWeek = addDaysDate(todayDate, 1 - day);
+  const startOfLastWeek = addDaysDate(startOfThisWeek, -7);
+  const startOfThisMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+  const startOfLastMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0);
+  const ranges = {
+    today: { start: isoToday, end: isoToday },
+    yesterday: { start: addDaysIso(isoToday, -1), end: addDaysIso(isoToday, -1) },
+    tomorrow: { start: toIsoDate(tomorrow), end: toIsoDate(tomorrow) },
+    thisWeek: { start: toIsoDate(startOfThisWeek), end: isoToday },
+    last7: { start: addDaysIso(isoToday, -6), end: isoToday },
+    lastWeek: { start: toIsoDate(startOfLastWeek), end: toIsoDate(addDaysDate(startOfLastWeek, 6)) },
+    last14: { start: addDaysIso(isoToday, -13), end: isoToday },
+    thisMonth: { start: toIsoDate(startOfThisMonth), end: isoToday },
+    allTime: { start: "", end: "" },
+    last30: { start: addDaysIso(isoToday, -29), end: isoToday },
+    lastMonth: { start: toIsoDate(startOfLastMonth), end: toIsoDate(endOfLastMonth) },
+  };
+  return ranges[key];
+}
+
+function addDaysIso(value, amount) {
+  return toIsoDate(addDaysDate(parseIsoDate(value), amount));
+}
+
+function addDaysDate(date, amount) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + amount);
+  return copy;
+}
+
+function parseIsoDate(value) {
+  const [year, month, day] = String(value || isoToday).split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
 }
 
 function cashBreakdown(items = state.cash) {
@@ -1309,6 +1602,9 @@ function serviceSourceCounterBreakdown(items = state.cash) {
     .filter((item) => cashItemCollectedBy(item) === "source")
     .reduce((total, item) => total + ownerPayAmountForCashItem(item), 0);
 
+  const ekzenTechnical = primaryIncomeItems
+    .reduce((total, item) => total + ownerPayAmountForCashItem(item), 0);
+
   const manualExpense = postedItems
     .filter((item) => item.type === "expense" && !item.serviceId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense)
     .reduce((total, item) => total + (Number(item.amount) || 0), 0);
@@ -1319,6 +1615,7 @@ function serviceSourceCounterBreakdown(items = state.cash) {
     customerMoney,
     material,
     hakedis,
+    ekzenTechnical,
     sourceCollectedReceivable,
     manualExpense,
     manualIncome,
@@ -1355,6 +1652,275 @@ function ownerPayAmountForCashItem(item) {
 function dashboardServiceProfit(items = state.cash) {
   const totals = serviceOnlyCashBreakdown(items);
   return totals.income - totals.commission - totals.material;
+}
+
+
+
+function openAccountingCheck() {
+  const dialog = document.querySelector("#accountingCheckDialog");
+  const content = document.querySelector("#accountingCheckContent");
+  if (!dialog || !content) return;
+  content.innerHTML = renderAccountingCheckReport();
+  dialog.showModal();
+}
+
+function closeAccountingCheck() {
+  document.querySelector("#accountingCheckDialog")?.close();
+}
+
+
+function openCashCurrentDetail(detailType = "balance") {
+  const dialog = document.querySelector("#cashCurrentDetailDialog");
+  const content = document.querySelector("#cashCurrentDetailContent");
+  const title = document.querySelector("#cashCurrentDetailTitle");
+  if (!dialog || !content || !title) return;
+  const selectedSource = isSourcePortal() ? portalSourceName() : cashSourceFilter.value;
+  const sourceLabel = selectedSource || "Tüm Kaynaklar";
+  title.textContent = detailType === "payment" ? `Yapılan Ödeme Geçmişi · ${sourceLabel}` : `Cari Detay · ${sourceLabel}`;
+  content.innerHTML = renderCashCurrentDetail(detailType, selectedSource);
+  dialog.showModal();
+}
+
+function closeCashCurrentDetail() {
+  document.querySelector("#cashCurrentDetailDialog")?.close();
+}
+
+function renderCashCurrentDetail(detailType = "balance", selectedSource = "") {
+  const items = filteredCash();
+  const sourceItems = selectedSource ? items.filter((item) => sourceMatches(cashItemSource(item), selectedSource)) : items;
+  const totals = serviceSourceCounterBreakdown(sourceItems);
+  const paymentAmount = Math.max(0, totals.hakedis - totals.remainingPayment);
+  const manualPayments = postedCashItems(sourceItems).filter((item) =>
+    !item.serviceId
+    && !item.autoMaterialExpense
+    && !item.autoCommissionExpense
+    && !item.autoOtherExpense
+    && (item.type === "expense" || item.type === "income")
+  );
+  const sourceCollectedJobs = postedCashItems(sourceItems).filter((item) => isServicePrimaryIncome(item) && cashItemCollectedBy(item) === "source");
+  const periodLabel = dashboardStartDate?.value && dashboardEndDate?.value
+    ? `${formatDate(dashboardStartDate.value)} - ${formatDate(dashboardEndDate.value)}`
+    : "Seçili tarih";
+  const summary = `
+    <div class="cash-current-summary">
+      <article><span>Dönem</span><b>${escapeHtml(periodLabel)}</b></article>
+      <article><span>Hakediş</span><b>${money(totals.hakedis)}</b></article>
+      <article><span>Yapılan Ödeme</span><b>${money(paymentAmount)}</b></article>
+      <article><span>Kalan Ödeme</span><b class="${totals.remainingPayment < 0 ? "cash-negative" : ""}">${money(totals.remainingPayment)}</b></article>
+    </div>
+  `;
+  const cariFormula = `
+    <section class="cash-current-section">
+      <h3>Cari sağlama</h3>
+      <div class="cash-current-formula">
+        <div><span>Hakediş</span><b>${money(totals.hakedis)}</b></div>
+        <div><span>Kaynağın aldığı işlerde Ekzen Teknik alacağı</span><b class="cash-negative">-${money(totals.sourceCollectedReceivable)}</b></div>
+        <div><span>Manuel yapılan ödeme</span><b class="cash-negative">-${money(totals.manualExpense)}</b></div>
+        <div><span>Manuel geri giriş / düzeltme</span><b>${money(totals.manualIncome)}</b></div>
+        <div class="cash-current-total"><span>Kalan Ödeme</span><b>${money(totals.remainingPayment)}</b></div>
+      </div>
+    </section>
+  `;
+  const manualRows = manualPayments.length ? manualPayments
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .map((item) => `
+      <div class="cash-current-row ${item.type === "expense" ? "is-expense" : ""}">
+        <div><b>${escapeHtml(visibleCashTitle(item))}</b><small>${escapeHtml(item.description || "Açıklama yok")}</small></div>
+        <span>${escapeHtml(formatDate(item.date))}</span>
+        <strong>${item.type === "expense" ? "-" : "+"}${money(item.amount)}</strong>
+      </div>
+    `).join("") : `<p class="empty">Bu tarih aralığında manuel ödeme hareketi yok.</p>`;
+  const collectedRows = sourceCollectedJobs.length ? sourceCollectedJobs
+    .sort((a, b) => (cashFilterDate(b) || "").localeCompare(cashFilterDate(a) || ""))
+    .map((item) => {
+      const service = state.services.find((serviceItem) => serviceItem.id === item.serviceId);
+      const ownerPay = ownerPayAmountForCashItem(item);
+      return `
+        <div class="cash-current-row is-expense">
+          <div><b>Servis ${escapeHtml(item.serviceId)} · ${escapeHtml(service?.customerName || "Servis")}</b><small>Parayı servis kaynağı aldı; Ekzen Teknik alacağı bakiyeden düşer.</small></div>
+          <span>${escapeHtml(formatDate(cashFilterDate(item)))}</span>
+          <strong>-${money(ownerPay)}</strong>
+        </div>
+      `;
+    }).join("") : `<p class="empty">Bu tarih aralığında servis kaynağının tahsil ettiği iş yok.</p>`;
+  const history = `
+    <section class="cash-current-section">
+      <h3>Manuel ödeme hareketleri</h3>
+      ${manualRows}
+    </section>
+    <section class="cash-current-section">
+      <h3>Servis kaynağının aldığı işler</h3>
+      ${collectedRows}
+    </section>
+  `;
+  if (detailType === "payment") return `${summary}${history}`;
+  return `${summary}${cariFormula}${history}`;
+}
+
+function renderAccountingCheckReport() {
+  const postedItems = postedCashItems(state.cash || []);
+  const primaryItems = postedItems.filter(isServicePrimaryIncome);
+  const allSources = uniqueValues([
+    ...settingsList("sources"),
+    ...primaryItems.map((item) => cashItemSource(item) || "Kendi İşim"),
+  ]);
+  const allTotals = serviceSourceCounterBreakdown(postedItems);
+  const perSourceTotals = allSources.reduce((totals, source) => {
+    const sourceItems = postedItems.filter((item) => sourceMatches(cashItemSource(item), source));
+    const sourceTotals = serviceSourceCounterBreakdown(sourceItems);
+    totals.customerMoney += sourceTotals.customerMoney;
+    totals.material += sourceTotals.material;
+    totals.hakedis += sourceTotals.hakedis;
+    totals.ekzenTechnical = (totals.ekzenTechnical || 0) + (sourceTotals.ekzenTechnical || 0);
+    totals.sourceCollectedReceivable += sourceTotals.sourceCollectedReceivable;
+    totals.manualExpense += sourceTotals.manualExpense;
+    totals.manualIncome += sourceTotals.manualIncome;
+    totals.remainingPayment += sourceTotals.remainingPayment;
+    return totals;
+  }, { customerMoney: 0, material: 0, hakedis: 0, ekzenTechnical: 0, sourceCollectedReceivable: 0, manualExpense: 0, manualIncome: 0, remainingPayment: 0 });
+
+  const equation = primaryItems.reduce((totals, item) => {
+    const amount = Number(item.amount) || 0;
+    const material = Number(item.materialCost) || 0;
+    const other = Number(item.otherExpense) || 0;
+    const owner = ownerPayAmountForCashItem(item);
+    const source = sourcePayAmountForCashItem(item);
+    totals.customerMoney += amount;
+    totals.material += material;
+    totals.other += other;
+    totals.owner += owner;
+    totals.source += source;
+    const diff = amount - material - other - owner - source;
+    if (Math.abs(diff) >= 1) {
+      totals.errors.push({
+        serviceId: item.serviceId || item.id,
+        title: serviceLabelForAccounting(item),
+        diff,
+        amount,
+        material,
+        other,
+        owner,
+        source,
+      });
+    }
+    return totals;
+  }, { customerMoney: 0, material: 0, other: 0, owner: 0, source: 0, errors: [] });
+  equation.diff = equation.customerMoney - equation.material - equation.other - equation.owner - equation.source;
+
+  const duplicateServiceIncome = [...groupBy(primaryItems, (item) => item.serviceId || item.id).entries()]
+    .filter(([serviceId, items]) => serviceId && items.length > 1)
+    .map(([serviceId, items]) => ({ serviceId, count: items.length, amount: sumBy(items, (item) => Number(item.amount) || 0) }));
+
+  const orphanCashItems = postedItems
+    .filter((item) => item.serviceId && !state.services.some((service) => service.id === item.serviceId))
+    .map((item) => ({ id: item.id, serviceId: item.serviceId, title: item.title || visibleCashTitle(item) || "Kasa hareketi", amount: Number(item.amount) || 0 }));
+
+  const sourceDiffs = {
+    customerMoney: allTotals.customerMoney - perSourceTotals.customerMoney,
+    material: allTotals.material - perSourceTotals.material,
+    hakedis: allTotals.hakedis - perSourceTotals.hakedis,
+    remainingPayment: allTotals.remainingPayment - perSourceTotals.remainingPayment,
+  };
+
+  const currentDashboardTotals = serviceSourceCounterBreakdown(filteredDashboardCash());
+  const currentCashTotals = serviceSourceCounterBreakdown(filteredCash());
+  const currentDiff = {
+    customerMoney: currentDashboardTotals.customerMoney - currentCashTotals.customerMoney,
+    material: currentDashboardTotals.material - currentCashTotals.material,
+    hakedis: currentDashboardTotals.hakedis - currentCashTotals.hakedis,
+  };
+
+  const failures = [];
+  if (Math.abs(equation.diff) >= 1) failures.push(`Genel denklemde ${money(equation.diff)} fark var.`);
+  Object.entries(sourceDiffs).forEach(([key, value]) => { if (Math.abs(value) >= 1) failures.push(`Tüm Kaynaklar toplamında ${accountingLabel(key)} farkı: ${money(value)}.`); });
+  Object.entries(currentDiff).forEach(([key, value]) => { if (Math.abs(value) >= 1) failures.push(`Ana sayfa / kasa mevcut filtre ${accountingLabel(key)} farkı: ${money(value)}.`); });
+  if (duplicateServiceIncome.length) failures.push(`${duplicateServiceIncome.length} serviste birden fazla ana tahsilat satırı var.`);
+  if (orphanCashItems.length) failures.push(`${orphanCashItems.length} kasa hareketi silinmiş/bulunamayan servise bağlı.`);
+  if (equation.errors.length) failures.push(`${equation.errors.length} servis denkleminde 1 TL üstü fark var.`);
+
+  const statusClass = failures.length ? "accounting-bad" : "accounting-ok";
+  const statusText = failures.length ? "Dikkat: fark var" : "Sağlam: fark yok";
+
+  return `
+    <section class="accounting-status ${statusClass}">
+      <strong>${statusText}</strong>
+      <span>${failures.length ? "Ödeme yapmadan önce aşağıdaki kırmızı satırları kontrol et." : "Tüm ana para kontrolleri birbirini tutuyor."}</span>
+    </section>
+
+    <div class="accounting-grid">
+      <article><span>Servis ana tahsilat</span><b>${primaryItems.length}</b></article>
+      <article><span>Toplam Hasılat</span><b>${money(equation.customerMoney)}</b></article>
+      <article><span>Toplam Malzeme</span><b>${money(equation.material)}</b></article>
+      <article><span>Senin Hakedişin</span><b>${money(equation.owner)}</b></article>
+      <article><span>Kaynak Payı</span><b>${money(equation.source)}</b></article>
+      <article><span>Denklem Farkı</span><b class="${Math.abs(equation.diff) >= 1 ? "cash-negative" : ""}">${money(equation.diff)}</b></article>
+    </div>
+
+    <section class="accounting-section">
+      <h3>Genel denklem</h3>
+      ${accountingCheckRow("Hasılat = Malzeme + Diğer Gider + Senin Hakedişin + Kaynak Payı", equation.customerMoney, equation.material + equation.other + equation.owner + equation.source)}
+    </section>
+
+    <section class="accounting-section">
+      <h3>Tüm Kaynaklar sağlaması</h3>
+      ${accountingCheckRow("Toplam Hasılat", allTotals.customerMoney, perSourceTotals.customerMoney)}
+      ${accountingCheckRow("Toplam Malzeme", allTotals.material, perSourceTotals.material)}
+      ${accountingCheckRow("Hakediş", allTotals.hakedis, perSourceTotals.hakedis)}
+      ${accountingCheckRow("Kalan Ödeme", allTotals.remainingPayment, perSourceTotals.remainingPayment)}
+    </section>
+
+    <section class="accounting-section">
+      <h3>Mevcut filtre: Ana sayfa / Kasa</h3>
+      <p class="accounting-help">Bu bölüm, ekranda seçili tarih ve kaynak filtrelerine göre iki sayfanın aynı hasılat hesabını kullanıp kullanmadığını kontrol eder.</p>
+      ${accountingCheckRow("Toplam Hasılat", currentDashboardTotals.customerMoney, currentCashTotals.customerMoney)}
+      ${accountingCheckRow("Toplam Malzeme", currentDashboardTotals.material, currentCashTotals.material)}
+      ${accountingCheckRow("Hakediş", currentDashboardTotals.hakedis, currentCashTotals.hakedis)}
+    </section>
+
+    ${failures.length ? `<section class="accounting-section accounting-errors"><h3>Bulunan sorunlar</h3>${failures.map((text) => `<div class="accounting-error-row">${escapeHtml(text)}</div>`).join("")}</section>` : ""}
+
+    ${duplicateServiceIncome.length ? `<section class="accounting-section accounting-errors"><h3>Çift tahsilat ihtimali</h3>${duplicateServiceIncome.slice(0, 20).map((item) => `<div class="accounting-error-row">Servis ${escapeHtml(item.serviceId)} · ${item.count} tahsilat satırı · ${money(item.amount)}</div>`).join("")}</section>` : ""}
+
+    ${orphanCashItems.length ? `<section class="accounting-section accounting-errors"><h3>Servis bağlantısı bulunamayan kasa hareketleri</h3>${orphanCashItems.slice(0, 20).map((item) => `<div class="accounting-error-row">Servis ${escapeHtml(item.serviceId)} · ${escapeHtml(item.title)} · ${money(item.amount)}</div>`).join("")}</section>` : ""}
+
+    ${equation.errors.length ? `<section class="accounting-section accounting-errors"><h3>Denklem farkı olan servisler</h3>${equation.errors.slice(0, 20).map((item) => `<div class="accounting-error-row">Servis ${escapeHtml(item.serviceId)} · Fark ${money(item.diff)} · ${escapeHtml(item.title)}</div>`).join("")}</section>` : ""}
+  `;
+}
+
+function accountingCheckRow(label, left, right) {
+  const diff = (Number(left) || 0) - (Number(right) || 0);
+  const ok = Math.abs(diff) < 1;
+  return `
+    <div class="accounting-check-row ${ok ? "is-ok" : "is-bad"}">
+      <span>${escapeHtml(label)}</span>
+      <b>${money(left)}</b>
+      <b>${money(right)}</b>
+      <strong>${ok ? "✓" : `Fark ${money(diff)}`}</strong>
+    </div>
+  `;
+}
+
+function accountingLabel(key) {
+  return ({ customerMoney: "hasılat", material: "malzeme", hakedis: "hakediş", remainingPayment: "kalan ödeme" })[key] || key;
+}
+
+function serviceLabelForAccounting(item) {
+  const service = state.services.find((entry) => entry.id === item.serviceId);
+  return service ? `${service.customerName || "Servis"} · ${service.source || "Kaynak yok"}` : (item.title || "Servis hareketi");
+}
+
+function groupBy(items, getKey) {
+  const map = new Map();
+  (items || []).forEach((item) => {
+    const key = getKey(item);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  });
+  return map;
+}
+
+function sumBy(items, getValue) {
+  return (items || []).reduce((total, item) => total + (Number(getValue(item)) || 0), 0);
 }
 
 function dashboardOwnerCashStatus(items = state.cash) {
@@ -1600,7 +2166,7 @@ function renderDetail(id) {
           <h3>📷 Fotoğraflar ${canEditPortalRecords() ? `<button class="primary-button" type="button" data-action="add-photo" data-service-id="${service.id}">Fotoğraf Ekle / Çek</button>` : ""}</h3>
           ${service.photos.length ? `<div class="photo-grid">${service.photos.map((photo) => `
             <article class="photo-card">
-              <img src="${photo.dataUrl}" alt="${escapeHtml(photo.caption || "Servis fotoğrafı")}">
+              <img src="${photo.dataUrl}" alt="${escapeHtml(photo.caption || "Servis fotoğrafı")}" data-action="open-photo-viewer" data-service-id="${escapeAttr(service.id)}" data-photo-id="${escapeAttr(photo.id)}" title="Büyüt">
               <footer>
                 <b>${escapeHtml(photo.caption || "Fotoğraf")}</b>
                 ${canEditPortalRecords() ? `<div class="row-actions">
@@ -1687,6 +2253,38 @@ function openCompleteForm(serviceId) {
   completeDialog.showModal();
 }
 
+
+function normalizePaymentMode(value) {
+  const mode = String(value || "Tahsilat Yapıldı").trim() || "Tahsilat Yapıldı";
+  if (mode === "Sonra Tahsil Edilecek") return "Havale Bekleniyor";
+  return mode;
+}
+
+function paymentModeForcesZero(mode) {
+  return mode === "Ücretsiz İşlem" || mode === "Garanti Kapsamında";
+}
+
+function serviceStatusForPaymentMode(mode) {
+  return mode === "Havale Bekleniyor" ? "Ödeme Bekliyor" : "İşlem Tamam";
+}
+
+function servicePaymentModeLabel(service) {
+  const cash = primaryCashForService(service?.id);
+  const statusMode = normalizePaymentMode(service?.paymentStatus || "");
+  const cashMode = normalizePaymentMode(cash?.title || "");
+  const amount = Number(cash?.amount ?? service?.price ?? 0) || 0;
+
+  // Ücret alındıysa satırda Tahsilat Yapıldı görünsün.
+  if (statusMode === "Ödendi" || (cashMode === "Tahsilat Yapıldı" && amount > 0)) return "Tahsilat Yapıldı";
+
+  // Ücretsiz / garanti / havale bekleyen işlemlerde kendi kapanış tipi görünsün.
+  const mode = ["Havale Bekleniyor", "Ücretsiz İşlem", "Garanti Kapsamında"].includes(statusMode) ? statusMode : cashMode;
+  if (["Havale Bekleniyor", "Ücretsiz İşlem", "Garanti Kapsamında"].includes(mode)) return mode;
+
+  // Tutar yoksa yanlışlıkla Tahsilat Yapıldı yazdırma.
+  return "";
+}
+
 function completeServiceFromForm(formData) {
   if (isSourcePortal()) return;
   const data = Object.fromEntries(formData);
@@ -1704,18 +2302,20 @@ function completeServiceFromForm(formData) {
     return;
   }
 
-  const amount = Number(data.amount) || 0;
+  const paymentMode = normalizePaymentMode(data.paymentMode);
+  const rawAmount = Number(data.amount) || 0;
+  const amount = paymentModeForcesZero(paymentMode) ? 0 : rawAmount;
   const materialCost = Number(data.materialCost) || 0;
   const otherExpense = Number(data.otherExpense) || 0;
   const commissionRate = Number(data.commissionRate) || 0;
-  const cashType = data.type === "expense" ? "expense" : "income";
+  const cashType = "income";
   const closeDate = isoToday;
 
   const cashItem = {
     id: uid(),
     date: closeDate,
     type: cashType,
-    title: data.paymentMode || (cashType === "income" ? "Tahsilat" : "Gider"),
+    title: paymentMode,
     amount,
     materialCost,
     otherExpense,
@@ -1727,9 +2327,9 @@ function completeServiceFromForm(formData) {
   };
   state.cash.unshift(cashItem);
 
-  service.status = "İşlem Tamam";
-  service.paymentStatus = amount > 0 && cashType === "income" ? "Ödendi" : (data.paymentMode || "Fiş Kapatıldı");
-  if (amount > 0) service.price = amount;
+  service.status = serviceStatusForPaymentMode(paymentMode);
+  service.paymentStatus = paymentMode === "Tahsilat Yapıldı" && amount > 0 ? "Ödendi" : paymentMode;
+  service.price = amount;
   service.notes.unshift({
     id: uid(),
     text: workNote,
@@ -1739,8 +2339,8 @@ function completeServiceFromForm(formData) {
   service.statusHistory.unshift({
     id: uid(),
     date: closeDate,
-    status: "İşlem Tamam",
-    description: `${data.paymentMode || "Fiş kapatıldı"} - ${workNote}`,
+    status: serviceStatusForPaymentMode(paymentMode),
+    description: `Fiş kapatıldı (${paymentMode}) - ${workNote}`,
     createdAt: new Date().toISOString(),
   });
 
@@ -2210,7 +2810,7 @@ function syncServiceCash(service) {
     return;
   }
   if (shouldHaveIncome && existing) {
-    existing.date = toIsoDate(new Date());
+    existing.date = serviceMainDate(service) || existing.date || isoToday;
     existing.type = "income";
     existing.title = `Servis tahsilatı ${service.id}`;
     existing.amount = service.price;
@@ -2220,7 +2820,7 @@ function syncServiceCash(service) {
     return;
   }
   if (shouldHaveIncome && !existing) {
-    state.cash.unshift({ id: uid(), serviceId: service.id, source: service.source || "", autoServiceIncome: true, collectedBy: "me", date: toIsoDate(new Date()), type: "income", title: `Servis tahsilatı ${service.id}`, amount: service.price });
+    state.cash.unshift({ id: uid(), serviceId: service.id, source: service.source || "", autoServiceIncome: true, collectedBy: "me", date: serviceMainDate(service) || isoToday, type: "income", title: `Servis tahsilatı ${service.id}`, amount: service.price });
   }
 }
 
@@ -2319,8 +2919,20 @@ function canEditPortalRecords() {
   return !isSourcePortal();
 }
 
+function sourceKey(source) {
+  const value = norm(source);
+  // Eski kayıtlarda kaynak boş, farklı büyük/küçük harfli veya "kendi iş" gibi kaydedilmiş olabilir.
+  // Bunların hepsi Kendi İşim filtresinde birlikte görünmeli.
+  if (!value || value === "kendi işim" || value === "kendi isim" || value === "kendi iş" || value === "kendı işim" || value === "kendim") return "kendi-isim";
+  return value;
+}
+
+function sourceMatches(actual, expected) {
+  return !expected || sourceKey(actual) === sourceKey(expected);
+}
+
 function isOwnWorkSource(source) {
-  return norm(source) === norm("Kendi İşim");
+  return sourceKey(source) === "kendi-isim";
 }
 
 function visibleCashTitle(item) {
@@ -2379,6 +2991,133 @@ function formatDateTimeWithDay(value) {
 function money(value) {
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0);
 }
+
+let photoViewerState = { serviceId: "", index: 0, scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, baseX: 0, baseY: 0, pinchDistance: 0, pinchScale: 1 };
+
+function getPhotoViewerElements() {
+  return {
+    overlay: document.querySelector("#photoViewer"),
+    img: document.querySelector("#photoViewerImg"),
+    caption: document.querySelector("#photoViewerCaption"),
+    count: document.querySelector("#photoViewerCount"),
+    prev: document.querySelector("#photoViewerPrev"),
+    next: document.querySelector("#photoViewerNext"),
+  };
+}
+
+function openPhotoViewer(serviceId, photoId) {
+  const service = state.services.find((item) => item.id === serviceId);
+  if (!service || !service.photos?.length) return;
+  const index = Math.max(0, service.photos.findIndex((photo) => photo.id === photoId));
+  photoViewerState = { ...photoViewerState, serviceId, index, scale: 1, x: 0, y: 0 };
+  const { overlay } = getPhotoViewerElements();
+  if (!overlay) return;
+  overlay.classList.add("is-open");
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("photo-viewer-open");
+  renderPhotoViewer();
+}
+
+function closePhotoViewer() {
+  const { overlay } = getPhotoViewerElements();
+  if (!overlay) return;
+  overlay.classList.remove("is-open");
+  overlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("photo-viewer-open");
+}
+
+function renderPhotoViewer() {
+  const service = state.services.find((item) => item.id === photoViewerState.serviceId);
+  const photo = service?.photos?.[photoViewerState.index];
+  const { img, caption, count, prev, next } = getPhotoViewerElements();
+  if (!photo || !img) return;
+  img.src = photo.dataUrl;
+  img.alt = photo.caption || "Servis fotoğrafı";
+  img.style.transform = `translate(${photoViewerState.x}px, ${photoViewerState.y}px) scale(${photoViewerState.scale})`;
+  if (caption) caption.textContent = photo.caption || "Fotoğraf";
+  if (count) count.textContent = `${photoViewerState.index + 1} / ${service.photos.length}`;
+  if (prev) prev.disabled = service.photos.length < 2;
+  if (next) next.disabled = service.photos.length < 2;
+}
+
+function movePhotoViewer(direction) {
+  const service = state.services.find((item) => item.id === photoViewerState.serviceId);
+  const count = service?.photos?.length || 0;
+  if (!count) return;
+  photoViewerState.index = (photoViewerState.index + direction + count) % count;
+  resetPhotoViewer(false);
+  renderPhotoViewer();
+}
+
+function zoomPhotoViewer(delta) {
+  photoViewerState.scale = Math.min(5, Math.max(1, photoViewerState.scale + delta));
+  if (photoViewerState.scale === 1) {
+    photoViewerState.x = 0;
+    photoViewerState.y = 0;
+  }
+  renderPhotoViewer();
+}
+
+function resetPhotoViewer(shouldRender = true) {
+  photoViewerState.scale = 1;
+  photoViewerState.x = 0;
+  photoViewerState.y = 0;
+  if (shouldRender) renderPhotoViewer();
+}
+
+function setupPhotoViewerGestures() {
+  const { overlay, img } = getPhotoViewerElements();
+  if (!overlay || !img) return;
+  img.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    zoomPhotoViewer(event.deltaY < 0 ? 0.2 : -0.2);
+  }, { passive: false });
+  img.addEventListener("dblclick", () => {
+    if (photoViewerState.scale > 1) resetPhotoViewer();
+    else { photoViewerState.scale = 2; renderPhotoViewer(); }
+  });
+  img.addEventListener("pointerdown", (event) => {
+    if (photoViewerState.scale <= 1) return;
+    photoViewerState.dragging = true;
+    photoViewerState.startX = event.clientX;
+    photoViewerState.startY = event.clientY;
+    photoViewerState.baseX = photoViewerState.x;
+    photoViewerState.baseY = photoViewerState.y;
+    img.setPointerCapture?.(event.pointerId);
+  });
+  img.addEventListener("pointermove", (event) => {
+    if (!photoViewerState.dragging) return;
+    photoViewerState.x = photoViewerState.baseX + (event.clientX - photoViewerState.startX);
+    photoViewerState.y = photoViewerState.baseY + (event.clientY - photoViewerState.startY);
+    renderPhotoViewer();
+  });
+  img.addEventListener("pointerup", () => { photoViewerState.dragging = false; });
+  img.addEventListener("pointercancel", () => { photoViewerState.dragging = false; });
+  overlay.addEventListener("touchstart", (event) => {
+    if (event.touches.length === 2) {
+      const [a, b] = event.touches;
+      photoViewerState.pinchDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      photoViewerState.pinchScale = photoViewerState.scale;
+    }
+  }, { passive: true });
+  overlay.addEventListener("touchmove", (event) => {
+    if (event.touches.length === 2 && photoViewerState.pinchDistance) {
+      event.preventDefault();
+      const [a, b] = event.touches;
+      const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      photoViewerState.scale = Math.min(5, Math.max(1, photoViewerState.pinchScale * (distance / photoViewerState.pinchDistance)));
+      renderPhotoViewer();
+    }
+  }, { passive: false });
+}
+
+document.addEventListener("keydown", (event) => {
+  const { overlay } = getPhotoViewerElements();
+  if (!overlay?.classList.contains("is-open")) return;
+  if (event.key === "Escape") closePhotoViewer();
+  if (event.key === "ArrowLeft") movePhotoViewer(-1);
+  if (event.key === "ArrowRight") movePhotoViewer(1);
+});
 
 function escapeAttr(value) {
   return escapeHtml(value).replace(/"/g, "&quot;");
@@ -2619,6 +3358,7 @@ function mobileServiceCard(service) {
   const mapHref = mobileMapUrl(service);
   const bucket = mobileStatusBucket(service.status);
   const deviceTitle = [service.brand, service.device].filter(Boolean).join(" ") || "Cihaz bilgisi yok";
+  const paymentModeLabel = servicePaymentModeLabel(service);
   return `
     <article class="mobile-service-card mobile-status-${bucket}" data-mobile-service-id="${escapeAttr(service.id)}">
       <div class="mobile-card-top" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
@@ -2626,7 +3366,7 @@ function mobileServiceCard(service) {
           <b>${escapeHtml(formatServiceCardDate(dateValue))}</b>
           <span>${escapeHtml(timeValue || formatServiceCardDay(dateValue))}</span>
         </div>
-        <span class="mobile-status-pill">${escapeHtml(service.status || "Durum yok")}</span>
+        <span class="mobile-status-pill">${escapeHtml(service.status || "Durum yok")}${paymentModeLabel ? ` · ${escapeHtml(paymentModeLabel)}` : ""}</span>
       </div>
       <div data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
         <div class="mobile-device">${escapeHtml(deviceTitle)}</div>
@@ -2708,7 +3448,7 @@ function mobileRenderDetail(serviceId) {
       <textarea class="mobile-done-textarea" data-mobile-work-note="${escapeAttr(service.id)}" placeholder="Yapılan işlemi yaz...">${escapeHtml(noteText)}</textarea>
     </div>
 
-    ${service.photos?.length ? `<div class="mobile-photo-strip">${service.photos.slice(0, 4).map((photo) => `<img src="${escapeAttr(photo.dataUrl)}" alt="Servis fotoğrafı">`).join("")}</div>` : ""}
+    ${service.photos?.length ? `<div class="mobile-photo-strip">${service.photos.slice(0, 4).map((photo) => `<img src="${escapeAttr(photo.dataUrl)}" alt="Servis fotoğrafı" data-action="open-photo-viewer" data-service-id="${escapeAttr(service.id)}" data-photo-id="${escapeAttr(photo.id)}">`).join("")}</div>` : ""}
 
     <footer class="mobile-sheet-footer">
       <button class="mobile-delay-btn" type="button" data-mobile-action="delay-service" data-service-id="${escapeAttr(service.id)}">Ertele</button>
@@ -3057,7 +3797,7 @@ document.addEventListener("keydown", (event) => {
   }
 
   function serviceMatchesSourceSafe(service, source) {
-    return !source || (service.source || "") === source;
+    return !source || sourceMatches(service.source, source);
   }
 
   function fillMobileSourcePickerSafe() {
@@ -3168,7 +3908,7 @@ document.addEventListener("keydown", (event) => {
     const items = (state.cash || []).filter((item) => {
       const itemDate = String(item.date || "").slice(0,10);
       const itemSource = cashItemSource(item);
-      return cashIsPosted(item) && matchesPortalSource(itemSource) && (!source || itemSource === source) && itemDate === date;
+      return cashIsPosted(item) && matchesPortalSource(itemSource) && (!source || sourceMatches(itemSource, source)) && itemDate === date;
     });
     const totals = cashBreakdown(items);
     const serviceTotals = serviceOnlyCashBreakdown(items);
@@ -3306,17 +4046,19 @@ function completeServiceFromForm(formData) {
     return true;
   });
 
-  const amount = Number(data.amount) || 0;
+  const paymentMode = normalizePaymentMode(data.paymentMode);
+  const rawAmount = Number(data.amount) || 0;
+  const amount = paymentModeForcesZero(paymentMode) ? 0 : rawAmount;
   const materialCost = Number(data.materialCost) || 0;
   const otherExpense = Number(data.otherExpense) || 0;
   const commissionRate = Number(data.commissionRate) || 0;
-  const closeDate = primary?.date || isoToday;
+  const closeDate = serviceMainDate(service) || primary?.date || isoToday;
   const cashItem = {
     ...(primary || {}),
     id: primary?.id || uid(),
     date: closeDate,
     type: "income",
-    title: data.paymentMode || "Tahsilat Yapıldı",
+    title: paymentMode,
     amount,
     materialCost,
     otherExpense,
@@ -3331,8 +4073,8 @@ function completeServiceFromForm(formData) {
   state.cash.unshift(cashItem);
   syncSettlementCash(cashItem);
 
-  service.status = "İşlem Tamam";
-  service.paymentStatus = amount > 0 ? "Ödendi" : (data.paymentMode || "Fiş Kapatıldı");
+  service.status = serviceStatusForPaymentMode(paymentMode);
+  service.paymentStatus = paymentMode === "Tahsilat Yapıldı" && amount > 0 ? "Ödendi" : paymentMode;
   service.price = amount;
   service.source = data.source || service.source || "";
   service.notes = Array.isArray(service.notes) ? service.notes : [];
@@ -3345,14 +4087,16 @@ function completeServiceFromForm(formData) {
     service.notes.unshift({ id: uid(), text: workNote, createdAt: new Date().toISOString(), updatedAt: "" });
   }
   service.statusHistory = Array.isArray(service.statusHistory) ? service.statusHistory : [];
-  const lastClose = service.statusHistory.find((item) => isStatus(item.status, "İşlem Tamam") && String(item.description || "").includes("Fiş kapatıldı"));
-  const desc = `Fiş kapatıldı - ${workNote}`;
+  const closeStatus = serviceStatusForPaymentMode(paymentMode);
+  const lastClose = service.statusHistory.find((item) => (isStatus(item.status, "İşlem Tamam") || isStatus(item.status, "Ödeme Bekliyor")) && String(item.description || "").includes("Fiş kapatıldı"));
+  const desc = `Fiş kapatıldı (${paymentMode}) - ${workNote}`;
   if (lastClose) {
     lastClose.date = closeDate;
+    lastClose.status = closeStatus;
     lastClose.description = desc;
     lastClose.updatedAt = new Date().toISOString();
   } else {
-    service.statusHistory.unshift({ id: uid(), date: closeDate, status: "İşlem Tamam", description: desc, createdAt: new Date().toISOString() });
+    service.statusHistory.unshift({ id: uid(), date: closeDate, status: closeStatus, description: desc, createdAt: new Date().toISOString() });
   }
 
   saveState();
@@ -3383,7 +4127,7 @@ const mobileCloseServiceSteps = [
   { key: "materialCost", label: "Malzeme Gideri", type: "number", placeholder: "0", required: false },
   { key: "otherExpense", label: "Diğer Gider", type: "number", placeholder: "0", required: false },
   { key: "commissionRate", label: "Komisyon Oranı", type: "select", required: true, options: [{ value: "70", text: "%70" }, { value: "60", text: "%60" }, { value: "50", text: "%50" }, { value: "40", text: "%40" }, { value: "30", text: "%30" }, { value: "20", text: "%20" }, { value: "10", text: "%10" }, { value: "0", text: "Komisyon Yok" }] },
-  { key: "paymentMode", label: "Kapanış Tipi", type: "select", required: true, options: [{ value: "Tahsilat Yapıldı", text: "Tahsilat Yapıldı" }, { value: "Havale Bekleniyor", text: "Havale Bekleniyor" }, { value: "Sonra Tahsil Edilecek", text: "Sonra Tahsil Edilecek" }, { value: "Ücretsiz İşlem", text: "Ücretsiz İşlem" }, { value: "Garanti Kapsamında", text: "Garanti Kapsamında" }] },
+  { key: "paymentMode", label: "Kapanış Tipi", type: "select", required: true, options: [{ value: "Tahsilat Yapıldı", text: "Tahsilat Yapıldı" }, { value: "Havale Bekleniyor", text: "Havale Bekleniyor" }, { value: "Ücretsiz İşlem", text: "Ücretsiz İşlem" }, { value: "Garanti Kapsamında", text: "Garanti Kapsamında" }] },
   { key: "source", label: "Servis Kaynağı", type: "source", required: false }
 ];
 
@@ -3399,7 +4143,7 @@ function mobileCloseExistingData(service) {
     materialCost: existingCash ? String(Number(existingCash.materialCost) || 0) : "",
     otherExpense: existingCash ? String(Number(existingCash.otherExpense) || 0) : "",
     commissionRate: existingCash ? String(Number(existingCash.commissionRate) || 0) : "50",
-    paymentMode: existingCash?.title || "Tahsilat Yapıldı",
+    paymentMode: normalizePaymentMode(existingCash?.title || "Tahsilat Yapıldı"),
     source: existingCash?.source || service.source || "Kendi İşim"
   };
 }

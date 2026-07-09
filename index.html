@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V3.6.2</title>
-  <link rel="stylesheet" href="./styles.css?v=v3-6-2">
+  <title>Ekzen Servis Takip V3.7.8</title>
+  <link rel="stylesheet" href="./styles.css?v=v3-7-8">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -20,8 +20,9 @@
         <nav class="topbar-nav" aria-label="Ana menü">
           <button class="nav-item is-active" type="button" data-view="dashboard" title="Ana Sayfa"><span>⌂</span><b>Ana Sayfa</b></button>
           <button class="nav-item" type="button" data-view="services" title="Servisler"><span>☑</span><b>Servisler</b></button>
-          <button class="nav-item" type="button" data-action="show-open-services" title="Kalan İşler"><span>☷</span><b>Kalan İşler</b></button>
+          <button class="nav-item" type="button" data-action="show-all-records" title="Tüm Kayıtlar"><span>▦</span><b>Tüm Kayıtlar</b></button>
           <button class="nav-item" type="button" data-view="cash" title="Kasa"><span>₺</span><b>Kasa</b></button>
+          <button class="nav-item" type="button" data-action="accounting-check" title="Muhasebe Kontrol"><span>✓</span><b>Kontrol</b></button>
           <button class="nav-item" type="button" data-view="settings" title="Ayarlar"><span>⚙</span><b>Ayarlar</b></button>
         </nav>
         <div class="top-actions">
@@ -49,26 +50,21 @@
                 <h2 id="dashboardTitle">Ekzen Teknik</h2>
                 <p id="dashboardOwnerLine">Doğan Sezai Koçak · Patron</p>
               </div>
-              <div class="dashboard-date-filters dashboard-inline-date-filters" aria-label="Ana sayfa tarih aralığı">
-                <label><span>Başlangıç</span><input id="dashboardStartDate" type="date" aria-label="Ana sayfa başlangıç tarihi"></label>
-                <label><span>Bitiş</span><input id="dashboardEndDate" type="date" aria-label="Ana sayfa bitiş tarihi"></label>
+              <div class="dashboard-date-filters dashboard-inline-date-filters dashboard-single-date-filter" aria-label="Ana sayfa tarih aralığı">
+                <input id="dashboardStartDate" type="hidden" aria-label="Ana sayfa başlangıç tarihi">
+                <input id="dashboardEndDate" type="hidden" aria-label="Ana sayfa bitiş tarihi">
+                <button id="dashboardDateRangeButton" class="date-range-button" type="button" data-action="open-dashboard-date-range">
+                  <span>Tarih</span>
+                  <b id="dashboardDateRangeLabel">Bugün</b>
+                </button>
               </div>
             </div>
           </div>
-          <div class="dashboard-range-hint">Seçili tarih aralığına göre özet</div>
         </div>
 
         <div class="dashboard-band">
           <div class="metric-grid" id="sourceMetrics"></div>
         </div>
-
-        <section class="panel daily-cash-panel" aria-label="Günlük kasa özeti">
-          <div class="panel-title compact-panel-title">
-            <span class="section-kicker">Günlük Kasa</span>
-            <h2>Seçili güne göre hasılat / gider / kazanç</h2>
-          </div>
-          <div id="dailyCashList" class="daily-cash-list"></div>
-        </section>
 
         <div class="stat-row" id="dashboardCounters"></div>
 
@@ -82,7 +78,9 @@
               <span class="section-kicker">Operasyon</span><h2>Servis Listesi</h2>
               <form class="sort-bar" id="filterForm">
                 <input name="query" type="search" placeholder="Müşteri, telefon, adres, cihaz ara">
-                <label class="service-date-filter-label"><span>Tarih</span><input id="serviceDateFilter" type="date" aria-label="Servis tarihi filtresi"></label>
+                <button class="date-range-button compact-date-button" type="button" data-action="open-dashboard-date-range">
+                  <span>Tarih</span><b data-date-range-label>Bugün</b>
+                </button>
                 <select id="topSourceFilter" aria-label="Servis kaynağı filtresi"></select>
                 <select id="topStatusFilter" aria-label="Servis durumu filtresi"></select>
                 <button class="ghost-button" type="button" data-action="clear-selected">Filtreyi Temizle</button>
@@ -123,8 +121,9 @@
               <span class="section-kicker">Finans</span><h2>Kasa Yönetimi</h2>
             <div class="panel-tools">
               <div class="cash-date-filters">
-                <input id="cashStartDate" type="date" aria-label="Kasa başlangıç tarihi">
-                <input id="cashEndDate" type="date" aria-label="Kasa bitiş tarihi">
+                <button class="date-range-button compact-date-button" type="button" data-action="open-dashboard-date-range">
+                  <span>Tarih</span><b data-date-range-label>Bugün</b>
+                </button>
               </div>
               <select id="cashSourceFilter" aria-label="Kasa servis kaynağı"></select>
               <button class="secondary-button" type="button" data-action="print-cash">PDF / Yazdır</button>
@@ -137,6 +136,10 @@
             <article><span>Komisyon</span><b id="cashCommission">0 TL</b></article>
             <article><span>Malzeme</span><b id="cashMaterial">0 TL</b></article>
             <article><span>Kalan Ödeme</span><b id="cashBalance">0 TL</b></article>
+          </div>
+          <div class="cash-mode-tabs" aria-label="Kasa liste türü">
+            <button class="cash-mode-tab is-active" type="button" data-action="set-cash-list-mode" data-mode="service">Servis Hareketleri</button>
+            <button class="cash-mode-tab" type="button" data-action="set-cash-list-mode" data-mode="cash">Kasa Hareketleri</button>
           </div>
           <div id="cashList" class="data-grid"></div>
         </section>
@@ -161,7 +164,24 @@
           <div id="settingsLists" class="settings-lists"></div>
         </section>
       </section>
-    </main>
+    
+      <dialog class="modal wide-modal accounting-dialog" id="accountingCheckDialog">
+        <form method="dialog" class="modal-card accounting-card">
+          <div class="modal-head">
+            <div>
+              <span class="section-kicker">Muhasebe Sağlama</span>
+              <h2>Para Hesabı Kontrolü</h2>
+            </div>
+            <button class="icon-button" type="button" data-action="close-accounting-check">×</button>
+          </div>
+          <div id="accountingCheckContent" class="accounting-check-content"></div>
+          <div class="form-actions">
+            <button class="secondary-button" type="button" data-action="print-accounting-check">Yazdır / PDF</button>
+            <button class="primary-button" type="button" data-action="close-accounting-check">Kapat</button>
+          </div>
+        </form>
+      </dialog>
+</main>
   </div>
 
   <section id="mobileTechApp" class="mobile-tech-app" aria-label="Teknisyen mobil paneli">
@@ -230,7 +250,9 @@
     </div>
 
 
-    <main id="mobileServiceList" class="mobile-service-list"></main>
+    <main id="mobileServiceList" class="mobile-service-list">
+
+</main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
     <div class="mobile-version-badge">Ekzen Servis Takip V3.6.2</div>
@@ -246,6 +268,39 @@
     </div>
   </section>
 
+
+
+  <dialog id="dashboardDateRangeDialog" class="dialog date-range-dialog">
+    <div class="dialog-shell date-range-shell">
+      <header>
+        <h2>Tarih Filtresi</h2>
+        <button class="icon-button" type="button" data-action="close-dashboard-date-range" title="Kapat">×</button>
+      </header>
+      <div class="date-range-body">
+        <div class="date-preset-list" aria-label="Hazır tarih aralıkları">
+          <button type="button" data-action="dashboard-date-preset" data-range="today">Bugün</button>
+          <button type="button" data-action="dashboard-date-preset" data-range="yesterday">Dün</button>
+          <button type="button" data-action="dashboard-date-preset" data-range="tomorrow">Yarın</button>
+          <button type="button" data-action="dashboard-date-preset" data-range="thisWeek">Bu hafta</button>
+          <button type="button" data-action="dashboard-date-preset" data-range="thisMonth">Bu ay</button>
+          <button type="button" data-action="dashboard-date-preset" data-range="allTime">Tüm zamanlar</button>
+        </div>
+        <div class="date-custom-panel">
+          <strong>Özel tarih</strong>
+          <p>Başlangıç ve bitiş tarihini seç.</p>
+          <div class="date-custom-inputs">
+            <label>Başlangıç
+              <input id="dashboardRangeStartPicker" type="date" aria-label="Özel tarih başlangıcı">
+            </label>
+            <label>Bitiş
+              <input id="dashboardRangeEndPicker" type="date" aria-label="Özel tarih bitişi">
+            </label>
+          </div>
+          <div id="dashboardDateRangePreview" class="date-range-preview">Bugün</div>
+        </div>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="serviceDialog" class="dialog">
     <form method="dialog" class="dialog-shell" id="serviceForm">
@@ -355,7 +410,6 @@
             <select name="paymentMode" required>
               <option value="Tahsilat Yapıldı">Tahsilat Yapıldı</option>
               <option value="Havale Bekleniyor">Havale Bekleniyor</option>
-              <option value="Sonra Tahsil Edilecek">Sonra Tahsil Edilecek</option>
               <option value="Ücretsiz İşlem">Ücretsiz İşlem</option>
               <option value="Garanti Kapsamında">Garanti Kapsamında</option>
             </select>
@@ -482,8 +536,42 @@
     </form>
   </dialog>
 
+
+  <dialog class="dialog wide-modal" id="cashCurrentDetailDialog">
+    <div class="dialog-shell cash-current-dialog-shell">
+      <header>
+        <h2 id="cashCurrentDetailTitle">Cari Detay</h2>
+        <button class="icon-button" type="button" data-action="close-cash-current-detail" title="Kapat">×</button>
+      </header>
+      <div id="cashCurrentDetailContent" class="dialog-body cash-current-detail-body"></div>
+      <footer>
+        <span></span><span></span>
+        <button class="secondary-button" type="button" data-action="close-cash-current-detail">Kapat</button>
+      </footer>
+    </div>
+  </dialog>
+
+
+  <div id="photoViewer" class="photo-viewer" aria-hidden="true">
+    <div class="photo-viewer-toolbar">
+      <div>
+        <strong id="photoViewerCaption">Fotoğraf</strong>
+        <span id="photoViewerCount"></span>
+      </div>
+      <div class="photo-viewer-actions">
+        <button type="button" data-action="photo-viewer-zoom-out">−</button>
+        <button type="button" data-action="photo-viewer-reset">Sığdır</button>
+        <button type="button" data-action="photo-viewer-zoom-in">+</button>
+        <button type="button" data-action="close-photo-viewer">×</button>
+      </div>
+    </div>
+    <button id="photoViewerPrev" class="photo-viewer-nav prev" type="button" data-action="photo-viewer-prev">‹</button>
+    <img id="photoViewerImg" src="" alt="Servis fotoğrafı">
+    <button id="photoViewerNext" class="photo-viewer-nav next" type="button" data-action="photo-viewer-next">›</button>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=v3-6-2"></script>
+  <script src="./app.js?v=v3-9-3"></script>
 </body>
 </html>

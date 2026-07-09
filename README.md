@@ -1,15 +1,7 @@
-# Ekzen Servis Takip V3.6.4
+# Ekzen Servis Takip V3.9.5
 
-Bu sürümde mobil görünümde fiş kapatma işlemi soru-soru ilerleyen sihirbaz haline getirildi.
+## Kasa sayfası düzeltmesi
 
-## Mobil Fiş Kapatma Akışı
-1. Yapılan İşlem
-2. Tahsil Edilen Tutar
-3. Tahsilatı Kim Aldı?
-4. Malzeme Gideri
-5. Diğer Gider
-6. Komisyon Oranı
-7. Kapanış Tipi
-8. Servis Kaynağı
-
-Önceki V3.6.3 mantığı korunur: Hakediş değişmez, sadece Kalan Ödeme tahsilat yapan kişiye göre artar veya düşer.
+- Kasa sayfasında **Tüm Kaynaklar** seçiliyken **Yapılan Ödeme** ve **Kalan Ödeme** sayaçları gizlendi.
+- Kaynak özelinde bu sayaçlar görünmeye devam eder.
+- Ana sayfa, servis listesi ve mobil taraf değiştirilmedi.
