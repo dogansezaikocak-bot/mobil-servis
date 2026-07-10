@@ -4858,6 +4858,24 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const listDateEl = document.querySelector("#mobileListPageDate");
     if (openEl) openEl.textContent = String(openRows.length);
     if (closedEl) closedEl.textContent = String(closedRows.length);
+
+    const source = selectedSourceValue();
+    const cashItems = (state.cash || []).filter((item) => {
+      const itemDate = String(item.date || "").slice(0, 10);
+      const itemSource = cashItemSource(item);
+      return cashIsPosted(item)
+        && matchesPortalSource(itemSource)
+        && (!source || sourceMatches(itemSource, source))
+        && itemDate === selectedDate();
+    });
+    const serviceTotals = serviceOnlyCashBreakdown(cashItems);
+    const income = Number(serviceTotals.income || 0);
+    const earning = income - Number(serviceTotals.commission || 0) - Number(serviceTotals.material || 0);
+    const incomeEl = document.querySelector("#mobileWelcomeIncome");
+    const earningEl = document.querySelector("#mobileWelcomeEarning");
+    if (incomeEl) incomeEl.textContent = money(income);
+    if (earningEl) earningEl.textContent = money(earning);
+
     if (textEl) textEl.textContent = formatWelcomeDate(selectedDate());
     if (listDateEl) listDateEl.textContent = selectedDate() === todayIso() ? "Bugün" : formatWelcomeDate(selectedDate());
   }
@@ -4880,7 +4898,17 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     root.classList.remove("is-list-mode", "is-cash-mode");
     root.classList.add("is-welcome-mode");
     const cashPage = document.querySelector("#mobileDailyCashPage");
+    const serviceList = document.querySelector("#mobileServiceList");
+    const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
     if (cashPage) cashPage.hidden = true;
+    if (serviceList) {
+      serviceList.hidden = true;
+      serviceList.style.setProperty("display", "none", "important");
+    }
+    if (globalNewButton) {
+      globalNewButton.hidden = true;
+      globalNewButton.style.setProperty("display", "none", "important");
+    }
     syncExistingMobile();
     window.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -4888,6 +4916,16 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   function showList(bucket) {
     root.classList.remove("is-welcome-mode", "is-cash-mode");
     root.classList.add("is-list-mode");
+    const serviceList = document.querySelector("#mobileServiceList");
+    const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
+    if (serviceList) {
+      serviceList.hidden = false;
+      serviceList.style.removeProperty("display");
+    }
+    if (globalNewButton) {
+      globalNewButton.hidden = false;
+      globalNewButton.style.removeProperty("display");
+    }
     const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
     if (tab) tab.click();
     updateWelcome();

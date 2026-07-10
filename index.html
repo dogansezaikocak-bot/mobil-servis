@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.2.1 Karşılama</title>
-  <link rel="stylesheet" href="./styles.css?v=5.2.1-welcome-20260711">
+  <title>Ekzen Servis Takip V5.2.2 Karşılama</title>
+  <link rel="stylesheet" href="./styles.css?v=5.2.2-home-cash-20260711">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -272,11 +272,20 @@
         </button>
       </div>
 
-      <button type="button" class="mobile-welcome-cash-card" data-welcome-action="cash">
-        <span class="mobile-welcome-cash-icon">₺</span>
-        <span><b>Kasa</b><small>Günlük kasa özetini aç</small></span>
-        <span class="mobile-welcome-arrow">›</span>
-      </button>
+      <div class="mobile-welcome-finance-grid" aria-label="Günlük kasa özeti">
+        <button type="button" class="mobile-welcome-finance-card income" data-welcome-action="cash">
+          <span>Toplam Hasılat</span>
+          <strong id="mobileWelcomeIncome">₺0</strong>
+          <small>Kasa sayfasını aç</small>
+        </button>
+        <button type="button" class="mobile-welcome-finance-card earning" data-welcome-action="cash">
+          <span>Hakediş</span>
+          <strong id="mobileWelcomeEarning">₺0</strong>
+          <small>Hasılat − komisyon − malzeme</small>
+        </button>
+      </div>
+
+      <button class="mobile-welcome-new-service" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
     </section>
     <header class="mobile-tech-header">
       <div class="mobile-summary-actions mobile-summary-actions-v505" aria-label="Teknisyen iş özeti">
@@ -351,7 +360,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.1 Karşılama</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.2 Karşılama</div>
 
 
 
@@ -701,6 +710,6 @@
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.2.1-karsilama-20260711-0125"></script>
+  <script src="./app.js?v=5.2.2-karsilama-kasa-20260711"></script>
 </body>
 </html>

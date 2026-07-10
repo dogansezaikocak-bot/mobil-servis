@@ -1,13 +1,9 @@
-Ekzen Servis Takip V5.2.1 – Karşılama Ana Sayfası
+# Ekzen Servis Takip V5.2.2
 
-Temel: V5.2.0 Beta 2 Safari açılış düzeltmeli sürüm.
+V5.2.1 karşılama sürümü temel alınmıştır.
 
-Mobil değişiklikler:
-- Uygulama açılışında karşılama ana sayfası
-- Tarih seçimi ve tarihe göre sayaçlar
-- Günün İşleri sayacı; tıklanınca ayrı servis listesi
-- Kapanan Fişler sayacı; tıklanınca ayrı servis listesi
-- Kasa kutusu; tıklanınca ayrı günlük kasa özeti
-- Ana sayfaya dönüşte tarih otomatik bugün
-
-GitHub'a ZIP dosyasını değil, ZIP içindeki index.html, app.js, styles.css ve README.md dosyalarını mevcut dosyaların üzerine yükleyin.
+- Ana sayfada servis listesi tamamen gizlendi.
+- Kasa kutusu, Toplam Hasılat ve Hakediş sayaçlarına dönüştürüldü.
+- Hakediş = Toplam Hasılat - Komisyon - Malzeme.
+- Her iki finans sayacı günlük kasa sayfasını açar.
+- Yeni Fiş Aç butonu karşılama sayaçlarının altına taşındı.
