@@ -4064,7 +4064,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V3.5.8";
+  const VERSION = "V5.0.1";
   let mode = "services";
 
   function selectedDate() {
@@ -4245,7 +4245,13 @@ document.addEventListener("keydown", (event) => {
       const picker = document.querySelector("#mobileDatePicker");
       if (picker) picker.value = isoToday;
       mobileSelectedDate = isoToday;
-      renderMobileServicesStable();
+      // V5.1.3: Eski mobil render yerine açık/kapalı fiş sayaçlarını ve
+      // listeyi aynı anda yenileyen güncel motoru çalıştır.
+      if (typeof window.ekzenMobileOpenClosedV511 === "function") {
+        window.ekzenMobileOpenClosedV511(false);
+      } else {
+        renderMobileServicesStable();
+      }
       return;
     }
 
@@ -4551,3 +4557,216 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   if (!service) return;
   openMobileCloseServiceWizard(serviceId);
 };
+
+
+/* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
+(function setupMobileOpenClosedV511() {
+  const VERSION = "V5.1.3";
+  let activeBucket = "open";
+  let selectedDate = isoToday;
+
+  function pickerDate() {
+    const value = document.querySelector("#mobileDatePicker")?.value;
+    return String(value || selectedDate || isoToday).slice(0, 10);
+  }
+
+  function selectedSource() {
+    return document.querySelector("#mobileSourcePicker")?.value || "";
+  }
+
+  function serviceDateCandidates(service) {
+    return [service.availableDate, service.visitDate, service.date, service.createdAt]
+      .filter(Boolean)
+      .map((value) => String(value).slice(0, 10))
+      .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value));
+  }
+
+  function matchesDate(service) {
+    return serviceDateCandidates(service).includes(selectedDate);
+  }
+
+  function matchesSource(service) {
+    const source = selectedSource();
+    return !source || sourceMatches(service.source, source);
+  }
+
+  function isOpenService(service) {
+    return isStatus(service.status, "Yeni Kayıt") || isStatus(service.status, "İşlemde");
+  }
+
+  function isClosedService(service) {
+    return isStatus(service.status, "İşlem Tamam") || isStatus(service.status, "İptal");
+  }
+
+  function recordsFor(bucket) {
+    const rows = sortServices(state.services || []).filter((service) => matchesSource(service) && matchesDate(service));
+    return bucket === "closed" ? rows.filter(isClosedService) : rows.filter(isOpenService);
+  }
+
+  function formattedDate() {
+    if (selectedDate === isoToday) return "Bugün";
+    try {
+      return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })
+        .format(new Date(`${selectedDate}T12:00:00`));
+    } catch (_) {
+      return selectedDate;
+    }
+  }
+
+  function renderMobileOpenClosed(scrollToList = false) {
+    const root = document.querySelector("#mobileTechApp");
+    if (!root) return;
+
+    const picker = document.querySelector("#mobileDatePicker");
+    if (picker) {
+      if (!picker.value) picker.value = selectedDate;
+      selectedDate = String(picker.value || selectedDate || isoToday).slice(0, 10);
+    }
+
+    mobileSelectedDate = selectedDate;
+    mobileSelectedSource = selectedSource();
+    mobileCashModeOpen = false;
+
+    const openRows = recordsFor("open");
+    const closedRows = recordsFor("closed");
+    const visibleRows = activeBucket === "closed" ? closedRows : openRows;
+
+    const openCount = document.querySelector("#mobileCountOpen");
+    const closedCount = document.querySelector("#mobileCountClosed");
+    if (openCount) openCount.textContent = String(openRows.length);
+    if (closedCount) closedCount.textContent = String(closedRows.length);
+
+    document.querySelectorAll("#mobileTechApp [data-mobile-bucket]").forEach((button) => {
+      const active = button.dataset.mobileBucket === activeBucket;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const bucketLabel = activeBucket === "closed" ? "Kapalı Fişler" : "Açık Fişler";
+    const title = document.querySelector("#mobileListTitle");
+    if (title) title.textContent = `${formattedDate()} · ${bucketLabel}`;
+    const summary = document.querySelector("#mobileTechSummary");
+    if (summary) summary.textContent = `${bucketLabel} · ${visibleRows.length} fiş`;
+
+    const cashPage = document.querySelector("#mobileDailyCashPage");
+    if (cashPage) {
+      cashPage.hidden = true;
+      cashPage.style.setProperty("display", "none", "important");
+    }
+    root.classList.remove("is-cash-mode");
+
+    const list = document.querySelector("#mobileServiceList");
+    if (list) {
+      list.hidden = false;
+      list.style.setProperty("display", "grid", "important");
+      list.innerHTML = visibleRows.length
+        ? visibleRows.map(mobileServiceCard).join("")
+        : `<div class="mobile-empty">${formattedDate()} için ${bucketLabel.toLocaleLowerCase("tr-TR")} bulunmuyor.</div>`;
+    }
+
+    const newButton = document.querySelector(".mobile-new-service-bar");
+    if (newButton) {
+      newButton.hidden = false;
+      newButton.style.setProperty("display", "block", "important");
+    }
+
+    const badge = document.querySelector(".mobile-version-badge");
+    if (badge) badge.textContent = `Ekzen Servis Takip ${VERSION}`;
+
+    if (scrollToList && list) {
+      requestAnimationFrame(() => list.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }
+
+  function settle(scrollToList = false) {
+    // V5.1.2: Tarih değişiminde gecikmeli ikinci render kaldırıldı.
+    // Eski mobil render'ların seçili tarihi yeniden bugüne çevirmesini önlemek için
+    // tek ve senkron çizim kullanılır.
+    renderMobileOpenClosed(scrollToList);
+  }
+
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest("#mobileTechApp [data-mobile-bucket]");
+    if (tab) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      activeBucket = tab.dataset.mobileBucket === "closed" ? "closed" : "open";
+      settle(true);
+      return;
+    }
+
+    const today = event.target.closest('#mobileTechApp [data-mobile-action="today-date"]');
+    if (today) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      selectedDate = isoToday;
+      const picker = document.querySelector("#mobileDatePicker");
+      if (picker) picker.value = isoToday;
+      settle(false);
+    }
+  }, true);
+
+  document.addEventListener("input", (event) => {
+    if (!event.target.matches("#mobileDatePicker")) return;
+    event.stopImmediatePropagation();
+    const nextDate = String(event.target.value || selectedDate || isoToday).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
+    selectedDate = nextDate;
+    mobileSelectedDate = nextDate;
+    renderMobileOpenClosed(false);
+  }, true);
+
+  document.addEventListener("change", (event) => {
+    if (event.target.matches("#mobileDatePicker")) {
+      event.stopImmediatePropagation();
+      selectedDate = String(event.target.value || isoToday).slice(0, 10);
+      settle(false);
+      return;
+    }
+    if (event.target.matches("#mobileSourcePicker")) {
+      event.stopImmediatePropagation();
+      mobileSelectedSource = event.target.value || "";
+      settle(false);
+    }
+  }, true);
+
+  const previousRender = render;
+  render = function renderWithMobileOpenClosedV512() {
+    // Global render sırasında eski mobil kod date input'u bugüne çekebiliyor.
+    // Önce seçili tarihi sakla, eski render'ı çalıştır, sonra tarihi geri koyup
+    // liste ve sayaçları aynı veri kümesinden anında çiz.
+    const preservedDate = selectedDate || mobileSelectedDate || isoToday;
+    const preservedSource = selectedSource();
+    previousRender();
+    selectedDate = String(preservedDate || isoToday).slice(0, 10);
+    mobileSelectedDate = selectedDate;
+    const picker = document.querySelector("#mobileDatePicker");
+    if (picker) picker.value = selectedDate;
+    const sourcePicker = document.querySelector("#mobileSourcePicker");
+    if (sourcePicker && preservedSource) sourcePicker.value = preservedSource;
+    renderMobileOpenClosed(false);
+  };
+
+  window.ekzenMobileOpenClosedV511 = function ekzenMobileOpenClosedV513(scrollToList = false) {
+    // Bugün butonu gibi eski dinleyicilerden gelindiğinde seçili tarihi
+    // inputtan tekrar okuyarak sayaç ve listeyi aynı tarihe senkronla.
+    const picker = document.querySelector("#mobileDatePicker");
+    const nextDate = String(picker?.value || mobileSelectedDate || selectedDate || isoToday).slice(0, 10);
+    selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(nextDate) ? nextDate : isoToday;
+    mobileSelectedDate = selectedDate;
+    if (picker) picker.value = selectedDate;
+    renderMobileOpenClosed(scrollToList);
+  };
+  window.addEventListener("load", () => {
+    const picker = document.querySelector("#mobileDatePicker");
+    selectedDate = String(picker?.value || mobileSelectedDate || isoToday).slice(0, 10);
+    if (picker && !picker.value) picker.value = selectedDate;
+    settle(false);
+  });
+  setTimeout(() => {
+    const picker = document.querySelector("#mobileDatePicker");
+    selectedDate = String(picker?.value || mobileSelectedDate || isoToday).slice(0, 10);
+    settle(false);
+  }, 180);
+})();

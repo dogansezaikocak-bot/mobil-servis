@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V4.3.5</title>
+  <title>Ekzen Servis Takip V5.0.3</title>
   <link rel="stylesheet" href="./styles.css?v=v4-3-5">
 </head>
 <body>
@@ -248,14 +248,14 @@
 
   <section id="mobileTechApp" class="mobile-tech-app" aria-label="Teknisyen mobil paneli">
     <header class="mobile-tech-header">
-      <div class="mobile-summary-actions" aria-label="Teknisyen iş özeti">
-        <button type="button" class="mobile-summary-card is-active" data-mobile-filter="remaining">
-          <span>Kalan İş</span>
-          <strong><b id="mobileCountRemaining">0</b> servis</strong>
+      <div class="mobile-summary-actions mobile-summary-actions-v505" aria-label="Teknisyen iş özeti">
+        <button type="button" class="mobile-summary-card is-active" data-mobile-bucket="open">
+          <span>Açık Fişler</span>
+          <strong><b id="mobileCountOpen">0</b> fiş</strong>
         </button>
-        <button type="button" class="mobile-summary-card" data-mobile-filter="done">
-          <span>Biten İş</span>
-          <strong><b id="mobileCountDone">0</b> servis</strong>
+        <button type="button" class="mobile-summary-card" data-mobile-bucket="closed">
+          <span>Kapalı Fişler</span>
+          <strong><b id="mobileCountClosed">0</b> fiş</strong>
         </button>
       </div>
     </header>
@@ -317,7 +317,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V3.6.2</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.1.1</div>
 
 
 
@@ -648,6 +648,6 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=v4-2-2"></script>
+  <script src="./app.js?v=v5-1-1"></script>
 </body>
 </html>
