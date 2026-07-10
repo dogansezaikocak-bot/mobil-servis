@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.2.4.3</title>
-  <link rel="stylesheet" href="./styles.css?v=5.2.2-20260710">
+  <title>Ekzen Servis Takip V5.2.1 Karşılama</title>
+  <link rel="stylesheet" href="./styles.css?v=5.2.1-welcome-20260711">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -246,7 +246,38 @@
 </main>
   </div>
 
-  <section id="mobileTechApp" class="mobile-tech-app" aria-label="Teknisyen mobil paneli">
+  <section id="mobileTechApp" class="mobile-tech-app is-welcome-mode" aria-label="Teknisyen mobil paneli">
+    <section id="mobileWelcomePage" class="mobile-welcome-page" aria-labelledby="mobileWelcomeTitle">
+      <div class="mobile-welcome-brand">
+        <span>Ekzen Servis Takip</span>
+        <h1 id="mobileWelcomeTitle">Hoş Geldiniz</h1>
+        <p id="mobileWelcomeDateText">Bugünün servis özeti</p>
+      </div>
+
+      <label class="mobile-welcome-date-card">
+        <span>Tarih</span>
+        <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Servis tarihi seç">
+      </label>
+
+      <div class="mobile-welcome-counter-grid" aria-label="Günlük servis sayaçları">
+        <button type="button" class="mobile-welcome-counter open" data-welcome-target="open">
+          <span>Günün İşleri</span>
+          <strong><b id="mobileWelcomeOpenCount">0</b> fiş</strong>
+          <small>Servisleri görüntüle</small>
+        </button>
+        <button type="button" class="mobile-welcome-counter closed" data-welcome-target="closed">
+          <span>Kapanan Fişler</span>
+          <strong><b id="mobileWelcomeClosedCount">0</b> fiş</strong>
+          <small>Kapananları görüntüle</small>
+        </button>
+      </div>
+
+      <button type="button" class="mobile-welcome-cash-card" data-welcome-action="cash">
+        <span class="mobile-welcome-cash-icon">₺</span>
+        <span><b>Kasa</b><small>Günlük kasa özetini aç</small></span>
+        <span class="mobile-welcome-arrow">›</span>
+      </button>
+    </section>
     <header class="mobile-tech-header">
       <div class="mobile-summary-actions mobile-summary-actions-v505" aria-label="Teknisyen iş özeti">
         <button type="button" class="mobile-summary-card is-active" data-mobile-bucket="open">
@@ -261,11 +292,14 @@
     </header>
 
     <div class="mobile-list-head mobile-list-head-v3313">
+      <div class="mobile-list-page-title">
+        <span>Servisler</span>
+        <strong id="mobileListPageDate">Bugün</strong>
+      </div>
       <div class="mobile-date-control-row mobile-date-control-row-v353" aria-label="Mobil tarih ve kaynak filtresi">
-        <label class="mobile-date-real-label mobile-top-control">
-          <span>Tarih</span>
-          <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Mobil servis tarihi">
-        </label>
+        <button class="mobile-list-home-button mobile-top-control" type="button" data-welcome-action="home">
+          <span>‹</span><b>Ana Sayfa</b>
+        </button>
         <label class="mobile-source-real-label mobile-top-control">
           <span>Kaynaklar</span>
           <select id="mobileSourcePicker" class="mobile-source-input-real" aria-label="Mobil servis kaynağı">
@@ -277,38 +311,10 @@
       </div>
     </div>
 
-    <section class="mobile-daily-summary-panel" aria-label="Günlük özet paneli">
-      <div class="mobile-daily-summary-head">
-        <div>
-          <span>Günlük Özet</span>
-          <strong id="mobileDailySummaryDate">Bugün</strong>
-        </div>
-        <small id="mobileDailySummarySource">Tüm Kaynaklar</small>
-      </div>
-      <div class="mobile-daily-summary-grid">
-        <article class="mobile-daily-summary-card total">
-          <span>Toplam Servis</span>
-          <b id="mobileDailySummaryTotal">0</b>
-        </article>
-        <article class="mobile-daily-summary-card completed">
-          <span>Tamamlanan</span>
-          <b id="mobileDailySummaryCompleted">0</b>
-        </article>
-        <article class="mobile-daily-summary-card waiting">
-          <span>Bekleyen</span>
-          <b id="mobileDailySummaryWaiting">0</b>
-        </article>
-        <article class="mobile-daily-summary-card revenue">
-          <span>Günlük Hasılat</span>
-          <b id="mobileDailySummaryRevenue">₺0</b>
-        </article>
-      </div>
-    </section>
-
 
     <div id="mobileDailyCashPage" class="mobile-daily-cash-page" hidden>
       <div class="mobile-daily-page-head">
-        <button class="mobile-back-button" type="button" data-mobile-action="close-daily-cash">‹</button>
+        <button class="mobile-back-button" type="button" data-welcome-action="home" aria-label="Ana sayfaya dön">‹</button>
         <div>
           <span>Günlük Kasa</span>
           <strong id="mobileDailyCashPageDate">Bugün</strong>
@@ -345,63 +351,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.4.3</div>
-
-    <nav class="mobile-bottom-nav" aria-label="Mobil alt navigasyon">
-      <button class="mobile-bottom-nav-item is-active" type="button" data-mobile-nav="home" aria-label="Ana Sayfa">
-        <span class="mobile-bottom-nav-icon">⌂</span><b>Ana Sayfa</b>
-      </button>
-      <button class="mobile-bottom-nav-item mobile-calendar-nav-item" type="button" data-mobile-nav="calendar" aria-label="Takvim">
-        <span class="mobile-bottom-nav-icon">▣</span><b>Takvim</b>
-        <input id="mobileBottomDatePicker" class="mobile-bottom-date-picker" type="date" aria-label="Takvimden tarih seç">
-      </button>
-      <button class="mobile-bottom-nav-item" type="button" data-mobile-nav="cash" aria-label="Kasa">
-        <span class="mobile-bottom-nav-icon">₺</span><b>Kasa</b>
-      </button>
-      <button class="mobile-bottom-nav-item" type="button" data-mobile-nav="menu" aria-label="Menü" aria-expanded="false">
-        <span class="mobile-bottom-nav-icon">•••</span><b>Menü</b>
-      </button>
-    </nav>
-
-
-    <div id="mobileCalendarModal" class="mobile-calendar-modal" hidden>
-      <button class="mobile-calendar-backdrop" type="button" data-calendar-action="close" aria-label="Takvimi kapat"></button>
-      <section class="mobile-calendar-sheet" role="dialog" aria-modal="true" aria-label="Tarih seç">
-        <div class="mobile-calendar-handle"></div>
-        <header class="mobile-calendar-header">
-          <strong>Tarih Seç</strong>
-          <button type="button" class="mobile-calendar-close" data-calendar-action="close" aria-label="Kapat">×</button>
-        </header>
-        <div class="mobile-calendar-monthbar">
-          <button type="button" data-calendar-action="prev" aria-label="Önceki ay">‹</button>
-          <b id="mobileCalendarMonthLabel"></b>
-          <button type="button" data-calendar-action="next" aria-label="Sonraki ay">›</button>
-        </div>
-        <div class="mobile-calendar-weekdays" aria-hidden="true">
-          <span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span>
-        </div>
-        <div id="mobileCalendarGrid" class="mobile-calendar-grid"></div>
-        <footer class="mobile-calendar-footer">
-          <button type="button" class="mobile-calendar-today" data-calendar-action="today">Bugün</button>
-          <button type="button" class="mobile-calendar-apply" data-calendar-action="apply">Seç</button>
-        </footer>
-      </section>
-    </div>
-
-    <div id="mobileQuickMenu" class="mobile-quick-menu" hidden>
-      <button class="mobile-quick-menu-backdrop" type="button" data-mobile-nav="close-menu" aria-label="Menüyü kapat"></button>
-      <section class="mobile-quick-menu-card" aria-label="Hızlı menü">
-        <div class="mobile-quick-menu-handle"></div>
-        <div class="mobile-quick-menu-head"><strong>Hızlı Menü</strong><button type="button" data-mobile-nav="close-menu">×</button></div>
-        <button class="mobile-quick-menu-primary" type="button" data-mobile-action="open-new-service" data-mobile-nav-close>⊕ Yeni Fiş Aç</button>
-        <div class="mobile-quick-menu-grid">
-          <button type="button" data-mobile-action="today-date" data-mobile-nav-close><span>◎</span><b>Bugüne Git</b></button>
-          <button type="button" data-mobile-nav="calendar" data-mobile-nav-close><span>▣</span><b>Tarih Seç</b></button>
-          <button type="button" data-mobile-action="open-daily-cash" data-mobile-nav-close><span>₺</span><b>Günlük Kasa</b></button>
-          <button type="button" data-mobile-bucket="closed" data-mobile-nav-close><span>✓</span><b>Kapalı Fişler</b></button>
-        </div>
-      </section>
-    </div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.1 Karşılama</div>
 
 
 
@@ -751,6 +701,6 @@
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.2.0-beta.2-20260710"></script>
+  <script src="./app.js?v=5.2.1-karsilama-20260711-0125"></script>
 </body>
 </html>
