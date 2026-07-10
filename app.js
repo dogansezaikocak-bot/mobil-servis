@@ -462,13 +462,15 @@ function bindEvents() {
 
   filterForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    // V4.0.0: Servis listesinde arama yapılınca kaynak/tarih filtresi bozulmasın.
     activeDashboardStat = "";
-    activeDashboardSource = "";
+    activeDashboardSource = isSourcePortal() ? portalSourceName() : (topSourceFilter?.value || activeDashboardSource || "");
     renderServices();
   });
   filterForm.elements.query.addEventListener("input", () => {
+    // V4.0.0: Arama sadece sayaç filtresini temizler; kaynak ve tarih korunur.
     activeDashboardStat = "";
-    activeDashboardSource = "";
+    activeDashboardSource = isSourcePortal() ? portalSourceName() : (topSourceFilter?.value || activeDashboardSource || "");
     renderServices();
   });
 
@@ -482,8 +484,9 @@ function bindEvents() {
     renderCash();
   });
   topStatusFilter.addEventListener("change", () => {
+    // V4.0.0: Durum filtresi seçilince mevcut kaynak filtresi korunur.
     activeDashboardStat = "";
-    activeDashboardSource = "";
+    activeDashboardSource = isSourcePortal() ? portalSourceName() : (topSourceFilter?.value || activeDashboardSource || "");
     renderServices();
   });
   document.querySelector("#serviceDateFilter")?.addEventListener("change", () => {
@@ -605,12 +608,13 @@ function setDefaultDates() {
 }
 
 function prepareServiceListFromCurrentDate() {
-  // V3.6.8: Servisler sekmesi otomatik Bugün'e zorlamaz.
-  // Seçili tarih aralığı neyse onu korur; durum/sayaç filtresini temizleyip tüm durumları gösterir.
+  // V4.0.0: Servisler sekmesi seçili tarih ve kaynak filtresini korur;
+  // sadece sayaçtan gelen özel durum filtresini temizleyip tüm durumları gösterir.
+  const selectedSource = isSourcePortal() ? portalSourceName() : (activeDashboardSource || topSourceFilter?.value || "");
   activeDashboardStat = "";
-  activeDashboardSource = "";
+  activeDashboardSource = selectedSource;
   filterForm?.reset();
-  if (topSourceFilter) topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
+  if (topSourceFilter) topSourceFilter.value = selectedSource || "";
   if (topStatusFilter) topStatusFilter.value = "";
   updateDashboardDateRangeLabel();
 }
@@ -1058,36 +1062,56 @@ function moveServiceOrder(serviceId, direction) {
   renderServices();
 }
 
+function serviceCardFinancials(service) {
+  const linkedCash = state.cash.filter((item) => item.serviceId === service.id);
+  const income = linkedCash.filter((item) => item.type === "income").reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const expense = linkedCash.filter((item) => item.type === "expense").reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  return { income, expense, balance: income - expense };
+}
+
 function serviceRow(service) {
   const dateValue = service.availableDate || service.visitDate || service.createdAt?.slice(0, 10) || "";
   const timeValue = service.availableTime || service.createdAt?.slice(11, 16) || "Saat yok";
   const phoneClean = String(service.phone || "").replace(/\D/g, "");
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
   const paymentModeLabel = servicePaymentModeLabel(service);
+  const finance = serviceCardFinancials(service);
+  const noteCount = Array.isArray(service.notes) ? service.notes.length : 0;
+  const photoCount = Array.isArray(service.photos) ? service.photos.length : 0;
   return `
-    <article class="service-row service-card-row service-card-${serviceCardTheme(service.status)}" data-service-id="${service.id}">
-      <div class="service-date-block">
+    <article class="service-row service-card-row v401-service-card service-card-${serviceCardTheme(service.status)}" data-service-id="${service.id}">
+      <div class="service-date-block v401-date-block">
         <span class="service-date-main">${escapeHtml(formatServiceCardDate(dateValue))}</span>
         <span class="service-time-main">${escapeHtml(timeValue)}</span>
         <span class="service-day-main">${escapeHtml(formatServiceCardDay(dateValue))}</span>
         <span class="service-source-main">${escapeHtml(service.source || "Kaynak yok")}</span>
       </div>
-      <div class="service-customer-block">
-        <p class="service-customer-name">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</p>
+      <div class="service-customer-block v401-customer-block">
+        <div class="v401-card-title-line">
+          <p class="service-customer-name">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</p>
+          <span class="v401-service-no">No ${escapeHtml(service.id)}</span>
+        </div>
         <p class="service-address-line">${escapeHtml(service.address || "Adres girilmedi")}</p>
         <p class="service-phone-line"><a href="${phoneHref}">${escapeHtml(service.phone || "Telefon yok")}</a></p>
       </div>
-      <div class="service-device-block">
+      <div class="service-device-block v401-device-block">
         <p class="service-device-title">${escapeHtml([service.brand, service.device].filter(Boolean).join(" | ") || "Cihaz bilgisi yok")}</p>
         <p class="service-model-line">${escapeHtml(service.model || "Model bilgisi yok")}</p>
+        <div class="v401-mini-meta"><span>📝 ${noteCount}</span><span>📷 ${photoCount}</span></div>
       </div>
-      <div class="service-status-block">
-        <span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status || "Durum yok")}</span>
-        ${paymentModeLabel ? `<p class="service-payment-mode-line">${escapeHtml(paymentModeLabel)}</p>` : ""}
-        <p class="service-fault-title">Şikayet:</p>
-        <p class="service-fault-text">${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
+      <div class="service-status-block v401-status-block">
+        <div class="v401-status-line">
+          <span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status || "Durum yok")}</span>
+          ${paymentModeLabel ? `<span class="v401-payment-pill">${escapeHtml(paymentModeLabel)}</span>` : ""}
+        </div>
+        <p class="service-fault-text"><b>Şikayet:</b> ${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
+        <div class="v401-money-mini">
+          <span><small>Tahsilat</small><b>${money(finance.income)}</b></span>
+          <span><small>Gider</small><b>${money(finance.expense)}</b></span>
+          <span><small>Kalan</small><b>${money(finance.balance)}</b></span>
+        </div>
       </div>
-      <div class="service-order-controls" aria-label="Sıralama">
+      <div class="service-order-controls v401-order-controls" aria-label="Sıralama">
         <button class="service-order-button" type="button" data-action="move-service-order" data-service-id="${service.id}" data-direction="up" title="Yukarı taşı">↑</button>
         <button class="service-order-button" type="button" data-action="move-service-order" data-service-id="${service.id}" data-direction="down" title="Aşağı taşı">↓</button>
       </div>
@@ -2080,7 +2104,7 @@ function openDetail(id) {
 function renderDetail(id) {
   const service = state.services.find((item) => item.id === id);
   if (!service || !matchesPortalSource(service.source)) return;
-  document.querySelector("#detailTitle").textContent = `Servis Detay (${service.id})`;
+  document.querySelector("#detailTitle").textContent = ``;
   const linkedCash = state.cash.filter((item) => item.serviceId === service.id);
   const cleanPhone = digits(service.phone);
   const addressText = [service.city, service.district, service.address].filter(Boolean).join(" ");
@@ -2089,82 +2113,69 @@ function renderDetail(id) {
   const serviceTotal = linkedCash.filter((item) => item.type === "income").reduce((total, item) => total + (Number(item.amount) || 0), 0);
   const serviceExpense = linkedCash.filter((item) => item.type === "expense").reduce((total, item) => total + (Number(item.amount) || 0), 0);
   const serviceBalance = serviceTotal - serviceExpense;
+  const primaryIncomeItems = linkedCash.filter(isServicePrimaryIncome);
+  const receivedTotal = primaryIncomeItems.reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const materialTotal = linkedCash.filter((item) => item.autoMaterialExpense).reduce((total, item) => total + (Number(item.amount) || 0), 0);
+  const hakedisTotal = primaryIncomeItems.reduce((total, item) => total + sourcePayAmountForCashItem(item), 0);
+  const ekzenTotal = primaryIncomeItems.reduce((total, item) => total + ownerPayAmountForCashItem(item), 0);
+  const financeLabel = isOwnWorkSource(service.source) ? "Kalan Miktar" : "Ekzen Teknik";
 
   detailBody.innerHTML = `
-    <div class="service-drawer-layout v232-detail-layout">
-      <section class="service-drawer-main">
-        <div class="drawer-summary-card v232-summary-card">
-          <div>
-            <span class="drawer-eyebrow">Servis No ${escapeHtml(service.id)}</span>
-            <h3>${escapeHtml(service.customerName || "Müşteri")}</h3>
-            <p>${escapeHtml(service.brand)} ${escapeHtml(service.device)} · ${escapeHtml(service.fault || "Arıza bilgisi yok")}</p>
-          </div>
-          <span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status)}</span>
+    <div class="v412-detail">
+      <div class="v412-grid v412-top-grid">
+        <section class="v412-card">
+          <h3><span class="v412-section-icon">●</span> Müşteri Bilgileri</h3>
+          <dl>
+            <dt>İsim Soyisim</dt><dd>${escapeHtml(service.customerName || "-")}</dd>
+            <dt>Telefon</dt><dd>${escapeHtml(service.phone || "-")} ${cleanPhone ? `<a class="v412-inline-phone" href="tel:${cleanPhone}" title="Ara">☎</a>` : ""}</dd>
+            <dt>Adres</dt><dd>${escapeHtml(addressText || service.address || "-")}</dd>
+            <dt>Kayıt Tarihi</dt><dd>${formatDate(service.date || service.availableDate)} ${escapeHtml(service.time || "")}</dd>
+            <dt>Durum</dt><dd><span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status)}</span></dd>
+          </dl>
+        </section>
+
+        <section class="v412-card">
+          <h3><span class="v412-section-icon">▣</span> Cihaz Bilgileri</h3>
+          <dl>
+            <dt>Cihaz</dt><dd>${escapeHtml(service.device || "-")}</dd>
+            <dt>Marka</dt><dd>${escapeHtml(service.brand || "-")}</dd>
+            ${service.model ? `<dt>Model</dt><dd>${escapeHtml(service.model)}</dd>` : ""}
+            ${service.warrantyEnd ? `<dt>Garanti Bitiş</dt><dd>${formatDate(service.warrantyEnd)}</dd>` : ""}
+            <dt>Şikayet</dt><dd class="v412-fault">${escapeHtml(service.fault || "-")}</dd>
+          </dl>
+        </section>
+      </div>
+
+      <section class="v412-card v412-wide">
+        <h3><span class="v412-section-icon">▣</span> Finans Bilgileri</h3>
+        <div class="v412-money-grid">
+          <article><span>Alınan Tutar</span><b class="money-green">${money(receivedTotal || serviceTotal)}</b></article>
+          <article><span>Malzeme</span><b class="money-orange">${money(materialTotal)}</b></article>
+          <article><span>Hakediş (Komisyon)</span><b>${money(hakedisTotal)}</b><small>%${Number(primaryIncomeItems[0]?.commissionRate || 0)}</small></article>
+          <article><span>${isOwnWorkSource(service.source) ? "Kalan Miktar" : "Ekzen Teknik (Kalan)"}</span><b class="money-green">${money(ekzenTotal || serviceBalance)}</b></article>
         </div>
+      </section>
 
-        <div class="v232-primary-grid">
-          <section class="detail-section v232-card v232-customer-card">
-            <h3>👤 Müşteri Bilgileri ${canEditPortalRecords() ? `<button class="mini-button" type="button" data-edit-service="${service.id}">✎</button>` : ""}</h3>
-            <dl>
-              <dt>Müşteri</dt><dd>${escapeHtml(service.customerName || "-")}</dd>
-              <dt>Telefon</dt><dd>${escapeHtml(service.phone || "-")}</dd>
-              <dt>Adres</dt><dd>${escapeHtml(service.address || "-")}</dd>
-              <dt>Müsait Zaman</dt><dd>${formatDate(service.availableDate)} - ${escapeHtml(service.availableTime || "-")}</dd>
-            </dl>
-          </section>
-
-          <section class="detail-section v232-card v232-device-card">
-            <h3>🔧 Cihaz Bilgileri ${canEditPortalRecords() ? `<button class="mini-button" type="button" data-edit-service="${service.id}">✎</button>` : ""}</h3>
-            <dl>
-              <dt>Marka</dt><dd>${escapeHtml(service.brand || "-")}</dd>
-              <dt>Cihaz</dt><dd>${escapeHtml(service.device || "-")}</dd>
-              <dt>Model</dt><dd>${escapeHtml(service.model || "-")}</dd>
-              <dt>Garanti Bitiş</dt><dd>${formatDate(service.warrantyEnd)}</dd>
-              <dt>Şikayet</dt><dd class="v232-fault-text">${escapeHtml(service.fault || "-")}</dd>
-            </dl>
-          </section>
-        </div>
-
-        <section class="detail-section wide v232-card v232-finance-card">
-          <h3>💰 Finans ${canEditPortalRecords() ? `<button class="primary-button" type="button" data-action="add-cash" data-service-id="${service.id}">Para Ekle</button>` : ""}</h3>
-          <div class="drawer-money-strip v232-money-strip">
-            <article><span>Tahsilat</span><b>${money(serviceTotal)}</b></article>
-            <article><span>Gider</span><b>${money(serviceExpense)}</b></article>
-            <article><span>Kalan</span><b>${money(serviceBalance)}</b></article>
-          </div>
-          <div class="history-list v232-history-list">
-            ${linkedCash.map((item) => `
-              <div class="history-item">
-                <div><b>${escapeHtml(visibleCashTitle(item))}</b><p>${formatDate(item.date)} · ${item.type === "expense" ? "Gider" : "Tahsilat"} · ${money(item.amount)}</p></div>
+      <div class="v412-grid">
+        <section class="v412-card">
+          <h3><span class="v412-section-icon">▤</span> Açıklamalar</h3>
+          <div class="v412-note-box">
+            ${service.notes.length ? service.notes.map((note) => `
+              <div class="v412-note-item">
+                <b>${formatDateTime(note.createdAt)}</b>
+                <p>${escapeHtml(note.text)}</p>
                 ${canEditPortalRecords() ? `<div class="row-actions">
-                  <button class="mini-button" type="button" data-action="edit-cash" data-cash-id="${item.id}">✎</button>
-                  <button class="mini-button danger" type="button" data-action="delete-cash" data-cash-id="${item.id}">×</button>
+                  <button class="mini-button" type="button" data-action="edit-note" data-service-id="${service.id}" data-note-id="${note.id}">✎</button>
+                  <button class="mini-button danger" type="button" data-action="delete-note" data-service-id="${service.id}" data-note-id="${note.id}">×</button>
                 </div>` : ""}
               </div>
-            `).join("") || `<p class="empty">Henüz para hareketi yok.</p>`}
+            `).join("") : `<p class="empty">Not veya açıklama bulunmuyor.</p>`}
           </div>
         </section>
 
-        <div class="v232-secondary-grid">
-          <section class="detail-section v232-card">
-            <h3>📝 Yapılan İşlemler ${canEditPortalRecords() ? `<button class="primary-button" type="button" data-action="add-note" data-service-id="${service.id}">İşlem Ekle</button>` : ""}</h3>
-            <div class="history-list v232-history-list v239-work-list">
-              ${service.notes.map((note) => `
-                <div class="history-item v239-work-item">
-                  <div><b>${formatDateTime(note.createdAt)}</b><p>${escapeHtml(note.text)}</p></div>
-                  ${canEditPortalRecords() ? `<div class="row-actions">
-                    <button class="mini-button" type="button" data-action="edit-note" data-service-id="${service.id}" data-note-id="${note.id}">✎</button>
-                    <button class="mini-button danger" type="button" data-action="delete-note" data-service-id="${service.id}" data-note-id="${note.id}">×</button>
-                  </div>` : ""}
-                </div>
-              `).join("") || `<p class="empty">Yapılan işlem bulunamadı.</p>`}
-            </div>
-          </section>
-        </div>
-
-        <section class="detail-section wide v232-card v232-photo-card">
-          <h3>📷 Fotoğraflar ${canEditPortalRecords() ? `<button class="primary-button" type="button" data-action="add-photo" data-service-id="${service.id}">Fotoğraf Ekle / Çek</button>` : ""}</h3>
-          ${service.photos.length ? `<div class="photo-grid">${service.photos.map((photo) => `
+        <section class="v412-card">
+          <h3><span class="v412-section-icon">▣</span> Fotoğraflar</h3>
+          ${service.photos.length ? `<div class="v412-photo-grid">${service.photos.map((photo) => `
             <article class="photo-card">
               <img src="${photo.dataUrl}" alt="${escapeHtml(photo.caption || "Servis fotoğrafı")}" data-action="open-photo-viewer" data-service-id="${escapeAttr(service.id)}" data-photo-id="${escapeAttr(photo.id)}" title="Büyüt">
               <footer>
@@ -2175,24 +2186,26 @@ function renderDetail(id) {
                 </div>` : ""}
               </footer>
             </article>
-          `).join("")}</div>` : `<p class="empty">Fotoğraf bulunamadı.</p>`}
+          `).join("")}</div>` : `<div class="v412-empty-photo"><span>▣</span><p>Fotoğraf bulunmuyor.</p></div>`}
         </section>
-      </section>
+      </div>
 
-      <aside class="service-action-rail v232-action-rail">
-        <h3>Hızlı İşlemler</h3>
-        <a class="drawer-action-button" href="tel:${cleanPhone}">Ara</a>
-        <a class="drawer-action-button" href="${whatsappUrl}" target="_blank" rel="noopener">WhatsApp</a>
-        <a class="drawer-action-button" href="${mapUrl}" target="_blank" rel="noopener">Yol Tarifi</a>
-        ${canEditPortalRecords() ? `<button class="drawer-action-button" type="button" data-action="change-status" data-service-id="${service.id}">Durum Değiştir</button>` : ""}
-        ${canEditPortalRecords() ? `<button class="drawer-action-button" type="button" data-action="add-cash" data-service-id="${service.id}">Tahsilat / Gider</button>` : ""}
-        ${canEditPortalRecords() ? `<button class="drawer-action-button" type="button" data-action="add-note" data-service-id="${service.id}">Not Ekle</button>` : ""}
-        ${canEditPortalRecords() ? `<button class="drawer-action-button" type="button" data-action="add-photo" data-service-id="${service.id}">Fotoğraf</button>` : ""}
-        ${canEditPortalRecords() ? `<button class="drawer-action-button primary" type="button" data-action="complete-service" data-service-id="${service.id}">Fişi Kapat</button>` : ""}
-        ${canEditPortalRecords() ? `<button class="drawer-action-button" type="button" data-edit-service="${service.id}">Servisi Güncelle</button>` : ""}
-        <button class="drawer-action-button" type="button" data-action="open-related-service" data-service-id="${service.id}">Tekrar Servis Aç</button>
-        <button class="drawer-action-button" type="button" data-print-service>Servis Fişi Yazdır</button>
-      </aside>
+      <section class="v412-card v412-wide v412-actions-card">
+        <h3><span class="v412-section-icon">⚡</span> Hızlı İşlemler</h3>
+        <div class="v412-actions">
+          <a class="v412-action" href="tel:${cleanPhone}"><span>☎</span><b>Ara</b></a>
+          <a class="v412-action" href="${whatsappUrl}" target="_blank" rel="noopener"><span>☘</span><b>WhatsApp</b></a>
+          <a class="v412-action" href="${mapUrl}" target="_blank" rel="noopener"><span>⌖</span><b>Yol Tarifi</b></a>
+          ${canEditPortalRecords() ? `<button class="v412-action" type="button" data-action="change-status" data-service-id="${service.id}"><span>↔</span><b>Durum Değiştir</b></button>` : ""}
+          ${canEditPortalRecords() ? `<button class="v412-action" type="button" data-action="add-cash" data-service-id="${service.id}"><span>▰</span><b>Tahsilat / Gider</b></button>` : ""}
+          ${canEditPortalRecords() ? `<button class="v412-action" type="button" data-action="add-note" data-service-id="${service.id}"><span>▤</span><b>Not Ekle</b></button>` : ""}
+          ${canEditPortalRecords() ? `<button class="v412-action" type="button" data-action="add-photo" data-service-id="${service.id}"><span>▣</span><b>Fotoğraf Ekle</b></button>` : ""}
+          ${canEditPortalRecords() ? `<button class="v412-action v412-primary" type="button" data-action="complete-service" data-service-id="${service.id}"><span>✓</span><b>İşlem Tamamla</b></button>` : ""}
+          ${canEditPortalRecords() ? `<button class="v412-action" type="button" data-edit-service="${service.id}"><span>✎</span><b>Güncelle</b></button>` : ""}
+          <button class="v412-action" type="button" data-action="open-related-service" data-service-id="${service.id}"><span>↻</span><b>Tekrar Aç</b></button>
+          <button class="v412-action" type="button" data-print-service><span>⎙</span><b>Yazdır</b></button>
+        </div>
+      </section>
     </div>
   `;
 
