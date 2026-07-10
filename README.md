@@ -1,12 +1,6 @@
-Ekzen Servis Takip V5.1.4
+Ekzen Servis Takip V5.1.6
 
-- Gerçek iPhone/Safari servis düzenleme kaydı düzeltildi.
-- Kaydet düğmesi doğrudan kayıt fonksiyonunu çalıştırır.
-- Telefon depolaması doluysa sessizce başarısız olmak yerine uyarı verir.
-
-
-## V5.1.5
-- iPhone Safari localStorage doluluk sorunu düzeltildi.
-- Yerel alan dolunca fotoğrafsız hafif önbellek kullanılır; tam veri Firebase bulutta korunur.
-- Yeni fotoğraflar otomatik küçültülüp sıkıştırılır.
-- Servis düzenleme kaydı, yerel alan dolu olsa bile bulut hazırsa engellenmez.
+- iPhone Safari kota doluluğunda eski şişmiş yerel kayıt önce kaldırılır.
+- Fotoğrafsız hafif kayıt yeniden yazılır.
+- Servisi Düzenle > Kaydet işleminin gerçek iPhone'da depolama hatasına takılması düzeltildi.
+- Son çare olarak yalnızca eski Ekzen önbellek anahtarları temizlenir.

@@ -300,16 +300,36 @@ function saveLocalState() {
   } catch (error) {
     console.warn("Tam yerel kayıt sığmadı; fotoğrafsız hafif kayıt deneniyor:", error);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightStateForLocalStorage()));
+      const lightweightJson = JSON.stringify(lightweightStateForLocalStorage());
+      // iOS Safari, kota doluyken aynı anahtarı daha küçük veriyle bile atomik olarak
+      // değiştirmeye izin vermeyebiliyor. Önce eski şişmiş kaydı kaldırıp sonra hafif
+      // sürümü yazmak bu kilitlenmeyi çözer. Uygulamanın güncel state'i bellekte kalır.
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(STORAGE_KEY, lightweightJson);
       if (!localStorageFallbackWarned) {
         localStorageFallbackWarned = true;
-        alert("Telefonun tarayıcı alanı fotoğraflar nedeniyle dolmuş. Kayıt kaydedildi; telefondaki geçici fotoğraf önbelleği küçültüldü. Fotoğraflar internet bağlantısıyla buluttan yeniden gelir.");
+        alert("Telefon önbelleği küçültüldü ve kayıt kaydedildi. Fotoğraflar yerel önbelleğe tekrar yazılmayacak.");
       }
       return true;
     } catch (fallbackError) {
       console.error("Hafif yerel kayıt da yapılamadı:", fallbackError);
-      alert("Telefonun tarayıcı depolama alanı tamamen dolu. Safari site verilerinden eski Ekzen verisini temizleyip sayfayı yeniden açın. Bulut bağlantısı varsa kayıtlar tekrar yüklenir.");
-      return false;
+      // Son çare: diğer eski Ekzen önbellek anahtarlarını temizle ve bir kez daha dene.
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key !== STORAGE_KEY && /ekzen|servis/i.test(key)) localStorage.removeItem(key);
+        });
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightStateForLocalStorage()));
+        if (!localStorageFallbackWarned) {
+          localStorageFallbackWarned = true;
+          alert("Eski telefon önbelleği temizlendi ve kayıt kaydedildi.");
+        }
+        return true;
+      } catch (finalError) {
+        console.error("Yerel kayıt son denemede de yapılamadı:", finalError);
+        alert("Telefon depolaması tamamen dolu. iPhone Ayarlar > Safari > İleri Düzey > Web Sitesi Verileri bölümünden dogansezaikocak-bot.github.io verisini silip sayfayı yeniden açın.");
+        return false;
+      }
     }
   }
 }
