@@ -3682,28 +3682,20 @@ function mobileServiceCard(service) {
   const bucket = mobileStatusBucket(service.status);
   const deviceTitle = [service.brand, service.device].filter(Boolean).join(" ") || "Cihaz bilgisi yok";
   const paymentModeLabel = servicePaymentModeLabel(service);
-  const phoneLabel = service.phone || "Telefon girilmedi";
   return `
     <article class="mobile-service-card mobile-status-${bucket}" data-mobile-service-id="${escapeAttr(service.id)}">
       <div class="mobile-card-top" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
-        <div class="mobile-card-schedule">
+        <div class="mobile-date">
           <b>${escapeHtml(formatServiceCardDate(dateValue))}</b>
           <span>${escapeHtml(timeValue || formatServiceCardDay(dateValue))}</span>
         </div>
         <span class="mobile-status-pill">${escapeHtml(service.status || "Durum yok")}${paymentModeLabel ? ` · ${escapeHtml(paymentModeLabel)}` : ""}</span>
       </div>
-      <div class="mobile-card-content" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
+      <div data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
+        <div class="mobile-device">${escapeHtml(deviceTitle)}</div>
         <div class="mobile-customer">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</div>
-        <div class="mobile-phone-line">${escapeHtml(phoneLabel)}</div>
-        <div class="mobile-device-chip">${escapeHtml(deviceTitle)}</div>
-        <div class="mobile-info-block mobile-address-block">
-          <span>Adres</span>
-          <p>${escapeHtml(service.address || "Adres girilmedi")}</p>
-        </div>
-        <div class="mobile-info-block mobile-fault-block">
-          <span>Şikâyet</span>
-          <p>${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
-        </div>
+        <div class="mobile-address">${escapeHtml(service.address || "Adres girilmedi")}</div>
+        <div class="mobile-fault">${escapeHtml(service.fault || "Şikayet yazılmadı")}</div>
       </div>
       <div class="mobile-card-actions">
         <a href="${phoneHref}" onclick="event.stopPropagation()">Ara</a>
@@ -4104,7 +4096,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V5.2.3";
+  const VERSION = "V5.2.0 Beta 2";
   let mode = "services";
 
   function selectedDate() {
@@ -4601,7 +4593,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.2.3";
+  const VERSION = "V5.2.0 Beta 2";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
@@ -4675,26 +4667,6 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const closedCount = document.querySelector("#mobileCountClosed");
     if (openCount) openCount.textContent = String(openRows.length);
     if (closedCount) closedCount.textContent = String(closedRows.length);
-
-    // V5.2.3: Seçilen tarih ve kaynağa göre canlı günlük özet.
-    const allRows = sortServices(state.services || []).filter((service) => matchesSource(service) && matchesDate(service));
-    const completedRows = allRows.filter((service) => isStatus(service.status, "İşlem Tamam"));
-    const cashItems = (state.cash || []).filter((item) => {
-      const itemDate = String(item.date || "").slice(0, 10);
-      const itemSource = cashItemSource(item);
-      return cashIsPosted(item) && matchesPortalSource(itemSource) && (!selectedSource() || sourceMatches(itemSource, selectedSource())) && itemDate === selectedDate;
-    });
-    const dailyCashTotals = cashBreakdown(cashItems);
-    const setSummaryText = (selector, value) => {
-      const element = document.querySelector(selector);
-      if (element) element.textContent = value;
-    };
-    setSummaryText("#mobileDailySummaryTotal", String(allRows.length));
-    setSummaryText("#mobileDailySummaryCompleted", String(completedRows.length));
-    setSummaryText("#mobileDailySummaryWaiting", String(openRows.length));
-    setSummaryText("#mobileDailySummaryRevenue", money(dailyCashTotals.income));
-    setSummaryText("#mobileDailySummaryDate", formattedDate());
-    setSummaryText("#mobileDailySummarySource", selectedSource() || "Tüm Kaynaklar");
 
     document.querySelectorAll("#mobileTechApp [data-mobile-bucket]").forEach((button) => {
       const active = button.dataset.mobileBucket === activeBucket;
@@ -4831,195 +4803,139 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   }, 180);
 })();
 
-/* V5.2.4 — Mobil alt navigasyon */
-(function setupMobileBottomNavigationV524(){
-  const VERSION = "V5.2.4.2";
+/* V5.2.1 - Mobil karşılama ana sayfası ve ayrı liste akışı */
+(function setupMobileWelcomeHomeV521() {
+  const root = document.querySelector("#mobileTechApp");
+  if (!root) return;
 
-  function setActive(name){
-    document.querySelectorAll("#mobileTechApp .mobile-bottom-nav-item").forEach((button) => {
-      button.classList.toggle("is-active", button.dataset.mobileNav === name);
+  const todayIso = () => toIsoDate(new Date());
+  const dateInput = () => document.querySelector("#mobileDatePicker");
+
+  function serviceDates(service) {
+    return [service.availableDate, service.visitDate, service.date, service.createdAt]
+      .filter(Boolean)
+      .map((value) => String(value).slice(0, 10));
+  }
+
+  function selectedDate() {
+    const value = String(dateInput()?.value || todayIso()).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayIso();
+  }
+
+  function selectedSourceValue() {
+    return document.querySelector("#mobileSourcePicker")?.value || "";
+  }
+
+  function dateRows() {
+    const date = selectedDate();
+    const source = selectedSourceValue();
+    return (state.services || []).filter((service) => {
+      const dateMatch = serviceDates(service).includes(date);
+      const sourceMatch = !source || sourceMatches(service.source, source);
+      return dateMatch && sourceMatch;
     });
   }
-  function menuElement(){ return document.querySelector("#mobileQuickMenu"); }
-  function closeMenu(){
-    const menu = menuElement();
-    if (menu) menu.hidden = true;
-    const button = document.querySelector('.mobile-bottom-nav-item[data-mobile-nav="menu"]');
-    if (button) button.setAttribute("aria-expanded", "false");
-  }
-  function openMenu(){
-    const menu = menuElement();
-    if (menu) menu.hidden = false;
-    const button = document.querySelector('.mobile-bottom-nav-item[data-mobile-nav="menu"]');
-    if (button) button.setAttribute("aria-expanded", "true");
-    setActive("menu");
-  }
-  function triggerMobileAction(action){
-    const target = document.querySelector(`#mobileTechApp [data-mobile-action="${action}"]`);
-    if (target) target.click();
-  }
-  function syncBottomDatePicker(){
-    const mainPicker = document.querySelector("#mobileDatePicker");
-    const bottomPicker = document.querySelector("#mobileBottomDatePicker");
-    if (mainPicker && bottomPicker) bottomPicker.value = mainPicker.value || mobileSelectedDate || isoToday;
-  }
-  function applyBottomDate(value){
-    const nextDate = String(value || "").slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
 
-    const mainPicker = document.querySelector("#mobileDatePicker");
-    if (!mainPicker) return;
+  function isClosedWelcomeService(service) {
+    return isStatus(service.status, "İşlem Tamam") || isStatus(service.status, "İptal");
+  }
 
-    mainPicker.value = nextDate;
-    mobileSelectedDate = nextDate;
+  function formatWelcomeDate(date) {
+    if (date === todayIso()) return "Bugünün servis özeti";
+    try {
+      return new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" })
+        .format(new Date(`${date}T12:00:00`));
+    } catch (_) { return date; }
+  }
 
-    // Ana tarih filtresinin kendi dinleyicilerini çalıştır.
-    mainPicker.dispatchEvent(new Event("input", { bubbles: true }));
-    mainPicker.dispatchEvent(new Event("change", { bubbles: true }));
+  function updateWelcome() {
+    const rows = dateRows();
+    const openRows = rows.filter((service) => !isClosedWelcomeService(service));
+    const closedRows = rows.filter(isClosedWelcomeService);
+    const openEl = document.querySelector("#mobileWelcomeOpenCount");
+    const closedEl = document.querySelector("#mobileWelcomeClosedCount");
+    const textEl = document.querySelector("#mobileWelcomeDateText");
+    const listDateEl = document.querySelector("#mobileListPageDate");
+    if (openEl) openEl.textContent = String(openRows.length);
+    if (closedEl) closedEl.textContent = String(closedRows.length);
+    if (textEl) textEl.textContent = formatWelcomeDate(selectedDate());
+    if (listDateEl) listDateEl.textContent = selectedDate() === todayIso() ? "Bugün" : formatWelcomeDate(selectedDate());
+  }
 
-    // Eski mobil render katmanı event'i yutsa bile filtreyi kesin uygula.
-    if (typeof window.ekzenMobileOpenClosedV511 === "function") {
-      window.ekzenMobileOpenClosedV511(false);
+  function syncExistingMobile() {
+    const picker = dateInput();
+    if (!picker) return;
+    mobileSelectedDate = selectedDate();
+    picker.dispatchEvent(new Event("change", { bubbles: true }));
+    if (typeof window.ekzenMobileOpenClosedV511 === "function") window.ekzenMobileOpenClosedV511(false);
+    updateWelcome();
+  }
+
+  function showHome(resetToday = true) {
+    if (resetToday) {
+      const picker = dateInput();
+      if (picker) picker.value = todayIso();
+      mobileSelectedDate = todayIso();
     }
-    setActive("home");
+    root.classList.remove("is-list-mode", "is-cash-mode");
+    root.classList.add("is-welcome-mode");
+    const cashPage = document.querySelector("#mobileDailyCashPage");
+    if (cashPage) cashPage.hidden = true;
+    syncExistingMobile();
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
 
-  document.addEventListener("focus", function(event){
-    if (!event.target.matches("#mobileBottomDatePicker")) return;
-    closeMenu();
-    setActive("calendar");
-    syncBottomDatePicker();
-  }, true);
+  function showList(bucket) {
+    root.classList.remove("is-welcome-mode", "is-cash-mode");
+    root.classList.add("is-list-mode");
+    const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
+    if (tab) tab.click();
+    updateWelcome();
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
 
-  // Bazı mobil tarayıcılar date alanında input, bazıları change üretir.
-  document.addEventListener("input", function(event){
-    if (!event.target.matches("#mobileBottomDatePicker")) return;
-    applyBottomDate(event.target.value);
-  }, true);
+  function showCash() {
+    root.classList.remove("is-welcome-mode", "is-list-mode");
+    root.classList.add("is-cash-mode");
+    const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
+    if (openCash) openCash.click();
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
 
-  document.addEventListener("change", function(event){
-    if (!event.target.matches("#mobileBottomDatePicker")) return;
-    applyBottomDate(event.target.value);
-  }, true);
-
-  document.addEventListener("click", function(event){
-    // Şeffaf gerçek date input doğrudan dokunmayı alır; default davranışı engelleme.
-    if (event.target.matches("#mobileBottomDatePicker")) {
-      closeMenu();
-      setActive("calendar");
-      syncBottomDatePicker();
-      return;
-    }
-
-    const nav = event.target.closest("#mobileTechApp [data-mobile-nav]");
-    if (!nav) {
-      if (event.target.closest("#mobileTechApp [data-mobile-nav-close]")) closeMenu();
-      return;
-    }
-    const action = nav.dataset.mobileNav;
-    if (!action) return;
-
-    if (["home","calendar","cash","menu","close-menu"].includes(action)) {
+  document.addEventListener("click", (event) => {
+    const counter = event.target.closest("#mobileWelcomePage [data-welcome-target]");
+    if (counter) {
       event.preventDefault();
-      event.stopPropagation();
-    }
-
-    if (action === "close-menu") { closeMenu(); setActive("home"); return; }
-    if (action === "menu") { openMenu(); return; }
-    // calendar butonunun üzerindeki gerçek input takvimi açar.
-    if (action === "calendar") { setActive("calendar"); syncBottomDatePicker(); return; }
-    if (action === "cash") {
-      closeMenu();
-      setActive("cash");
-      triggerMobileAction("open-daily-cash");
+      event.stopImmediatePropagation();
+      showList(counter.dataset.welcomeTarget === "closed" ? "closed" : "open");
       return;
     }
-    if (action === "home") {
-      closeMenu();
-      setActive("home");
-      triggerMobileAction("close-daily-cash");
-      return;
-    }
-  }, false);
 
-  document.addEventListener("click", function(event){
-    if (event.target.closest("#mobileTechApp [data-mobile-nav-close]")) {
-      setTimeout(() => { closeMenu(); setActive("home"); }, 0);
-    }
-    if (event.target.closest('#mobileTechApp [data-mobile-action="close-daily-cash"]')) setActive("home");
-    if (event.target.closest('#mobileTechApp [data-mobile-action="open-daily-cash"]')) setActive("cash");
-  }, false);
+    const action = event.target.closest("#mobileTechApp [data-welcome-action]");
+    if (!action) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (action.dataset.welcomeAction === "cash") showCash();
+    if (action.dataset.welcomeAction === "home") showHome(true);
+  }, true);
 
-  const oldRenderV524 = render;
-  render = function renderV524BottomNavPatch(){
-    oldRenderV524();
-    setTimeout(() => {
-      const badge = document.querySelector(".mobile-version-badge");
-      if (badge) badge.textContent = `Ekzen Servis Takip ${VERSION}`;
-      syncBottomDatePicker();
-    }, 0);
+  document.addEventListener("change", (event) => {
+    if (!event.target.matches("#mobileDatePicker")) return;
+    mobileSelectedDate = selectedDate();
+    updateWelcome();
+  });
+
+  const previousRender = render;
+  render = function renderWithWelcomeHomeV521() {
+    previousRender();
+    updateWelcome();
   };
-})();
 
-/* V5.2.4.3 — Özel mobil takvim ve kesin tarih filtreleme */
-(function setupEkzenCustomCalendarV5243(){
-  const modal = () => document.querySelector('#mobileCalendarModal');
-  const grid = () => document.querySelector('#mobileCalendarGrid');
-  const label = () => document.querySelector('#mobileCalendarMonthLabel');
-  let cursor = new Date();
-  let selected = '';
-  const monthNames = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-  const pad = n => String(n).padStart(2,'0');
-  const toIso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  function currentValue(){ return document.querySelector('#mobileDatePicker')?.value || window.mobileSelectedDate || toIso(new Date()); }
-  function openCalendar(){
-    selected = currentValue();
-    const [y,m] = selected.split('-').map(Number);
-    cursor = new Date(y, (m||1)-1, 1);
-    render();
-    const el=modal(); if(el) el.hidden=false;
-    document.body.style.overflow='hidden';
-  }
-  function closeCalendar(){ const el=modal(); if(el) el.hidden=true; document.body.style.overflow=''; }
-  function render(){
-    const g=grid(), l=label(); if(!g||!l) return;
-    l.textContent=`${monthNames[cursor.getMonth()]} ${cursor.getFullYear()}`;
-    g.innerHTML='';
-    const first=(new Date(cursor.getFullYear(),cursor.getMonth(),1).getDay()+6)%7;
-    const start=new Date(cursor.getFullYear(),cursor.getMonth(),1-first);
-    const today=toIso(new Date());
-    for(let i=0;i<42;i++){
-      const d=new Date(start); d.setDate(start.getDate()+i);
-      const iso=toIso(d);
-      const b=document.createElement('button'); b.type='button'; b.className='mobile-calendar-day'; b.textContent=d.getDate(); b.dataset.date=iso;
-      if(d.getMonth()!==cursor.getMonth()) b.classList.add('is-outside');
-      if(iso===today) b.classList.add('is-today');
-      if(iso===selected) b.classList.add('is-selected');
-      g.appendChild(b);
-    }
-  }
-  function applyDate(value){
-    const main=document.querySelector('#mobileDatePicker');
-    if(!main || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
-    main.value=value;
-    window.mobileSelectedDate=value;
-    try { mobileSelectedDate=value; selectedDate=value; } catch(e) {}
-    main.dispatchEvent(new Event('input',{bubbles:true}));
-    main.dispatchEvent(new Event('change',{bubbles:true}));
-    if(typeof window.ekzenMobileOpenClosedV511==='function') window.ekzenMobileOpenClosedV511(false);
-    document.querySelectorAll('#mobileTechApp .mobile-bottom-nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.mobileNav==='home'));
-  }
-  document.addEventListener('click',function(e){
-    const calendarNav=e.target.closest('#mobileTechApp [data-mobile-nav="calendar"]');
-    if(calendarNav){ e.preventDefault(); e.stopImmediatePropagation(); openCalendar(); return; }
-    const day=e.target.closest('.mobile-calendar-day');
-    if(day){ selected=day.dataset.date; render(); return; }
-    const action=e.target.closest('[data-calendar-action]')?.dataset.calendarAction;
-    if(!action) return;
-    if(action==='close'){ closeCalendar(); return; }
-    if(action==='prev'){ cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1); render(); return; }
-    if(action==='next'){ cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1); render(); return; }
-    if(action==='today'){ selected=toIso(new Date()); const [y,m]=selected.split('-').map(Number); cursor=new Date(y,m-1,1); render(); return; }
-    if(action==='apply'){ applyDate(selected || currentValue()); closeCalendar(); }
-  },true);
+  window.ekzenMobileShowHome = () => showHome(true);
+  window.ekzenMobileShowList = (bucket = "open") => showList(bucket);
+  window.ekzenMobileShowCash = showCash;
+
+  window.addEventListener("pageshow", () => showHome(true));
+  window.addEventListener("load", () => showHome(true));
+  setTimeout(() => showHome(true), 220);
 })();
