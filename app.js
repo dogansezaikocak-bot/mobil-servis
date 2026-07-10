@@ -4835,7 +4835,6 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 (function setupMobileBottomNavigationV524(){
   const VERSION = "V5.2.4.2";
 
-  function navItems(){ return Array.from(document.querySelectorAll("#mobileTechApp [data-mobile-nav]")); }
   function setActive(name){
     document.querySelectorAll("#mobileTechApp .mobile-bottom-nav-item").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.mobileNav === name);
@@ -4864,17 +4863,25 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const bottomPicker = document.querySelector("#mobileBottomDatePicker");
     if (mainPicker && bottomPicker) bottomPicker.value = mainPicker.value || mobileSelectedDate || isoToday;
   }
+  function applyBottomDate(value){
+    const nextDate = String(value || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
 
-  function openCalendar(){
-    closeMenu();
-    setActive("calendar");
-    syncBottomDatePicker();
-    const picker = document.querySelector("#mobileDatePicker");
-    if (!picker) return;
-    try {
-      if (typeof picker.showPicker === "function") picker.showPicker();
-      else { picker.focus(); picker.click(); }
-    } catch (e) { picker.focus(); }
+    const mainPicker = document.querySelector("#mobileDatePicker");
+    if (!mainPicker) return;
+
+    mainPicker.value = nextDate;
+    mobileSelectedDate = nextDate;
+
+    // Ana tarih filtresinin kendi dinleyicilerini çalıştır.
+    mainPicker.dispatchEvent(new Event("input", { bubbles: true }));
+    mainPicker.dispatchEvent(new Event("change", { bubbles: true }));
+
+    // Eski mobil render katmanı event'i yutsa bile filtreyi kesin uygula.
+    if (typeof window.ekzenMobileOpenClosedV511 === "function") {
+      window.ekzenMobileOpenClosedV511(false);
+    }
+    setActive("home");
   }
 
   document.addEventListener("focus", function(event){
@@ -4884,21 +4891,19 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     syncBottomDatePicker();
   }, true);
 
+  // Bazı mobil tarayıcılar date alanında input, bazıları change üretir.
+  document.addEventListener("input", function(event){
+    if (!event.target.matches("#mobileBottomDatePicker")) return;
+    applyBottomDate(event.target.value);
+  }, true);
+
   document.addEventListener("change", function(event){
     if (!event.target.matches("#mobileBottomDatePicker")) return;
-    const value = String(event.target.value || "").slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
-    const mainPicker = document.querySelector("#mobileDatePicker");
-    if (!mainPicker) return;
-    mainPicker.value = value;
-    mainPicker.dispatchEvent(new Event("input", { bubbles: true }));
-    mainPicker.dispatchEvent(new Event("change", { bubbles: true }));
-    setActive("home");
+    applyBottomDate(event.target.value);
   }, true);
 
   document.addEventListener("click", function(event){
-    /* V5.2.4.2: Gerçek date input dokunmasını engelleme.
-       preventDefault uygulanırsa Chrome ve Safari yerel takvimi açmaz. */
+    // Şeffaf gerçek date input doğrudan dokunmayı alır; default davranışı engelleme.
     if (event.target.matches("#mobileBottomDatePicker")) {
       closeMenu();
       setActive("calendar");
@@ -4921,7 +4926,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
     if (action === "close-menu") { closeMenu(); setActive("home"); return; }
     if (action === "menu") { openMenu(); return; }
-    if (action === "calendar") { openCalendar(); return; }
+    // calendar butonunun üzerindeki gerçek input takvimi açar.
+    if (action === "calendar") { setActive("calendar"); syncBottomDatePicker(); return; }
     if (action === "cash") {
       closeMenu();
       setActive("cash");
@@ -4950,6 +4956,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     setTimeout(() => {
       const badge = document.querySelector(".mobile-version-badge");
       if (badge) badge.textContent = `Ekzen Servis Takip ${VERSION}`;
+      syncBottomDatePicker();
     }, 0);
   };
 })();

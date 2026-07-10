@@ -8231,10 +8231,25 @@ body.photo-viewer-open {
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
+    border-radius: inherit !important;
+    background: transparent !important;
     opacity: 0.001 !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
     cursor: pointer !important;
     -webkit-appearance: none !important;
     appearance: none !important;
+  }
+
+  .mobile-bottom-date-picker::-webkit-date-and-time-value,
+  .mobile-bottom-date-picker::-webkit-datetime-edit,
+  .mobile-bottom-date-picker::-webkit-datetime-edit-fields-wrapper,
+  .mobile-bottom-date-picker::-webkit-calendar-picker-indicator {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    opacity: 0 !important;
   }
 
   .mobile-bottom-nav-icon {

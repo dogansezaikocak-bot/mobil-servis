@@ -43,3 +43,6 @@ V5.2.0 Beta 2 Safari açılış düzeltmeli çalışan sürüm temel alınmışt
 
 ## Safari Takvim Düzeltmesi
 - Alt navigasyondaki Takvim düğmesi iPhone Safari için doğrudan yerel tarih seçiciyle çalışacak şekilde düzeltildi.
+
+
+V5.2.4.2 düzeltme: Alt navigasyon takvim alanındaki biçimsiz tarih yazısı gizlendi; seçilen tarih servis listesi, sayaçlar ve günlük özet filtresine anında bağlandı.
