@@ -278,18 +278,27 @@ function demoService(id, customerName, phone, district, address, brand, device, 
 }
 
 function saveLocalState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (error) {
+    console.error("Yerel kayıt yapılamadı:", error);
+    alert("Kayıt telefona yazılamadı. Tarayıcı depolama alanı dolmuş olabilir. Fotoğraf yedeği alıp eski fotoğrafları azaltın.");
+    return false;
+  }
 }
 
 function saveState() {
-  saveLocalState();
-  if (!cloudRef || !cloudReady || cloudApplyingState) return;
+  const localSaved = saveLocalState();
+  if (!localSaved) return false;
+  if (!cloudRef || !cloudReady || cloudApplyingState) return true;
   cloudRef.set({
     updatedAt: new Date().toISOString(),
     state,
   }).catch(() => {
     console.warn("Firebase kaydı yapılamadı, yerel kayıt korundu.");
   });
+  return true;
 }
 
 function initCloudSync() {
@@ -412,6 +421,12 @@ function bindEvents() {
     if (action === "move-service-order") moveServiceOrder(button.dataset.serviceId, button.dataset.direction);
     if (action === "open-related-service") openRelatedServiceForm(button.dataset.serviceId);
     if (action === "close-service-modal") serviceDialog.close();
+    if (action === "save-service-direct") {
+      // iOS Safari'de <dialog> içindeki form submit olayı zaman zaman tetiklenmiyor.
+      // Kaydet düğmesini doğrudan forma bağlayarak gerçek cihazda güvenilir kayıt sağla.
+      if (typeof serviceForm.reportValidity === "function" && !serviceForm.reportValidity()) return;
+      saveService(new FormData(serviceForm));
+    }
     if (action === "close-detail-modal") detailDialog.close();
     if (action === "close-cash-modal") cashDialog.close();
     if (action === "close-complete-modal") completeDialog.close();
@@ -2349,9 +2364,13 @@ function saveService(formData) {
     history: previous?.history || [],
   };
 
+  const servicesBeforeSave = state.services;
   if (isUpdate) state.services = state.services.map((item) => item.id === service.id ? service : item);
   else state.services.unshift(service);
-  saveState();
+  if (!saveState()) {
+    state.services = servicesBeforeSave;
+    return;
+  }
   serviceDialog.close();
   render();
   if (!isMobileTechViewport()) switchView("services");
