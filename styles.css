@@ -7846,3 +7846,28 @@ body.photo-viewer-open {
     font-size: 21px !important;
   }
 }
+
+
+/* V5.2.4.4 - Kısa mobil sayfa geçiş efekti */
+@media (max-width: 820px) {
+  #mobileTechApp {
+    transition: opacity 115ms ease, transform 115ms ease;
+    transform-origin: 50% 45%;
+    will-change: opacity, transform;
+  }
+
+  #mobileTechApp.is-page-leaving {
+    opacity: 0;
+    transform: translateX(-7px) scale(0.995);
+    pointer-events: none;
+  }
+
+  #mobileTechApp.is-page-entering {
+    opacity: 0;
+    transform: translateX(7px) scale(0.995);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mobileTechApp { transition: none !important; }
+}

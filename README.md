@@ -1,7 +1,5 @@
-Ekzen Servis Takip V5.2.4.2
-- Tarih: 11 Temmuz 2026
-- Gün: Cumartesi (alt satırda ortalı)
-- Tarih filtresi korunmuştur.
-
-
-V5.2.4.3: Tarih kutusu yüksekliği ve iç boşlukları azaltıldı; tarih ile gün birbirine yaklaştırıldı.
+Ekzen Servis Takip V5.2.4.4
+- Son çalışan V5.2.4.3 kompakt tarih sürümü temel alındı.
+- Ana sayfa, servis listesi ve kasa geçişlerine kısa solma + hafif kayma animasyonu eklendi.
+- İlk açılışta animasyon uygulanmaz.
+- Hareket azaltma tercihi olan cihazlarda efekt otomatik kapatılır.

@@ -4908,55 +4908,91 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     updateWelcome();
   }
 
-  function showHome(resetToday = true) {
-    if (resetToday) {
-      const picker = dateInput();
-      if (picker) picker.value = todayIso();
-      mobileSelectedDate = todayIso();
+  let mobilePageTransitionTimer = 0;
+  let mobilePageTransitionBusy = false;
+
+  function runMobilePageTransition(changePage, animate = true) {
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (!animate || reducedMotion || mobilePageTransitionBusy) {
+      changePage();
+      return;
     }
-    root.classList.remove("is-list-mode", "is-cash-mode");
-    root.classList.add("is-welcome-mode");
-    const cashPage = document.querySelector("#mobileDailyCashPage");
-    const serviceList = document.querySelector("#mobileServiceList");
-    const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
-    if (cashPage) cashPage.hidden = true;
-    if (serviceList) {
-      serviceList.hidden = true;
-      serviceList.style.setProperty("display", "none", "important");
-    }
-    if (globalNewButton) {
-      globalNewButton.hidden = true;
-      globalNewButton.style.setProperty("display", "none", "important");
-    }
-    syncExistingMobile();
-    window.scrollTo({ top: 0, behavior: "auto" });
+
+    mobilePageTransitionBusy = true;
+    window.clearTimeout(mobilePageTransitionTimer);
+    root.classList.remove("is-page-entering");
+    root.classList.add("is-page-leaving");
+
+    mobilePageTransitionTimer = window.setTimeout(() => {
+      changePage();
+      root.classList.remove("is-page-leaving");
+      root.classList.add("is-page-entering");
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => root.classList.remove("is-page-entering"));
+      });
+
+      mobilePageTransitionTimer = window.setTimeout(() => {
+        mobilePageTransitionBusy = false;
+      }, 190);
+    }, 115);
+  }
+
+  function showHome(resetToday = true, animate = true) {
+    runMobilePageTransition(() => {
+      if (resetToday) {
+        const picker = dateInput();
+        if (picker) picker.value = todayIso();
+        mobileSelectedDate = todayIso();
+      }
+      root.classList.remove("is-list-mode", "is-cash-mode");
+      root.classList.add("is-welcome-mode");
+      const cashPage = document.querySelector("#mobileDailyCashPage");
+      const serviceList = document.querySelector("#mobileServiceList");
+      const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
+      if (cashPage) cashPage.hidden = true;
+      if (serviceList) {
+        serviceList.hidden = true;
+        serviceList.style.setProperty("display", "none", "important");
+      }
+      if (globalNewButton) {
+        globalNewButton.hidden = true;
+        globalNewButton.style.setProperty("display", "none", "important");
+      }
+      syncExistingMobile();
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }, animate);
   }
 
   function showList(bucket) {
-    root.classList.remove("is-welcome-mode", "is-cash-mode");
-    root.classList.add("is-list-mode");
-    const serviceList = document.querySelector("#mobileServiceList");
-    const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
-    if (serviceList) {
-      serviceList.hidden = false;
-      serviceList.style.removeProperty("display");
-    }
-    if (globalNewButton) {
-      globalNewButton.hidden = false;
-      globalNewButton.style.removeProperty("display");
-    }
-    const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
-    if (tab) tab.click();
-    updateWelcome();
-    window.scrollTo({ top: 0, behavior: "auto" });
+    runMobilePageTransition(() => {
+      root.classList.remove("is-welcome-mode", "is-cash-mode");
+      root.classList.add("is-list-mode");
+      const serviceList = document.querySelector("#mobileServiceList");
+      const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
+      if (serviceList) {
+        serviceList.hidden = false;
+        serviceList.style.removeProperty("display");
+      }
+      if (globalNewButton) {
+        globalNewButton.hidden = false;
+        globalNewButton.style.removeProperty("display");
+      }
+      const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
+      if (tab) tab.click();
+      updateWelcome();
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
   }
 
   function showCash() {
-    root.classList.remove("is-welcome-mode", "is-list-mode");
-    root.classList.add("is-cash-mode");
-    const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
-    if (openCash) openCash.click();
-    window.scrollTo({ top: 0, behavior: "auto" });
+    runMobilePageTransition(() => {
+      root.classList.remove("is-welcome-mode", "is-list-mode");
+      root.classList.add("is-cash-mode");
+      const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
+      if (openCash) openCash.click();
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
   }
 
   document.addEventListener("click", (event) => {
@@ -4993,7 +5029,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   window.ekzenMobileShowList = (bucket = "open") => showList(bucket);
   window.ekzenMobileShowCash = showCash;
 
-  window.addEventListener("pageshow", () => showHome(true));
-  window.addEventListener("load", () => showHome(true));
-  setTimeout(() => showHome(true), 220);
+  window.addEventListener("pageshow", () => showHome(true, false));
+  window.addEventListener("load", () => showHome(true, false));
+  setTimeout(() => showHome(true, false), 220);
 })();
