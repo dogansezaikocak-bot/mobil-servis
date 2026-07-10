@@ -4747,6 +4747,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     selectedDate = nextDate;
     mobileSelectedDate = nextDate;
     renderMobileOpenClosed(false);
+    if (typeof window.ekzenUpdateWelcome === "function") window.ekzenUpdateWelcome();
   }, true);
 
   document.addEventListener("change", (event) => {
@@ -4754,6 +4755,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       event.stopImmediatePropagation();
       selectedDate = String(event.target.value || isoToday).slice(0, 10);
       settle(false);
+      if (typeof window.ekzenUpdateWelcome === "function") window.ekzenUpdateWelcome();
       return;
     }
     if (event.target.matches("#mobileSourcePicker")) {
@@ -4841,11 +4843,24 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   }
 
   function formatWelcomeDate(date) {
-    if (date === todayIso()) return "Bugünün servis özeti";
     try {
-      return new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" })
-        .format(new Date(`${date}T12:00:00`));
+      return new Intl.DateTimeFormat("tr-TR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(new Date(`${date}T12:00:00`));
     } catch (_) { return date; }
+  }
+
+  function formatWelcomeDay(date) {
+    try {
+      return new Intl.DateTimeFormat("tr-TR", { weekday: "long" })
+        .format(new Date(`${date}T12:00:00`));
+    } catch (_) { return ""; }
+  }
+
+  function formatWelcomeSummary(date) {
+    return date === todayIso() ? "Bugünün servis özeti" : `${formatWelcomeDate(date)} servis özeti`;
   }
 
   function updateWelcome() {
@@ -4855,6 +4870,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const openEl = document.querySelector("#mobileWelcomeOpenCount");
     const closedEl = document.querySelector("#mobileWelcomeClosedCount");
     const textEl = document.querySelector("#mobileWelcomeDateText");
+    const dateDisplayEl = document.querySelector("#mobileWelcomeDateDisplay");
     const listDateEl = document.querySelector("#mobileListPageDate");
     if (openEl) openEl.textContent = String(openRows.length);
     if (closedEl) closedEl.textContent = String(closedRows.length);
@@ -4876,7 +4892,10 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     if (incomeEl) incomeEl.textContent = money(income);
     if (earningEl) earningEl.textContent = money(earning);
 
-    if (textEl) textEl.textContent = formatWelcomeDate(selectedDate());
+    if (textEl) textEl.textContent = formatWelcomeSummary(selectedDate());
+    if (dateDisplayEl) {
+      dateDisplayEl.innerHTML = `<span class="mobile-welcome-date-line">${formatWelcomeDate(selectedDate())}</span><span class="mobile-welcome-day-line">${formatWelcomeDay(selectedDate())}</span>`;
+    }
     if (listDateEl) listDateEl.textContent = selectedDate() === todayIso() ? "Bugün" : formatWelcomeDate(selectedDate());
   }
 
@@ -4969,6 +4988,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     updateWelcome();
   };
 
+  window.ekzenUpdateWelcome = updateWelcome;
   window.ekzenMobileShowHome = () => showHome(true);
   window.ekzenMobileShowList = (bucket = "open") => showList(bucket);
   window.ekzenMobileShowCash = showCash;
