@@ -1,4 +1,4 @@
-# Ekzen Servis Takip V5.2.2
+# Ekzen Servis Takip V5.2.3
 
 V5.2.0 Beta 2 Safari açılış düzeltmeli çalışan sürüm temel alınmıştır.
 
@@ -24,3 +24,10 @@ V5.2.0 Beta 2 Safari açılış düzeltmeli çalışan sürüm temel alınmışt
 - Adres ve şikâyet ayrı, okunaklı bilgi bloklarına ayrıldı.
 - Tarih, saat ve durum alanları dengelendi.
 - Mevcut servis, kasa, Safari ve PWA işlevleri korunmuştur.
+
+
+## V5.2.3
+- Mobil ana ekrana canlı Günlük Özet Paneli eklendi.
+- Toplam Servis, Tamamlanan, Bekleyen ve Günlük Hasılat gösterilir.
+- Değerler seçilen tarih ve kaynağa göre otomatik güncellenir.
+- Mevcut servis, kasa ve Safari çalışma mantığı korunmuştur.

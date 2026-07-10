@@ -8061,3 +8061,104 @@ body.photo-viewer-open {
     background: #eef8f6 !important;
   }
 }
+
+
+/* =========================================================
+   V5.2.3 — Mobil günlük özet paneli
+   Seçilen tarih ve kaynağa göre canlı değerler.
+   ========================================================= */
+@media (max-width: 760px) {
+  .mobile-daily-summary-panel {
+    margin: 2px 14px 16px !important;
+    padding: 16px !important;
+    border: 1px solid rgba(15, 23, 42, .06) !important;
+    border-radius: 22px !important;
+    background: rgba(255,255,255,.94) !important;
+    box-shadow: 0 10px 30px rgba(15,23,42,.07) !important;
+  }
+
+  .mobile-daily-summary-head {
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    margin-bottom: 13px !important;
+  }
+
+  .mobile-daily-summary-head > div {
+    min-width: 0 !important;
+  }
+
+  .mobile-daily-summary-head span {
+    display: block !important;
+    margin-bottom: 3px !important;
+    color: #98a2b3 !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    font-weight: 800 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+  }
+
+  .mobile-daily-summary-head strong {
+    display: block !important;
+    color: #101828 !important;
+    font-size: 18px !important;
+    line-height: 1.15 !important;
+    font-weight: 850 !important;
+    letter-spacing: -.35px !important;
+  }
+
+  .mobile-daily-summary-head small {
+    max-width: 48% !important;
+    padding: 6px 9px !important;
+    border-radius: 999px !important;
+    background: #eef8f6 !important;
+    color: #0f766e !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .mobile-daily-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .mobile-daily-summary-card {
+    min-height: 86px !important;
+    padding: 13px 14px !important;
+    border: 1px solid rgba(15,23,42,.055) !important;
+    border-radius: 16px !important;
+    background: #f7f9fb !important;
+  }
+
+  .mobile-daily-summary-card span {
+    display: block !important;
+    margin-bottom: 9px !important;
+    color: #667085 !important;
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+    font-weight: 750 !important;
+  }
+
+  .mobile-daily-summary-card b {
+    display: block !important;
+    color: #101828 !important;
+    font-size: 25px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: -.65px !important;
+  }
+
+  .mobile-daily-summary-card.completed { background: #eef8f6 !important; }
+  .mobile-daily-summary-card.completed b { color: #0f766e !important; }
+  .mobile-daily-summary-card.waiting { background: #fff8eb !important; }
+  .mobile-daily-summary-card.waiting b { color: #b54708 !important; }
+  .mobile-daily-summary-card.revenue { background: #eef4ff !important; }
+  .mobile-daily-summary-card.revenue b { color: #1d4ed8 !important; font-size: 22px !important; }
+}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.2.2</title>
+  <title>Ekzen Servis Takip V5.2.3</title>
   <link rel="stylesheet" href="./styles.css?v=5.2.2-20260710">
 </head>
 <body>
@@ -277,6 +277,34 @@
       </div>
     </div>
 
+    <section class="mobile-daily-summary-panel" aria-label="Günlük özet paneli">
+      <div class="mobile-daily-summary-head">
+        <div>
+          <span>Günlük Özet</span>
+          <strong id="mobileDailySummaryDate">Bugün</strong>
+        </div>
+        <small id="mobileDailySummarySource">Tüm Kaynaklar</small>
+      </div>
+      <div class="mobile-daily-summary-grid">
+        <article class="mobile-daily-summary-card total">
+          <span>Toplam Servis</span>
+          <b id="mobileDailySummaryTotal">0</b>
+        </article>
+        <article class="mobile-daily-summary-card completed">
+          <span>Tamamlanan</span>
+          <b id="mobileDailySummaryCompleted">0</b>
+        </article>
+        <article class="mobile-daily-summary-card waiting">
+          <span>Bekleyen</span>
+          <b id="mobileDailySummaryWaiting">0</b>
+        </article>
+        <article class="mobile-daily-summary-card revenue">
+          <span>Günlük Hasılat</span>
+          <b id="mobileDailySummaryRevenue">₺0</b>
+        </article>
+      </div>
+    </section>
+
 
     <div id="mobileDailyCashPage" class="mobile-daily-cash-page" hidden>
       <div class="mobile-daily-page-head">
@@ -317,7 +345,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.2</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.3</div>
 
 
 

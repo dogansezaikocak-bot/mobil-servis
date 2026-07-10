@@ -4104,7 +4104,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V5.2.2";
+  const VERSION = "V5.2.3";
   let mode = "services";
 
   function selectedDate() {
@@ -4601,7 +4601,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.2.2";
+  const VERSION = "V5.2.3";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
@@ -4675,6 +4675,26 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const closedCount = document.querySelector("#mobileCountClosed");
     if (openCount) openCount.textContent = String(openRows.length);
     if (closedCount) closedCount.textContent = String(closedRows.length);
+
+    // V5.2.3: Seçilen tarih ve kaynağa göre canlı günlük özet.
+    const allRows = sortServices(state.services || []).filter((service) => matchesSource(service) && matchesDate(service));
+    const completedRows = allRows.filter((service) => isStatus(service.status, "İşlem Tamam"));
+    const cashItems = (state.cash || []).filter((item) => {
+      const itemDate = String(item.date || "").slice(0, 10);
+      const itemSource = cashItemSource(item);
+      return cashIsPosted(item) && matchesPortalSource(itemSource) && (!selectedSource() || sourceMatches(itemSource, selectedSource())) && itemDate === selectedDate;
+    });
+    const dailyCashTotals = cashBreakdown(cashItems);
+    const setSummaryText = (selector, value) => {
+      const element = document.querySelector(selector);
+      if (element) element.textContent = value;
+    };
+    setSummaryText("#mobileDailySummaryTotal", String(allRows.length));
+    setSummaryText("#mobileDailySummaryCompleted", String(completedRows.length));
+    setSummaryText("#mobileDailySummaryWaiting", String(openRows.length));
+    setSummaryText("#mobileDailySummaryRevenue", money(dailyCashTotals.income));
+    setSummaryText("#mobileDailySummaryDate", formattedDate());
+    setSummaryText("#mobileDailySummarySource", selectedSource() || "Tüm Kaynaklar");
 
     document.querySelectorAll("#mobileTechApp [data-mobile-bucket]").forEach((button) => {
       const active = button.dataset.mobileBucket === activeBucket;
