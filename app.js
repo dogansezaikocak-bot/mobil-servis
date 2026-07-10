@@ -4911,17 +4911,18 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   let mobilePageTransitionTimer = 0;
   let mobilePageTransitionBusy = false;
 
-  function runMobilePageTransition(changePage, animate = true) {
+  function runMobilePageTransition(changePage, animate = true, direction = "forward") {
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (!animate || reducedMotion || mobilePageTransitionBusy) {
       changePage();
       return;
     }
 
+    const directionClass = direction === "back" ? "is-page-back" : "is-page-forward";
     mobilePageTransitionBusy = true;
     window.clearTimeout(mobilePageTransitionTimer);
-    root.classList.remove("is-page-entering");
-    root.classList.add("is-page-leaving");
+    root.classList.remove("is-page-entering", "is-page-forward", "is-page-back");
+    root.classList.add(directionClass, "is-page-leaving");
 
     mobilePageTransitionTimer = window.setTimeout(() => {
       changePage();
@@ -4933,9 +4934,10 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       });
 
       mobilePageTransitionTimer = window.setTimeout(() => {
+        root.classList.remove("is-page-forward", "is-page-back");
         mobilePageTransitionBusy = false;
-      }, 190);
-    }, 115);
+      }, 220);
+    }, 150);
   }
 
   function showHome(resetToday = true, animate = true) {
@@ -4961,7 +4963,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       }
       syncExistingMobile();
       window.scrollTo({ top: 0, behavior: "auto" });
-    }, animate);
+    }, animate, "back");
   }
 
   function showList(bucket) {
