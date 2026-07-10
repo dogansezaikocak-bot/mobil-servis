@@ -8402,3 +8402,47 @@ body.photo-viewer-open {
     opacity: 0.01 !important;
   }
 }
+
+/* V5.2.4.3 — Görseldeki modern mobil düzen */
+@media (max-width: 760px) {
+  #mobileTechApp {
+    background: linear-gradient(180deg,#004d45 0,#087568 260px,#f4f6f8 540px) !important;
+  }
+  .mobile-summary-actions { gap: 12px !important; padding: 14px 18px 10px !important; }
+  .mobile-summary-card { min-height: 88px !important; border-radius: 20px !important; box-shadow: 0 10px 24px rgba(0,44,39,.18) !important; }
+  .mobile-date-control-row { margin: 12px 18px 0 !important; padding: 16px !important; gap: 12px !important; border-radius: 28px !important; background:#fff !important; box-shadow:0 18px 40px rgba(15,23,42,.12) !important; }
+  .mobile-top-control,.mobile-today-button,.mobile-daily-cash-button { min-height:78px !important; border-radius:18px !important; border:1px solid #e7ecef !important; background:#fff !important; box-shadow:0 8px 18px rgba(15,23,42,.07) !important; }
+  .mobile-daily-summary-panel { margin:14px 18px 0 !important; padding:22px 18px !important; border-radius:24px !important; box-shadow:0 18px 42px rgba(15,23,42,.10) !important; }
+  .mobile-daily-summary-card { min-height:118px !important; border-radius:18px !important; }
+  .mobile-service-list { padding: 8px 18px 124px !important; }
+  .mobile-service-card { border-radius:22px !important; box-shadow:0 12px 28px rgba(15,23,42,.09) !important; }
+  .mobile-bottom-nav { left:18px !important; right:18px !important; bottom:calc(10px + env(safe-area-inset-bottom)) !important; height:82px !important; padding:8px 7px !important; border-radius:24px !important; background:rgba(255,255,255,.96) !important; border:1px solid rgba(15,23,42,.08) !important; box-shadow:0 18px 44px rgba(15,23,42,.18) !important; -webkit-backdrop-filter:blur(18px) !important; backdrop-filter:blur(18px) !important; }
+  .mobile-bottom-nav-item { border-radius:18px !important; gap:3px !important; }
+  .mobile-bottom-nav-item.is-active { background:#e9f7f3 !important; color:#08776b !important; }
+  .mobile-bottom-nav-icon { font-size:25px !important; line-height:1 !important; }
+  .mobile-bottom-nav-item b { font-size:12px !important; }
+  #mobileBottomDatePicker { display:none !important; }
+
+  .mobile-calendar-modal { position:fixed; inset:0; z-index:1800; display:flex; align-items:flex-end; justify-content:center; }
+  .mobile-calendar-modal[hidden] { display:none !important; }
+  .mobile-calendar-backdrop { position:absolute; inset:0; border:0; background:rgba(15,23,42,.46); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+  .mobile-calendar-sheet { position:relative; width:100%; max-width:540px; padding:8px 18px calc(18px + env(safe-area-inset-bottom)); border-radius:28px 28px 0 0; background:#fff; box-shadow:0 -22px 60px rgba(15,23,42,.28); }
+  .mobile-calendar-handle { width:42px; height:5px; border-radius:99px; background:#c9ced6; margin:0 auto 10px; }
+  .mobile-calendar-header,.mobile-calendar-monthbar,.mobile-calendar-footer { display:flex; align-items:center; justify-content:space-between; }
+  .mobile-calendar-header { padding:4px 0 14px; border-bottom:1px solid #edf0f3; }
+  .mobile-calendar-header strong { font-size:21px; color:#101828; }
+  .mobile-calendar-close,.mobile-calendar-monthbar button { border:0; background:transparent; width:40px; height:40px; font-size:30px; color:#101828; }
+  .mobile-calendar-monthbar { padding:14px 0 8px; }
+  .mobile-calendar-monthbar b { font-size:17px; color:#101828; }
+  .mobile-calendar-weekdays,.mobile-calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .mobile-calendar-weekdays { padding:6px 0 8px; }
+  .mobile-calendar-weekdays span { text-align:center; font-size:11px; font-weight:800; color:#7b8495; text-transform:uppercase; }
+  .mobile-calendar-day { aspect-ratio:1; border:0; border-radius:50%; background:transparent; color:#101828; font-size:15px; font-weight:700; }
+  .mobile-calendar-day.is-outside { color:#b6bdc8; }
+  .mobile-calendar-day.is-today { box-shadow:inset 0 0 0 1px #0b8a79; }
+  .mobile-calendar-day.is-selected { background:#08776b; color:#fff; box-shadow:0 8px 18px rgba(8,119,107,.28); }
+  .mobile-calendar-footer { gap:14px; padding-top:16px; margin-top:12px; border-top:1px solid #edf0f3; }
+  .mobile-calendar-footer button { min-height:52px; border-radius:14px; font-size:15px; font-weight:850; }
+  .mobile-calendar-today { width:105px; border:0; background:#eaf6f2; color:#08776b; }
+  .mobile-calendar-apply { flex:1; border:0; background:#00695f; color:#fff; }
+}

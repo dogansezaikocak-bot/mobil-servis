@@ -4960,3 +4960,66 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     }, 0);
   };
 })();
+
+/* V5.2.4.3 — Özel mobil takvim ve kesin tarih filtreleme */
+(function setupEkzenCustomCalendarV5243(){
+  const modal = () => document.querySelector('#mobileCalendarModal');
+  const grid = () => document.querySelector('#mobileCalendarGrid');
+  const label = () => document.querySelector('#mobileCalendarMonthLabel');
+  let cursor = new Date();
+  let selected = '';
+  const monthNames = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const pad = n => String(n).padStart(2,'0');
+  const toIso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  function currentValue(){ return document.querySelector('#mobileDatePicker')?.value || window.mobileSelectedDate || toIso(new Date()); }
+  function openCalendar(){
+    selected = currentValue();
+    const [y,m] = selected.split('-').map(Number);
+    cursor = new Date(y, (m||1)-1, 1);
+    render();
+    const el=modal(); if(el) el.hidden=false;
+    document.body.style.overflow='hidden';
+  }
+  function closeCalendar(){ const el=modal(); if(el) el.hidden=true; document.body.style.overflow=''; }
+  function render(){
+    const g=grid(), l=label(); if(!g||!l) return;
+    l.textContent=`${monthNames[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    g.innerHTML='';
+    const first=(new Date(cursor.getFullYear(),cursor.getMonth(),1).getDay()+6)%7;
+    const start=new Date(cursor.getFullYear(),cursor.getMonth(),1-first);
+    const today=toIso(new Date());
+    for(let i=0;i<42;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i);
+      const iso=toIso(d);
+      const b=document.createElement('button'); b.type='button'; b.className='mobile-calendar-day'; b.textContent=d.getDate(); b.dataset.date=iso;
+      if(d.getMonth()!==cursor.getMonth()) b.classList.add('is-outside');
+      if(iso===today) b.classList.add('is-today');
+      if(iso===selected) b.classList.add('is-selected');
+      g.appendChild(b);
+    }
+  }
+  function applyDate(value){
+    const main=document.querySelector('#mobileDatePicker');
+    if(!main || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+    main.value=value;
+    window.mobileSelectedDate=value;
+    try { mobileSelectedDate=value; selectedDate=value; } catch(e) {}
+    main.dispatchEvent(new Event('input',{bubbles:true}));
+    main.dispatchEvent(new Event('change',{bubbles:true}));
+    if(typeof window.ekzenMobileOpenClosedV511==='function') window.ekzenMobileOpenClosedV511(false);
+    document.querySelectorAll('#mobileTechApp .mobile-bottom-nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.mobileNav==='home'));
+  }
+  document.addEventListener('click',function(e){
+    const calendarNav=e.target.closest('#mobileTechApp [data-mobile-nav="calendar"]');
+    if(calendarNav){ e.preventDefault(); e.stopImmediatePropagation(); openCalendar(); return; }
+    const day=e.target.closest('.mobile-calendar-day');
+    if(day){ selected=day.dataset.date; render(); return; }
+    const action=e.target.closest('[data-calendar-action]')?.dataset.calendarAction;
+    if(!action) return;
+    if(action==='close'){ closeCalendar(); return; }
+    if(action==='prev'){ cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1); render(); return; }
+    if(action==='next'){ cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1); render(); return; }
+    if(action==='today'){ selected=toIso(new Date()); const [y,m]=selected.split('-').map(Number); cursor=new Date(y,m-1,1); render(); return; }
+    if(action==='apply'){ applyDate(selected || currentValue()); closeCalendar(); }
+  },true);
+})();

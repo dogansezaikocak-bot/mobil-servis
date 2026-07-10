@@ -46,3 +46,10 @@ V5.2.0 Beta 2 Safari açılış düzeltmeli çalışan sürüm temel alınmışt
 
 
 V5.2.4.2 düzeltme: Alt navigasyon takvim alanındaki biçimsiz tarih yazısı gizlendi; seçilen tarih servis listesi, sayaçlar ve günlük özet filtresine anında bağlandı.
+
+## V5.2.4.3 — Güncellenmiş Mobil Arayüz
+- Son V5.2.4.2 sürümü temel alındı.
+- Alt navigasyon ve mobil kartlar modern, ferah düzene geçirildi.
+- Alt bardaki biçimsiz yerel tarih alanı kaldırıldı.
+- Özel mobil takvim penceresi eklendi.
+- Seçilen tarih servis listesi, sayaçlar ve günlük özete uygulanır.
