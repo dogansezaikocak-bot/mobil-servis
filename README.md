@@ -1,6 +1,8 @@
-Ekzen Servis Takip V4.1.2
-- Servis detay ekranı görsel tasarıma göre yeniden düzenlendi.
-- Servis numarası ve gereksiz küçük göstergeler kaldırıldı.
-- Detay ekranı sade, açık zeminli ve ferah hale getirildi.
-- İptal rengi işlem tamam ile aynı tona alındı.
-- İşlemde / Ödeme Bekliyor rengi lacivert yapıldı.
+Ekzen Servis Takip V4.3.6
+- Ekzen Kasa sayaçları firma gelir/gider mantığına göre sadeleştirildi.
+- Toplam Ciro, Servis Giderleri, Şirket Giderleri, Kasa Durumu gösterilir.
+- Kasa Durumu mantığı korunmuştur.
+
+
+## V4.3.7
+- Ana sayfa üst bardaki Kontrol butonu kaldırıldı.

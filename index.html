@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V4.0.0</title>
-  <link rel="stylesheet" href="./styles.css?v=v4-0-0">
+  <title>Ekzen Servis Takip V4.3.5</title>
+  <link rel="stylesheet" href="./styles.css?v=v4-3-5">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -22,7 +22,7 @@
           <button class="nav-item" type="button" data-view="services" title="Servisler"><span>☑</span><b>Servisler</b></button>
           <button class="nav-item" type="button" data-action="show-all-records" title="Tüm Kayıtlar"><span>▦</span><b>Tüm Kayıtlar</b></button>
           <button class="nav-item" type="button" data-view="cash" title="Kasa"><span>₺</span><b>Kasa</b></button>
-          <button class="nav-item" type="button" data-action="accounting-check" title="Muhasebe Kontrol"><span>✓</span><b>Kontrol</b></button>
+          <button class="nav-item" type="button" data-view="ekzenCash" title="Ekzen Özel Kasa"><span>◈</span><b>Ekzen Kasa</b></button>
           <button class="nav-item" type="button" data-view="settings" title="Ayarlar"><span>⚙</span><b>Ayarlar</b></button>
         </nav>
         <div class="top-actions">
@@ -57,6 +57,10 @@
                   <span>Tarih</span>
                   <b id="dashboardDateRangeLabel">Bugün</b>
                 </button>
+                <button id="dashboardEkzenCashStatusButton" class="date-range-button dashboard-ekzen-cash-status" type="button" data-view="ekzenCash" title="Ekzen Kasa">
+                  <span>Ekzen Kasa Durumu</span>
+                  <b id="dashboardEkzenCashStatus">0 TL</b>
+                </button>
               </div>
             </div>
           </div>
@@ -72,23 +76,54 @@
       </section>
 
       <section class="view" id="servicesView" aria-labelledby="servicesTitle">
-        <div class="service-layout">
-          <section class="panel list-panel">
-            <div class="panel-title list-title">
-              <span class="section-kicker">Operasyon</span><h2>Servis Listesi</h2>
-              <form class="sort-bar" id="filterForm">
-                <input name="query" type="search" placeholder="Müşteri, telefon, adres, cihaz ara">
-                <button class="date-range-button compact-date-button" type="button" data-action="open-dashboard-date-range">
-                  <span>Tarih</span><b data-date-range-label>Bugün</b>
-                </button>
-                <select id="topSourceFilter" aria-label="Servis kaynağı filtresi"></select>
-                <select id="topStatusFilter" aria-label="Servis durumu filtresi"></select>
-                <button class="ghost-button" type="button" data-action="clear-selected">Filtreyi Temizle</button>
-              </form>
+        <div class="v420-service-page">
+          <aside class="v420-service-sidebar">
+            <div class="v420-sidebar-head">
+              <span class="section-kicker">Operasyon</span>
+              <h2 id="servicesTitle">Servisler</h2>
+              <p>Tüm servis kayıtlarınız</p>
             </div>
-            <div class="service-table" id="serviceList"></div>
-            <div class="list-footer">
-              <strong id="resultCount">Toplam Sonuç Sayısı : 0</strong>
+
+            <form class="v420-filter-card" id="filterForm">
+              <label>Tarih Aralığı
+                <button class="date-range-button compact-date-button" type="button" data-action="open-dashboard-date-range">
+                  <b data-date-range-label>Bugün</b>
+                </button>
+              </label>
+              <label>Kaynak
+                <select id="topSourceFilter" aria-label="Servis kaynağı filtresi"></select>
+              </label>
+              <label>Durum
+                <select id="topStatusFilter" aria-label="Servis durumu filtresi"></select>
+              </label>
+              <label>Arama
+                <input name="query" type="search" placeholder="Müşteri, telefon, adres, cihaz ara">
+              </label>
+              <button class="v420-clear-button" type="button" data-action="clear-selected">Filtreleri Temizle</button>
+            </form>
+
+            <div class="v420-total-card">
+              <span>Toplam</span>
+              <b id="resultCount">0</b>
+              <small>Servis</small>
+            </div>
+          </aside>
+
+          <section class="v420-service-main">
+            <div class="v420-service-toolbar">
+              <div>
+                <h2>Servisler</h2>
+                <p>Liste kartına tıklayınca fiş detayı açılır.</p>
+              </div>
+              <div class="v420-toolbar-actions">
+                <button class="secondary-button" type="button" data-action="print-list">Yazdır / PDF</button>
+                <button class="primary-button" type="button" data-action="open-service-modal">+ Yeni Servis</button>
+              </div>
+            </div>
+
+            <div class="v420-status-grid" id="serviceQuickStats"></div>
+            <div class="service-table v420-service-list" id="serviceList"></div>
+            <div class="list-footer v420-list-footer">
               <button class="secondary-button" type="button" data-action="print-list">Yazdır / PDF</button>
             </div>
           </section>
@@ -142,6 +177,33 @@
             <button class="cash-mode-tab" type="button" data-action="set-cash-list-mode" data-mode="cash">Kasa Hareketleri</button>
           </div>
           <div id="cashList" class="data-grid"></div>
+        </section>
+      </section>
+
+      <section class="view" id="ekzenCashView" hidden>
+        <section class="panel ekzen-cash-panel">
+          <div class="panel-title">
+            <div>
+              <span class="section-kicker">Ekzen Özel Kasa</span><h2>Ekzen Özel Kasa</h2>
+              <p>Genel ciro, kaynak tahsilatları, komisyon, malzeme ve manuel gider özeti.</p>
+            </div>
+            <div class="panel-tools">
+              <div class="cash-date-filters">
+                <button class="date-range-button compact-date-button" type="button" data-action="open-dashboard-date-range">
+                  <span>Tarih</span><b data-date-range-label>Bugün</b>
+                </button>
+              </div>
+              <button class="primary-button" type="button" data-action="add-cash">Para Hareketi</button>
+            </div>
+          </div>
+          <div class="ekzen-cash-summary" id="ekzenCashSummary"></div>
+          <div class="ekzen-cash-list-head">
+            <div>
+              <h3>Manuel Giderler</h3>
+              <p>Servise bağlı olmayan kasa giderleri burada listelenir.</p>
+            </div>
+          </div>
+          <div id="ekzenCashManualList" class="data-grid ekzen-cash-manual-list"></div>
         </section>
       </section>
 
@@ -552,6 +614,20 @@
   </dialog>
 
 
+  <dialog class="dialog wide-modal" id="ekzenCashDetailDialog">
+    <div class="dialog-shell cash-current-dialog-shell">
+      <header>
+        <h2 id="ekzenCashDetailTitle">Ekzen Kasa Detay</h2>
+        <button class="icon-button" type="button" data-action="close-ekzen-cash-detail" title="Kapat">×</button>
+      </header>
+      <div id="ekzenCashDetailContent" class="dialog-body cash-current-detail-body"></div>
+      <footer>
+        <span></span><span></span>
+        <button class="secondary-button" type="button" data-action="close-ekzen-cash-detail">Kapat</button>
+      </footer>
+    </div>
+  </dialog>
+
   <div id="photoViewer" class="photo-viewer" aria-hidden="true">
     <div class="photo-viewer-toolbar">
       <div>
@@ -572,6 +648,6 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=v4-1-0"></script>
+  <script src="./app.js?v=v4-2-2"></script>
 </body>
 </html>

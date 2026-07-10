@@ -57,6 +57,7 @@ const views = {
   customers: document.querySelector("#customersView"),
   sources: document.querySelector("#sourcesView"),
   cash: document.querySelector("#cashView"),
+  ekzenCash: document.querySelector("#ekzenCashView"),
   settings: document.querySelector("#settingsView"),
 };
 
@@ -379,6 +380,7 @@ function bindEvents() {
     const serviceRow = event.target.closest("[data-service-id]");
 
     if (view) {
+      if (view === "dashboard") resetDashboardDateToToday();
       if (view === "services") prepareServiceListFromCurrentDate();
       switchView(view);
     }
@@ -430,10 +432,17 @@ function bindEvents() {
     if (action === "set-cash-list-mode") setCashListMode(button.dataset.mode);
     if (action === "open-cash-current-detail") openCashCurrentDetail(button.dataset.detailType || "balance");
     if (action === "close-cash-current-detail") closeCashCurrentDetail();
+    if (action === "open-ekzen-cash-detail") openEkzenCashDetail(button.dataset.detailType || "turnover");
+    if (action === "close-ekzen-cash-detail") closeEkzenCashDetail();
     if (action === "dashboard-stat") applyDashboardStatFilter(button.dataset.stat);
     if (action === "dashboard-source") applyDashboardSourceFilter(button.dataset.source);
     if (action === "show-open-services") showOpenServicesFromTopbar();
     if (action === "show-all-records") showAllRecords();
+    if (action === "service-status-filter") {
+      topStatusFilter.value = button.dataset.status || "";
+      activeDashboardStat = "";
+      renderServices();
+    }
     if (action === "accounting-check") openAccountingCheck();
     if (action === "close-accounting-check") closeAccountingCheck();
     if (action === "print-accounting-check") window.print();
@@ -607,15 +616,27 @@ function setDefaultDates() {
   syncDashboardDateRangeControls();
 }
 
-function prepareServiceListFromCurrentDate() {
-  // V4.0.0: Servisler sekmesi seçili tarih ve kaynak filtresini korur;
-  // sadece sayaçtan gelen özel durum filtresini temizleyip tüm durumları gösterir.
-  const selectedSource = isSourcePortal() ? portalSourceName() : (activeDashboardSource || topSourceFilter?.value || "");
+function resetDashboardDateToToday() {
+  if (dashboardStartDate) dashboardStartDate.value = isoToday;
+  if (dashboardEndDate) dashboardEndDate.value = isoToday;
+  if (dashboardRangeStartPicker) dashboardRangeStartPicker.value = isoToday;
+  if (dashboardRangeEndPicker) dashboardRangeEndPicker.value = isoToday;
   activeDashboardStat = "";
-  activeDashboardSource = selectedSource;
+  syncDashboardDateRangeControls();
+  updateDashboardDateRangeLabel();
+}
+
+function prepareServiceListFromCurrentDate() {
+  // V4.2.1: Üst bardaki Servisler butonu listeyi günlük filtreye bağlamaz.
+  // Amaç: tüm zamanlardaki açık servisleri (Yeni Kayıt + İşlemde) tek tıkla görmek.
+  activeDashboardStat = "Kalan İşler";
+  activeDashboardSource = isSourcePortal() ? portalSourceName() : "";
   filterForm?.reset();
-  if (topSourceFilter) topSourceFilter.value = selectedSource || "";
+  if (topSourceFilter) topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
   if (topStatusFilter) topStatusFilter.value = "";
+  if (dashboardStartDate) dashboardStartDate.value = "";
+  if (dashboardEndDate) dashboardEndDate.value = "";
+  syncDashboardDateRangeControls();
   updateDashboardDateRangeLabel();
 }
 
@@ -645,6 +666,7 @@ function switchView(view) {
     customers: "Müşteri kayıtları",
     sources: "Servis kaynağı yönetimi",
     cash: "Kasa hareketleri",
+    ekzenCash: "Ekzen özel kasa",
     settings: "Modül ve firma ayarları",
   };
   document.querySelector("#pageSubtitle").textContent = subtitles[view];
@@ -662,6 +684,7 @@ function render() {
   renderCustomers();
   renderSources();
   renderCash();
+  renderEkzenCash();
   renderSettings();
   if (detailDialog.open && activeDetailId) renderDetail(activeDetailId);
 }
@@ -672,6 +695,7 @@ function renderDashboard() {
   document.querySelector("#dashboardTitle").textContent = portalTitle();
   document.querySelector("#dashboardOwnerLine").hidden = isSourcePortal();
   renderSourceMetrics(services, cashItems);
+  renderDashboardEkzenCashStatus();
   renderDailyCashSummary(cashItems);
   renderDashboardCounters(services);
 
@@ -695,10 +719,14 @@ function renderSourceMetrics(services, cashItems) {
   const isSourceFiltered = Boolean(activeDashboardSource);
 
   if (isSourceFiltered) {
-    // Kaynak seçiliyken tüm sayaçlar seçili tarih filtresine uyar.
+    // Kaynak seçiliyken kazanç/malzeme/hakediş seçili tarih filtresine uyar.
+    // Kalan Ödeme ise cari bakiye olduğu için tüm zamanları baz alır.
     // Kendi İşim kaynağında komisyon/cari hesap yoktur; kalan miktar sadece hasılat - malzemedir.
-    // Diğer kaynaklarda Yapılan Ödeme ve Kalan Ödeme de tarih filtresine göre hesaplanır.
     const datedSourceTotals = serviceSourceCounterBreakdown(cashItems);
+    const allTimeSourceItems = (state.cash || []).filter((item) => cashIsPosted(item)
+      && matchesPortalSource(cashItemSource(item))
+      && sourceMatches(cashItemSource(item), activeDashboardSource));
+    const allTimeSourceTotals = serviceSourceCounterBreakdown(allTimeSourceItems);
 
     if (isOwnWorkSource(activeDashboardSource)) {
       const remainingAmount = datedSourceTotals.customerMoney - datedSourceTotals.material;
@@ -742,7 +770,7 @@ function renderSourceMetrics(services, cashItems) {
       </article>
       <article class="metric-card finance-card cash-status-card">
         <span>Kalan Ödeme</span>
-        <b>${money(datedSourceTotals.remainingPayment)}</b>
+        <b>${money(allTimeSourceTotals.remainingPayment)}</b>
       </article>
     `;
     return;
@@ -771,6 +799,14 @@ function renderSourceMetrics(services, cashItems) {
   `;
 }
 
+
+
+function renderDashboardEkzenCashStatus() {
+  const target = document.querySelector("#dashboardEkzenCashStatus");
+  if (!target) return;
+  const totals = ekzenSpecialCashTotals(state.cash || []);
+  target.textContent = money(totals.cashBalance);
+}
 
 function renderDailyCashSummary(cashItems) {
   const container = document.querySelector("#dailyCashList");
@@ -895,10 +931,32 @@ function dashboardCounterCount(label, services) {
 
 function renderServices() {
   let services = sortServices(filteredServices());
-  document.querySelector("#serviceList").innerHTML = services.length
+  const list = document.querySelector("#serviceList");
+  if (list) list.innerHTML = services.length
     ? services.map(serviceRow).join("")
-    : `<p class="empty">Servis kaydı bulunamadı.</p>`;
-  document.querySelector("#resultCount").textContent = `Toplam ${services.length} kayıt`;
+    : `<p class="empty v420-empty">Servis kaydı bulunamadı.</p>`;
+  const resultCount = document.querySelector("#resultCount");
+  if (resultCount) resultCount.textContent = services.length;
+  renderServiceQuickStats(services);
+}
+
+function renderServiceQuickStats(services) {
+  const holder = document.querySelector("#serviceQuickStats");
+  if (!holder) return;
+  const stats = [
+    { label: "Toplam Servis", key: "", count: services.length, cls: "total" },
+    { label: "Yeni Kayıt", key: "Yeni Kayıt", count: services.filter((s) => isStatus(s.status, "Yeni Kayıt")).length, cls: "new" },
+    { label: "İşlemde", key: "İşlemde", count: services.filter((s) => isStatus(s.status, "İşlemde")).length, cls: "process" },
+    { label: "Ödeme Bekliyor", key: "Ödeme Bekliyor", count: services.filter((s) => isStatus(s.status, "Ödeme Bekliyor")).length, cls: "payment" },
+    { label: "Tamamlandı", key: "İşlem Tamam", count: services.filter((s) => isStatus(s.status, "İşlem Tamam")).length, cls: "complete" },
+    { label: "İptal Edildi", key: "İptal", count: services.filter((s) => isStatus(s.status, "İptal")).length, cls: "danger" },
+  ];
+  holder.innerHTML = stats.map((item) => `
+    <button class="v420-stat-card v420-stat-${item.cls}" type="button" data-action="service-status-filter" data-status="${escapeAttr(item.key)}">
+      <span>${escapeHtml(item.label)}</span>
+      <b>${item.count}</b>
+    </button>
+  `).join("");
 }
 
 function filteredServices() {
@@ -1076,44 +1134,34 @@ function serviceRow(service) {
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
   const paymentModeLabel = servicePaymentModeLabel(service);
   const finance = serviceCardFinancials(service);
-  const noteCount = Array.isArray(service.notes) ? service.notes.length : 0;
-  const photoCount = Array.isArray(service.photos) ? service.photos.length : 0;
+  const detailLine = [service.device, service.brand].filter(Boolean).join(" · ");
+  const statusText = service.status || "Durum yok";
   return `
-    <article class="service-row service-card-row v401-service-card service-card-${serviceCardTheme(service.status)}" data-service-id="${service.id}">
-      <div class="service-date-block v401-date-block">
-        <span class="service-date-main">${escapeHtml(formatServiceCardDate(dateValue))}</span>
-        <span class="service-time-main">${escapeHtml(timeValue)}</span>
-        <span class="service-day-main">${escapeHtml(formatServiceCardDay(dateValue))}</span>
-        <span class="service-source-main">${escapeHtml(service.source || "Kaynak yok")}</span>
+    <article class="service-row v420-service-card v420-card-${serviceCardTheme(service.status)}" data-service-id="${escapeAttr(service.id)}">
+      <div class="v420-card-date">
+        <b>${escapeHtml(formatServiceCardDate(dateValue))}</b>
+        <strong>${escapeHtml(timeValue)}</strong>
+        <span>${escapeHtml(formatServiceCardDay(dateValue))}</span>
+        <em class="status-pill ${statusClass(service.status)}">${escapeHtml(statusText)}</em>
       </div>
-      <div class="service-customer-block v401-customer-block">
-        <div class="v401-card-title-line">
-          <p class="service-customer-name">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</p>
-          <span class="v401-service-no">No ${escapeHtml(service.id)}</span>
+      <div class="v420-card-body">
+        <div class="v420-card-title-row">
+          <h3>${escapeHtml(service.address || service.customerName || "Servis Kaydı")}</h3>
+          <span>${escapeHtml(service.source || "Kendi İşim")}</span>
         </div>
-        <p class="service-address-line">${escapeHtml(service.address || "Adres girilmedi")}</p>
-        <p class="service-phone-line"><a href="${phoneHref}">${escapeHtml(service.phone || "Telefon yok")}</a></p>
+        <a class="v420-phone" href="${phoneHref}">${escapeHtml(service.phone || "Telefon yok")}</a>
+        <p>${escapeHtml(detailLine || "Cihaz bilgisi yok")} ${detailLine ? "·" : ""} ${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
+        ${paymentModeLabel ? `<small class="v420-payment-mode">${escapeHtml(paymentModeLabel)}</small>` : ""}
       </div>
-      <div class="service-device-block v401-device-block">
-        <p class="service-device-title">${escapeHtml([service.brand, service.device].filter(Boolean).join(" | ") || "Cihaz bilgisi yok")}</p>
-        <p class="service-model-line">${escapeHtml(service.model || "Model bilgisi yok")}</p>
-        <div class="v401-mini-meta"><span>📝 ${noteCount}</span><span>📷 ${photoCount}</span></div>
+      <div class="v420-card-money">
+        <span>Alınan Tutar</span>
+        <b>${money(finance.income)}</b>
+        <span>Kalan (Ekzen Teknik)</span>
+        <strong>${money(finance.balance)}</strong>
       </div>
-      <div class="service-status-block v401-status-block">
-        <div class="v401-status-line">
-          <span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status || "Durum yok")}</span>
-          ${paymentModeLabel ? `<span class="v401-payment-pill">${escapeHtml(paymentModeLabel)}</span>` : ""}
-        </div>
-        <p class="service-fault-text"><b>Şikayet:</b> ${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
-        <div class="v401-money-mini">
-          <span><small>Tahsilat</small><b>${money(finance.income)}</b></span>
-          <span><small>Gider</small><b>${money(finance.expense)}</b></span>
-          <span><small>Kalan</small><b>${money(finance.balance)}</b></span>
-        </div>
-      </div>
-      <div class="service-order-controls v401-order-controls" aria-label="Sıralama">
-        <button class="service-order-button" type="button" data-action="move-service-order" data-service-id="${service.id}" data-direction="up" title="Yukarı taşı">↑</button>
-        <button class="service-order-button" type="button" data-action="move-service-order" data-service-id="${service.id}" data-direction="down" title="Aşağı taşı">↓</button>
+      <div class="service-order-controls v420-order-controls" aria-label="Sıralama">
+        <button class="service-order-button" type="button" data-action="move-service-order" data-service-id="${escapeAttr(service.id)}" data-direction="up" title="Yukarı taşı">↑</button>
+        <button class="service-order-button" type="button" data-action="move-service-order" data-service-id="${escapeAttr(service.id)}" data-direction="down" title="Aşağı taşı">↓</button>
       </div>
     </article>
   `;
@@ -1171,10 +1219,217 @@ function setCashListMode(mode) {
   renderCash();
 }
 
+function renderEkzenCash() {
+  const items = filteredEkzenCashItems();
+  const totals = ekzenSpecialCashTotals(items);
+  const allTimeTotals = ekzenSpecialCashTotals(state.cash || []);
+  const summary = document.querySelector("#ekzenCashSummary");
+  if (summary) {
+    const cards = [
+      { key: "turnover", label: "Toplam Ciro", value: totals.turnover, note: "Servis tahsilatları + manuel tahsilatlar" },
+      { key: "serviceExpenses", label: "Servis Giderleri", value: totals.serviceExpenses, note: "Komisyon + malzeme giderleri", negative: true },
+      { key: "companyExpenses", label: "Şirket Giderleri", value: totals.manualExpense, note: "Kaynaksız manuel giderler", negative: true },
+      { key: "balance", label: "Kasa Durumu", value: allTimeTotals.cashBalance, note: "Tüm zamanlar" },
+    ];
+    summary.innerHTML = cards.map((card) => `
+      <article class="ekzen-cash-card is-clickable" data-action="open-ekzen-cash-detail" data-detail-type="${card.key}">
+        <span>${escapeHtml(card.label)}</span>
+        <b class="${card.negative ? "cash-negative" : ""}">${card.negative ? "-" : ""}${money(card.value)}</b>
+        <small>${escapeHtml(card.note)}</small>
+      </article>
+    `).join("");
+  }
+  const list = document.querySelector("#ekzenCashManualList");
+  if (list) {
+    const rows = ekzenManualCashItems(items).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    list.innerHTML = rows.length ? rows.map(cashRow).join("") : `<p class="empty">Bu tarih aralığında Ekzen manuel tahsilat/gider yok.</p>`;
+  }
+}
+
+function filteredEkzenCashItems() {
+  const start = dashboardStartDate?.value || "";
+  const end = dashboardEndDate?.value || start;
+  return (state.cash || []).filter((item) => cashIsPosted(item) && dateInRange(cashFilterDate(item), start, end));
+}
+
+function ekzenSpecialCashTotals(items = filteredEkzenCashItems()) {
+  const postedItems = postedCashItems(items || []);
+  const primaryIncome = postedItems.filter(isServicePrimaryIncome);
+  const manualIncomeItems = ekzenManualIncomeItems(postedItems);
+  const manualExpenseItems = ekzenManualExpenseItems(postedItems);
+  const ownWorkIncome = primaryIncome.filter((item) => isOwnWorkSource(cashItemSource(item)));
+  const sourceIncome = primaryIncome.filter((item) => !isOwnWorkSource(cashItemSource(item)));
+  const turnover = primaryIncome.reduce((t, item) => t + (Number(item.amount) || 0), 0)
+    + manualIncomeItems.reduce((t, item) => t + (Number(item.amount) || 0), 0);
+  const ekzenTechnical = ownWorkIncome.reduce((t, item) => t + (Number(item.amount) || 0), 0)
+    + manualIncomeItems.reduce((t, item) => t + (Number(item.amount) || 0), 0);
+  const sourceRevenue = sourceIncome.reduce((t, item) => t + (Number(item.amount) || 0), 0);
+  const commission = sourceIncome.reduce((t, item) => t + sourcePayAmountForCashItem(item), 0);
+  const material = postedItems.filter((item) => Boolean(item.serviceId) && item.autoMaterialExpense)
+    .reduce((t, item) => t + (Number(item.amount) || 0), 0);
+  const manualExpense = manualExpenseItems.reduce((t, item) => t + (Number(item.amount) || 0), 0);
+  const serviceExpenses = commission + material;
+  const cashBalance = turnover - serviceExpenses - manualExpense;
+  return { turnover, ekzenTechnical, sourceRevenue, commission, material, serviceExpenses, manualExpense, cashBalance };
+}
+
+function ekzenManualIncomeItems(items = filteredEkzenCashItems()) {
+  return postedCashItems(items || []).filter(isEkzenUnassignedManualIncome);
+}
+
+function ekzenManualCashItems(items = filteredEkzenCashItems()) {
+  return postedCashItems(items || []).filter((item) => isEkzenUnassignedManualIncome(item) || isEkzenUnassignedManualExpense(item));
+}
+
+function ekzenManualExpenseItems(items = filteredEkzenCashItems()) {
+  return postedCashItems(items || []).filter(isEkzenUnassignedManualExpense);
+}
+
+function isEkzenUnassignedManualIncome(item) {
+  return item?.type === "income"
+    && !item.serviceId
+    && !item.parentCashId
+    && !item.autoMaterialExpense
+    && !item.autoCommissionExpense
+    && !item.autoOtherExpense
+    && !cashItemSource(item);
+}
+
+function isEkzenUnassignedManualExpense(item) {
+  return item?.type === "expense"
+    && !item.serviceId
+    && !item.parentCashId
+    && !item.autoMaterialExpense
+    && !item.autoCommissionExpense
+    && !item.autoOtherExpense
+    && !cashItemSource(item);
+}
+
+function isEkzenManualCashOnlyItem(item) {
+  return isEkzenUnassignedManualIncome(item) || isEkzenUnassignedManualExpense(item);
+}
+
+function openEkzenCashDetail(detailType = "turnover") {
+  const dialog = document.querySelector("#ekzenCashDetailDialog");
+  const content = document.querySelector("#ekzenCashDetailContent");
+  const title = document.querySelector("#ekzenCashDetailTitle");
+  if (!dialog || !content || !title) return;
+  const labels = {
+    turnover: "Toplam Ciro Detayı",
+    serviceExpenses: "Servis Giderleri Detayı",
+    companyExpenses: "Şirket Giderleri Detayı",
+    balance: "Kasa Durumu Sağlama",
+  };
+  title.textContent = labels[detailType] || "Ekzen Kasa Detay";
+  content.innerHTML = renderEkzenCashDetail(detailType);
+  dialog.showModal();
+}
+
+function closeEkzenCashDetail() {
+  document.querySelector("#ekzenCashDetailDialog")?.close();
+}
+
+function renderEkzenCashDetail(detailType = "turnover") {
+  const items = filteredEkzenCashItems();
+  const totals = detailType === "balance" ? ekzenSpecialCashTotals(state.cash || []) : ekzenSpecialCashTotals(items);
+  if (detailType === "balance") {
+    return `
+      <section class="cash-current-section">
+        <h3>Kasa durumu sağlaması</h3>
+        <div class="cash-current-formula">
+          <div><span>Toplam Ciro</span><b>${money(totals.turnover)}</b></div>
+          <div><span>Servis Giderleri <small>(komisyon + malzeme)</small></span><b class="cash-negative">-${money(totals.serviceExpenses)}</b></div>
+          <div><span>Şirket Giderleri <small>(kaynaksız manuel)</small></span><b class="cash-negative">-${money(totals.manualExpense)}</b></div>
+          <div class="cash-current-total"><span>Kasa Durumu</span><b>${money(totals.cashBalance)}</b></div>
+        </div>
+      </section>
+    `;
+  }
+  const rows = ekzenCashDetailRows(items, detailType);
+  return `
+    <section class="cash-current-section">
+      <h3>${escapeHtml(ekzenDetailHeading(detailType))}</h3>
+      ${rows.length ? rows.map(ekzenCashDetailRow).join("") : `<p class="empty">Bu başlıkta hareket yok.</p>`}
+    </section>
+  `;
+}
+
+function ekzenDetailHeading(detailType) {
+  const headings = {
+    turnover: "Tüm servis tahsilatları ve manuel tahsilatlar",
+    serviceExpenses: "Komisyon ve malzeme giderleri",
+    companyExpenses: "Kaynak seçmeden girilen manuel giderler",
+  };
+  return headings[detailType] || "Detay";
+}
+
+function ekzenCashDetailRows(items, detailType) {
+  const postedItems = postedCashItems(items || []);
+  if (detailType === "turnover") return [
+    ...postedItems.filter(isServicePrimaryIncome).map((item) => ({ item, amount: Number(item.amount) || 0, sign: "+", note: item.serviceId ? "Servis tahsilatı" : "Tahsilat" })),
+    ...ekzenManualIncomeItems(postedItems).map((item) => ({ item, amount: Number(item.amount) || 0, sign: "+", note: "Manuel tahsilat" })),
+  ];
+  if (detailType === "serviceExpenses") {
+    const commissionRows = postedItems
+      .filter((item) => isServicePrimaryIncome(item) && !isOwnWorkSource(cashItemSource(item)))
+      .map((item) => ({ item, amount: sourcePayAmountForCashItem(item), sign: "-", note: "Komisyon" }));
+    const materialRows = postedItems
+      .filter((item) => Boolean(item.serviceId) && item.autoMaterialExpense)
+      .map((item) => ({ item, amount: Number(item.amount) || 0, sign: "-", note: "Malzeme" }));
+    return [...commissionRows, ...materialRows].sort((a, b) => (cashFilterDate(b.item) || "").localeCompare(cashFilterDate(a.item) || ""));
+  }
+  if (detailType === "companyExpenses") return ekzenManualExpenseItems(postedItems)
+    .map((item) => ({ item, amount: Number(item.amount) || 0, sign: "-", note: item.description || "Şirket gideri" }));
+  return [];
+}
+
+function ekzenCashDetailRows(items, detailType) {
+  const postedItems = postedCashItems(items || []);
+  if (detailType === "turnover") return [
+    ...postedItems.filter(isServicePrimaryIncome),
+    ...ekzenManualIncomeItems(postedItems),
+  ].map((item) => ({ item, amount: Number(item.amount) || 0, sign: "+", note: item.serviceId ? "Servis tahsilatı" : "Manuel tahsilat" }));
+  if (detailType === "ekzen") return [
+    ...postedItems.filter((item) => isServicePrimaryIncome(item) && isOwnWorkSource(cashItemSource(item))),
+    ...ekzenManualIncomeItems(postedItems),
+  ].map((item) => ({ item, amount: Number(item.amount) || 0, sign: "+", note: item.serviceId ? "Kendi işim" : "Manuel tahsilat" }));
+  if (detailType === "sources") return postedItems
+    .filter((item) => isServicePrimaryIncome(item) && !isOwnWorkSource(cashItemSource(item)))
+    .map((item) => ({ item, amount: Number(item.amount) || 0, sign: "+", note: cashItemSource(item) || "Servis kaynağı" }));
+  if (detailType === "commission") return postedItems
+    .filter((item) => isServicePrimaryIncome(item) && !isOwnWorkSource(cashItemSource(item)))
+    .map((item) => ({ item, amount: sourcePayAmountForCashItem(item), sign: "-", note: "Kaynak payı / komisyon" }));
+  if (detailType === "material") return postedItems
+    .filter((item) => Boolean(item.serviceId) && item.autoMaterialExpense)
+    .map((item) => ({ item, amount: Number(item.amount) || 0, sign: "-", note: cashItemSource(item) || "Malzeme" }));
+  if (detailType === "expenses") return ekzenManualExpenseItems(postedItems)
+    .map((item) => ({ item, amount: Number(item.amount) || 0, sign: "-", note: item.description || "Manuel gider" }));
+  return [];
+}
+
+function ekzenCashDetailRow(row) {
+  const item = row.item;
+  const service = item.serviceId ? state.services.find((entry) => entry.id === item.serviceId) : null;
+  const title = service ? `${service.customerName || "Servis"} · ${service.address || item.serviceId}` : visibleCashTitle(item);
+  const sub = service ? `${cashItemSource(item) || "Kaynak yok"} · ${service.brand || ""} ${service.device || ""}`.trim() : (item.description || row.note || "");
+  return `
+    <div class="cash-current-row ${row.sign === "-" ? "is-expense" : ""}">
+      <div><b>${escapeHtml(title || row.note || "Hareket")}</b><small>${escapeHtml(sub || row.note || "")}</small></div>
+      <span>${escapeHtml(formatDate(cashFilterDate(item)))}</span>
+      <strong>${row.sign}${money(row.amount)}</strong>
+    </div>
+  `;
+}
+
 function renderCashSummary(items, totals, breakdown) {
   const selectedSource = isSourcePortal() ? portalSourceName() : cashSourceFilter.value;
   if (selectedSource) {
     const sourceTotals = serviceSourceCounterBreakdown(items);
+    const allTimeSourceItems = (state.cash || []).filter((item) => cashIsPosted(item)
+      && !isEkzenManualCashOnlyItem(item)
+      && matchesPortalSource(cashItemSource(item))
+      && sourceMatches(cashItemSource(item), selectedSource));
+    const allTimeSourceTotals = serviceSourceCounterBreakdown(allTimeSourceItems);
     if (isOwnWorkSource(selectedSource)) {
       const remainingAmount = sourceTotals.customerMoney - sourceTotals.material;
       document.querySelector("#cashSummary").innerHTML = `
@@ -1190,7 +1445,7 @@ function renderCashSummary(items, totals, breakdown) {
       <article><span>Hakediş</span><b>${money(sourceTotals.hakedis)}</b></article>
       <article><span>Ekzen Teknik</span><b>${money(sourceTotals.ekzenTechnical)}</b></article>
       <article class="is-clickable cash-detail-counter" data-action="open-cash-current-detail" data-detail-type="payment"><span>Yapılan Ödeme</span><b>${money(Math.max(0, sourceTotals.hakedis - sourceTotals.remainingPayment))}</b><small>Geçmiş</small></article>
-      <article class="is-clickable cash-detail-counter" data-action="open-cash-current-detail" data-detail-type="balance"><span>Kalan Ödeme</span><b>${money(sourceTotals.remainingPayment)}</b><small>Cari detay</small></article>
+      <article class="is-clickable cash-detail-counter" data-action="open-cash-current-detail" data-detail-type="balance"><span>Kalan Ödeme</span><b>${money(allTimeSourceTotals.remainingPayment)}</b><small>Tüm zamanlar</small></article>
     `;
     return;
   }
@@ -1366,6 +1621,7 @@ function filteredCash() {
   return state.cash.filter((item) => {
     const date = cashFilterDate(item);
     return cashIsPosted(item)
+      && !isEkzenManualCashOnlyItem(item)
       && (!source || sourceMatches(cashItemSource(item), source))
       && dateInRange(date, start, end);
   });
@@ -1429,7 +1685,19 @@ function currentWeekRange() {
 }
 
 function dateInRange(date, start, end) {
-  return (!start || date >= start) && (!end || date <= end);
+  const value = normalizeIsoDateValue(date);
+  const rangeStart = normalizeIsoDateValue(start);
+  const rangeEnd = normalizeIsoDateValue(end);
+  return (!rangeStart || value >= rangeStart) && (!rangeEnd || value <= rangeEnd);
+}
+
+function normalizeIsoDateValue(value) {
+  if (!value) return "";
+  if (value instanceof Date) return toIsoDate(value);
+  const text = String(value);
+  const match = text.match(/\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  return text.slice(0, 10);
 }
 
 function openDashboardDateRangeDialog() {
@@ -1491,6 +1759,7 @@ function applyDashboardDatePreset(rangeKey, closeAfterApply = true) {
   renderDashboard();
   renderServices();
   renderCash();
+  renderEkzenCash();
   if (closeAfterApply) closeDashboardDateRangeDialog();
 }
 
@@ -1506,6 +1775,7 @@ function applyDashboardCustomDateRange() {
   renderDashboard();
   renderServices();
   renderCash();
+  renderEkzenCash();
 }
 
 function markActiveDashboardPreset() {
@@ -1711,7 +1981,13 @@ function closeCashCurrentDetail() {
 
 function renderCashCurrentDetail(detailType = "balance", selectedSource = "") {
   const items = filteredCash();
-  const sourceItems = selectedSource ? items.filter((item) => sourceMatches(cashItemSource(item), selectedSource)) : items;
+  const allTimeItems = (state.cash || []).filter((item) => cashIsPosted(item)
+    && !isEkzenManualCashOnlyItem(item)
+    && matchesPortalSource(cashItemSource(item))
+    && (!selectedSource || sourceMatches(cashItemSource(item), selectedSource)));
+  const sourceItems = detailType === "balance"
+    ? allTimeItems
+    : (selectedSource ? items.filter((item) => sourceMatches(cashItemSource(item), selectedSource)) : items);
   const totals = serviceSourceCounterBreakdown(sourceItems);
   const paymentAmount = Math.max(0, totals.hakedis - totals.remainingPayment);
   const manualPayments = postedCashItems(sourceItems).filter((item) =>
@@ -1722,9 +1998,11 @@ function renderCashCurrentDetail(detailType = "balance", selectedSource = "") {
     && (item.type === "expense" || item.type === "income")
   );
   const sourceCollectedJobs = postedCashItems(sourceItems).filter((item) => isServicePrimaryIncome(item) && cashItemCollectedBy(item) === "source");
-  const periodLabel = dashboardStartDate?.value && dashboardEndDate?.value
-    ? `${formatDate(dashboardStartDate.value)} - ${formatDate(dashboardEndDate.value)}`
-    : "Seçili tarih";
+  const periodLabel = detailType === "balance"
+    ? "Tüm zamanlar"
+    : (dashboardStartDate?.value && dashboardEndDate?.value
+      ? `${formatDate(dashboardStartDate.value)} - ${formatDate(dashboardEndDate.value)}`
+      : "Seçili tarih");
   const summary = `
     <div class="cash-current-summary">
       <article><span>Dönem</span><b>${escapeHtml(periodLabel)}</b></article>

@@ -7048,3 +7048,187 @@ body.photo-viewer-open {
 @media (max-width: 480px) {
   .v412-money-grid { grid-template-columns: 1fr; }
 }
+
+/* V4.2.0 - Servis listesi yeni tasarım */
+#servicesView .panel.list-panel { display: none; }
+.v420-service-page {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.v420-service-sidebar,
+.v420-service-main {
+  background: rgba(255,255,255,.94);
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  box-shadow: 0 18px 45px rgba(15,23,42,.08);
+}
+.v420-service-sidebar { padding: 18px; position: sticky; top: 88px; }
+.v420-sidebar-head h2,
+.v420-service-toolbar h2 { margin: 4px 0 2px; color: #08224b; font-size: 26px; letter-spacing: -.04em; }
+.v420-sidebar-head p,
+.v420-service-toolbar p { margin: 0; color: #64748b; font-weight: 800; }
+.v420-filter-card { display: grid; gap: 12px; margin-top: 18px; }
+.v420-filter-card label { display: grid; gap: 7px; color: #08224b; font-size: 12px; font-weight: 950; }
+.v420-filter-card input,
+.v420-filter-card select,
+.v420-filter-card .date-range-button {
+  width: 100%; min-height: 44px; border-radius: 12px; border: 1px solid #dbe5f1; background: #fff; color: #08224b; font-weight: 850;
+}
+.v420-clear-button {
+  min-height: 44px; border: 0; border-radius: 12px; background: #082f63; color: #fff; font-weight: 950; cursor: pointer;
+  box-shadow: 0 10px 22px rgba(8,47,99,.18);
+}
+.v420-total-card { margin-top: 18px; padding: 16px; border-radius: 18px; background: #f8fbff; border: 1px solid #e2e8f0; }
+.v420-total-card span, .v420-total-card small { display:block; color:#64748b; font-weight:900; }
+.v420-total-card b { display:block; margin: 4px 0; font-size: 32px; color:#08224b; }
+.v420-service-main { padding: 18px; }
+.v420-service-toolbar { display:flex; justify-content:space-between; gap: 14px; align-items:center; margin-bottom: 16px; }
+.v420-toolbar-actions { display:flex; gap:10px; align-items:center; }
+.v420-status-grid { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap:10px; margin-bottom: 16px; }
+.v420-stat-card {
+  min-height: 86px; border-radius: 16px; border:1px solid #e2e8f0; background:#fff; text-align:left; padding:14px; cursor:pointer;
+  box-shadow: 0 10px 24px rgba(15,23,42,.06);
+}
+.v420-stat-card span { display:block; color:#475569; font-weight:950; font-size:12px; }
+.v420-stat-card b { display:block; color:#08224b; font-size:25px; margin-top:8px; }
+.v420-stat-new { background:#f0fdf4; border-color:#bbf7d0; }
+.v420-stat-process,.v420-stat-payment { background:#eff6ff; border-color:#bfdbfe; }
+.v420-stat-complete { background:#ecfdf5; border-color:#a7f3d0; }
+.v420-stat-danger { background:#fff1f2; border-color:#fecdd3; }
+.v420-service-list { display:grid; gap:12px; }
+.v420-service-card.service-row {
+  display:grid !important; grid-template-columns: 120px minmax(0, 1fr) 180px 38px; gap: 14px; align-items:center;
+  background:#fff !important; border:1px solid #e2e8f0 !important; border-left: 5px solid #2563eb !important; border-radius:18px !important; padding: 14px !important;
+  color:#08224b !important; box-shadow: 0 12px 30px rgba(15,23,42,.07) !important;
+}
+.v420-service-card:hover { transform: translateY(-1px); box-shadow: 0 18px 38px rgba(15,23,42,.11) !important; }
+.v420-card-new { border-left-color:#10b981 !important; }
+.v420-card-complete, .v420-card-danger { border-left-color:#10b981 !important; }
+.v420-card-process, .v420-card-other { border-left-color:#082f63 !important; }
+.v420-card-date { display:grid; gap:5px; }
+.v420-card-date b { font-size:17px; }
+.v420-card-date strong { font-size:18px; }
+.v420-card-date span { color:#64748b; font-weight:900; }
+.v420-card-date .status-pill { justify-self:start; }
+.v420-card-body { min-width:0; }
+.v420-card-title-row { display:flex; gap:10px; align-items:start; justify-content:space-between; }
+.v420-card-title-row h3 { margin:0; font-size:17px; line-height:1.25; color:#08224b; }
+.v420-card-title-row span { flex:0 0 auto; color:#64748b; font-size:12px; font-weight:950; background:#f1f5f9; padding:5px 10px; border-radius:999px; }
+.v420-phone { display:inline-block; margin-top:6px; color:#082f63; font-weight:950; text-decoration:none; }
+.v420-card-body p { margin:7px 0 0; color:#334155; font-weight:800; }
+.v420-payment-mode { display:inline-block; margin-top:8px; padding:5px 9px; border-radius:999px; background:#eef7f5; color:#047857; font-weight:950; }
+.v420-card-money { display:grid; gap:4px; text-align:left; }
+.v420-card-money span { color:#64748b; font-size:12px; font-weight:950; }
+.v420-card-money b { color:#059669; font-size:20px; }
+.v420-card-money strong { color:#082f63; font-size:20px; }
+.v420-order-controls { display:flex; flex-direction:column; gap:6px; }
+.v420-list-footer { justify-content:flex-end; }
+.v420-empty { padding: 30px; border-radius: 18px; background:#f8fafc; border:1px dashed #cbd5e1; }
+
+@media (max-width: 1100px) {
+  .v420-service-page { grid-template-columns: 1fr; }
+  .v420-service-sidebar { position: static; }
+  .v420-filter-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v420-clear-button { grid-column: 1 / -1; }
+  .v420-status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .v420-service-card.service-row { grid-template-columns: 110px minmax(0, 1fr); }
+  .v420-card-money { grid-column: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v420-order-controls { grid-column: 1 / -1; flex-direction:row; justify-content:flex-end; }
+}
+@media (max-width: 720px) {
+  .v420-filter-card { grid-template-columns: 1fr; }
+  .v420-service-toolbar { align-items:flex-start; flex-direction:column; }
+  .v420-toolbar-actions { width:100%; }
+  .v420-toolbar-actions > * { flex:1; }
+  .v420-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v420-service-card.service-row { grid-template-columns: 1fr; }
+  .v420-card-money { grid-column:auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* V4.3.0 - Ekzen özel kasa */
+.ekzen-cash-panel .panel-title p {
+  margin: 6px 0 0;
+  color: var(--muted, #64748b);
+  font-weight: 700;
+}
+.ekzen-cash-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0 22px;
+}
+.ekzen-cash-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, .06);
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.ekzen-cash-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(20, 184, 166, .45);
+  box-shadow: 0 22px 44px rgba(15, 23, 42, .10);
+}
+.ekzen-cash-card span {
+  color: #64748b;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-size: .78rem;
+}
+.ekzen-cash-card b {
+  color: #0f172a;
+  font-size: clamp(1.5rem, 2.4vw, 2.35rem);
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+.ekzen-cash-card small {
+  color: #64748b;
+  font-weight: 700;
+}
+.ekzen-cash-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 8px 2px 12px;
+}
+.ekzen-cash-list-head h3 {
+  margin: 0;
+  color: #0f172a;
+}
+.ekzen-cash-list-head p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-weight: 700;
+}
+.ekzen-cash-manual-list .cash-row {
+  background: #fff;
+  border-radius: 16px;
+}
+@media (max-width: 1180px) {
+  .ekzen-cash-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 780px) {
+  .ekzen-cash-summary { grid-template-columns: 1fr; }
+}
+
+/* V4.3.5 - Ana sayfada Ekzen Kasa Durumu kısa kartı */
+.dashboard-ekzen-cash-status {
+  cursor: pointer;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+}
+.dashboard-ekzen-cash-status b {
+  color: #0f766e;
+}
+.dashboard-ekzen-cash-status:hover {
+  border-color: #14b8a6;
+  transform: translateY(-1px);
+}
