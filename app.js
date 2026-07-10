@@ -4908,86 +4908,123 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     updateWelcome();
   }
 
-  let mobileTransitionBusy = false;
+  let nativeActivePage = null;
+  let nativeTransitionTimer = 0;
 
-  function switchWithSlide(direction, changePage, animate = true) {
-    if (!animate || mobileTransitionBusy || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      changePage();
-      return;
-    }
-    mobileTransitionBusy = true;
-    const leaveClass = direction === "forward" ? "mobile-page-leave-left" : "mobile-page-leave-right";
-    const enterClass = direction === "forward" ? "mobile-page-enter-right" : "mobile-page-enter-left";
-    root.classList.remove("mobile-page-leave-left", "mobile-page-leave-right", "mobile-page-enter-right", "mobile-page-enter-left");
-    root.classList.add(leaveClass);
-    window.setTimeout(() => {
-      root.classList.remove(leaveClass);
-      changePage();
-      root.classList.add(enterClass);
-      window.setTimeout(() => {
-        root.classList.remove(enterClass);
-        mobileTransitionBusy = false;
-      }, 290);
-    }, 190);
+  function ensureNativePageShell() {
+    let shell = document.querySelector("#mobileNativePageShell");
+    if (shell) return shell;
+
+    shell = document.createElement("section");
+    shell.id = "mobileNativePageShell";
+    shell.className = "mobile-native-page-shell";
+    shell.setAttribute("aria-hidden", "true");
+
+    const nodes = [
+      root.querySelector(":scope > .mobile-tech-header"),
+      root.querySelector(":scope > .mobile-list-head"),
+      root.querySelector(":scope > #mobileDailyCashPage"),
+      root.querySelector(":scope > #mobileServiceList"),
+      root.querySelector(":scope > .mobile-new-service-bar"),
+      root.querySelector(":scope > .mobile-version-badge")
+    ].filter(Boolean);
+    nodes.forEach((node) => shell.appendChild(node));
+
+    const backdrop = document.createElement("button");
+    backdrop.id = "mobileNativePageBackdrop";
+    backdrop.className = "mobile-native-page-backdrop";
+    backdrop.type = "button";
+    backdrop.setAttribute("aria-label", "Ana sayfaya dön");
+    backdrop.addEventListener("click", () => showHome(false));
+
+    root.append(backdrop, shell);
+    return shell;
   }
 
-  function applyHome(resetToday = true) {
-    if (resetToday) {
-      const picker = dateInput();
-      if (picker) picker.value = todayIso();
-      mobileSelectedDate = todayIso();
-    }
-    root.classList.remove("is-list-mode", "is-cash-mode");
-    root.classList.add("is-welcome-mode");
-    const cashPage = document.querySelector("#mobileDailyCashPage");
-    const serviceList = document.querySelector("#mobileServiceList");
-    const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
-    if (cashPage) cashPage.hidden = true;
-    if (serviceList) {
-      serviceList.hidden = true;
-      serviceList.style.setProperty("display", "none", "important");
-    }
-    if (globalNewButton) {
-      globalNewButton.hidden = true;
-      globalNewButton.style.setProperty("display", "none", "important");
-    }
-    syncExistingMobile();
-    window.scrollTo({ top: 0, behavior: "auto" });
+  function openNativePage(mode) {
+    const shell = ensureNativePageShell();
+    const backdrop = document.querySelector("#mobileNativePageBackdrop");
+    clearTimeout(nativeTransitionTimer);
+    shell.classList.remove("is-active");
+    shell.setAttribute("aria-hidden", "false");
+    shell.style.visibility = "visible";
+    if (backdrop) backdrop.classList.add("is-active");
+    root.classList.add("has-native-page");
+    nativeActivePage = mode;
+    requestAnimationFrame(() => requestAnimationFrame(() => shell.classList.add("is-active")));
   }
 
-  function showHome(resetToday = true, animate = true) {
-    switchWithSlide("back", () => applyHome(resetToday), animate);
+  function showHome(resetToday = true) {
+    const shell = ensureNativePageShell();
+    const backdrop = document.querySelector("#mobileNativePageBackdrop");
+    clearTimeout(nativeTransitionTimer);
+
+    const finishHome = () => {
+      if (resetToday) {
+        const picker = dateInput();
+        if (picker) picker.value = todayIso();
+        mobileSelectedDate = todayIso();
+      }
+      root.classList.remove("is-list-mode", "is-cash-mode", "has-native-page");
+      root.classList.add("is-welcome-mode");
+      const cashPage = document.querySelector("#mobileDailyCashPage");
+      const serviceList = document.querySelector("#mobileServiceList");
+      const globalNewButton = document.querySelector("#mobileNativePageShell .mobile-new-service-bar");
+      if (cashPage) cashPage.hidden = true;
+      if (serviceList) {
+        serviceList.hidden = true;
+        serviceList.style.setProperty("display", "none", "important");
+      }
+      if (globalNewButton) {
+        globalNewButton.hidden = true;
+        globalNewButton.style.setProperty("display", "none", "important");
+      }
+      shell.setAttribute("aria-hidden", "true");
+      shell.style.visibility = "hidden";
+      nativeActivePage = null;
+      syncExistingMobile();
+      window.scrollTo({ top: 0, behavior: "auto" });
+    };
+
+    if (nativeActivePage && shell.classList.contains("is-active")) {
+      shell.classList.remove("is-active");
+      if (backdrop) backdrop.classList.remove("is-active");
+      nativeTransitionTimer = window.setTimeout(finishHome, 370);
+    } else {
+      if (backdrop) backdrop.classList.remove("is-active");
+      finishHome();
+    }
   }
 
   function showList(bucket) {
-    switchWithSlide("forward", () => {
-      root.classList.remove("is-welcome-mode", "is-cash-mode");
-      root.classList.add("is-list-mode");
-      const serviceList = document.querySelector("#mobileServiceList");
-      const globalNewButton = document.querySelector("#mobileTechApp > .mobile-new-service-bar");
-      if (serviceList) {
-        serviceList.hidden = false;
-        serviceList.style.removeProperty("display");
-      }
-      if (globalNewButton) {
-        globalNewButton.hidden = false;
-        globalNewButton.style.removeProperty("display");
-      }
-      const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
-      if (tab) tab.click();
-      updateWelcome();
-      window.scrollTo({ top: 0, behavior: "auto" });
-    });
+    ensureNativePageShell();
+    root.classList.remove("is-welcome-mode", "is-cash-mode");
+    root.classList.add("is-list-mode");
+    const serviceList = document.querySelector("#mobileServiceList");
+    const globalNewButton = document.querySelector("#mobileNativePageShell .mobile-new-service-bar");
+    if (serviceList) {
+      serviceList.hidden = false;
+      serviceList.style.removeProperty("display");
+    }
+    if (globalNewButton) {
+      globalNewButton.hidden = false;
+      globalNewButton.style.removeProperty("display");
+    }
+    const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
+    if (tab) tab.click();
+    updateWelcome();
+    openNativePage("list");
+    document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
   }
 
   function showCash() {
-    switchWithSlide("forward", () => {
-      root.classList.remove("is-welcome-mode", "is-list-mode");
-      root.classList.add("is-cash-mode");
-      const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
-      if (openCash) openCash.click();
-      window.scrollTo({ top: 0, behavior: "auto" });
-    });
+    ensureNativePageShell();
+    root.classList.remove("is-welcome-mode", "is-list-mode");
+    root.classList.add("is-cash-mode");
+    const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
+    if (openCash) openCash.click();
+    openNativePage("cash");
+    document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
   }
 
   document.addEventListener("click", (event) => {
@@ -5024,7 +5061,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   window.ekzenMobileShowList = (bucket = "open") => showList(bucket);
   window.ekzenMobileShowCash = showCash;
 
-  window.addEventListener("pageshow", () => showHome(true, false));
-  window.addEventListener("load", () => showHome(true, false));
-  setTimeout(() => showHome(true, false), 220);
+  window.addEventListener("pageshow", () => showHome(true));
+  window.addEventListener("load", () => showHome(true));
+  setTimeout(() => showHome(true), 220);
 })();
