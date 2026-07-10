@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.2.3</title>
+  <title>Ekzen Servis Takip V5.2.4</title>
   <link rel="stylesheet" href="./styles.css?v=5.2.2-20260710">
 </head>
 <body>
@@ -345,7 +345,37 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.3</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.4</div>
+
+    <nav class="mobile-bottom-nav" aria-label="Mobil alt navigasyon">
+      <button class="mobile-bottom-nav-item is-active" type="button" data-mobile-nav="home" aria-label="Ana Sayfa">
+        <span class="mobile-bottom-nav-icon">⌂</span><b>Ana Sayfa</b>
+      </button>
+      <button class="mobile-bottom-nav-item" type="button" data-mobile-nav="calendar" aria-label="Takvim">
+        <span class="mobile-bottom-nav-icon">▣</span><b>Takvim</b>
+      </button>
+      <button class="mobile-bottom-nav-item" type="button" data-mobile-nav="cash" aria-label="Kasa">
+        <span class="mobile-bottom-nav-icon">₺</span><b>Kasa</b>
+      </button>
+      <button class="mobile-bottom-nav-item" type="button" data-mobile-nav="menu" aria-label="Menü" aria-expanded="false">
+        <span class="mobile-bottom-nav-icon">•••</span><b>Menü</b>
+      </button>
+    </nav>
+
+    <div id="mobileQuickMenu" class="mobile-quick-menu" hidden>
+      <button class="mobile-quick-menu-backdrop" type="button" data-mobile-nav="close-menu" aria-label="Menüyü kapat"></button>
+      <section class="mobile-quick-menu-card" aria-label="Hızlı menü">
+        <div class="mobile-quick-menu-handle"></div>
+        <div class="mobile-quick-menu-head"><strong>Hızlı Menü</strong><button type="button" data-mobile-nav="close-menu">×</button></div>
+        <button class="mobile-quick-menu-primary" type="button" data-mobile-action="open-new-service" data-mobile-nav-close>⊕ Yeni Fiş Aç</button>
+        <div class="mobile-quick-menu-grid">
+          <button type="button" data-mobile-action="today-date" data-mobile-nav-close><span>◎</span><b>Bugüne Git</b></button>
+          <button type="button" data-mobile-nav="calendar" data-mobile-nav-close><span>▣</span><b>Tarih Seç</b></button>
+          <button type="button" data-mobile-action="open-daily-cash" data-mobile-nav-close><span>₺</span><b>Günlük Kasa</b></button>
+          <button type="button" data-mobile-bucket="closed" data-mobile-nav-close><span>✓</span><b>Kapalı Fişler</b></button>
+        </div>
+      </section>
+    </div>
 
 
 

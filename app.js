@@ -4830,3 +4830,91 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     settle(false);
   }, 180);
 })();
+
+/* V5.2.4 — Mobil alt navigasyon */
+(function setupMobileBottomNavigationV524(){
+  const VERSION = "V5.2.4";
+
+  function navItems(){ return Array.from(document.querySelectorAll("#mobileTechApp [data-mobile-nav]")); }
+  function setActive(name){
+    document.querySelectorAll("#mobileTechApp .mobile-bottom-nav-item").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.mobileNav === name);
+    });
+  }
+  function menuElement(){ return document.querySelector("#mobileQuickMenu"); }
+  function closeMenu(){
+    const menu = menuElement();
+    if (menu) menu.hidden = true;
+    const button = document.querySelector('.mobile-bottom-nav-item[data-mobile-nav="menu"]');
+    if (button) button.setAttribute("aria-expanded", "false");
+  }
+  function openMenu(){
+    const menu = menuElement();
+    if (menu) menu.hidden = false;
+    const button = document.querySelector('.mobile-bottom-nav-item[data-mobile-nav="menu"]');
+    if (button) button.setAttribute("aria-expanded", "true");
+    setActive("menu");
+  }
+  function triggerMobileAction(action){
+    const target = document.querySelector(`#mobileTechApp [data-mobile-action="${action}"]`);
+    if (target) target.click();
+  }
+  function openCalendar(){
+    closeMenu();
+    setActive("calendar");
+    const picker = document.querySelector("#mobileDatePicker");
+    if (!picker) return;
+    try {
+      if (typeof picker.showPicker === "function") picker.showPicker();
+      else { picker.focus(); picker.click(); }
+    } catch (e) { picker.focus(); }
+  }
+
+  document.addEventListener("click", function(event){
+    const nav = event.target.closest("#mobileTechApp [data-mobile-nav]");
+    if (!nav) {
+      if (event.target.closest("#mobileTechApp [data-mobile-nav-close]")) closeMenu();
+      return;
+    }
+    const action = nav.dataset.mobileNav;
+    if (!action) return;
+
+    if (["home","calendar","cash","menu","close-menu"].includes(action)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (action === "close-menu") { closeMenu(); setActive("home"); return; }
+    if (action === "menu") { openMenu(); return; }
+    if (action === "calendar") { openCalendar(); return; }
+    if (action === "cash") {
+      closeMenu();
+      setActive("cash");
+      triggerMobileAction("open-daily-cash");
+      return;
+    }
+    if (action === "home") {
+      closeMenu();
+      setActive("home");
+      triggerMobileAction("close-daily-cash");
+      return;
+    }
+  }, false);
+
+  document.addEventListener("click", function(event){
+    if (event.target.closest("#mobileTechApp [data-mobile-nav-close]")) {
+      setTimeout(() => { closeMenu(); setActive("home"); }, 0);
+    }
+    if (event.target.closest('#mobileTechApp [data-mobile-action="close-daily-cash"]')) setActive("home");
+    if (event.target.closest('#mobileTechApp [data-mobile-action="open-daily-cash"]')) setActive("cash");
+  }, false);
+
+  const oldRenderV524 = render;
+  render = function renderV524BottomNavPatch(){
+    oldRenderV524();
+    setTimeout(() => {
+      const badge = document.querySelector(".mobile-version-badge");
+      if (badge) badge.textContent = `Ekzen Servis Takip ${VERSION}`;
+    }, 0);
+  };
+})();
