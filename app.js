@@ -3682,20 +3682,28 @@ function mobileServiceCard(service) {
   const bucket = mobileStatusBucket(service.status);
   const deviceTitle = [service.brand, service.device].filter(Boolean).join(" ") || "Cihaz bilgisi yok";
   const paymentModeLabel = servicePaymentModeLabel(service);
+  const phoneLabel = service.phone || "Telefon girilmedi";
   return `
     <article class="mobile-service-card mobile-status-${bucket}" data-mobile-service-id="${escapeAttr(service.id)}">
       <div class="mobile-card-top" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
-        <div class="mobile-date">
+        <div class="mobile-card-schedule">
           <b>${escapeHtml(formatServiceCardDate(dateValue))}</b>
           <span>${escapeHtml(timeValue || formatServiceCardDay(dateValue))}</span>
         </div>
         <span class="mobile-status-pill">${escapeHtml(service.status || "Durum yok")}${paymentModeLabel ? ` · ${escapeHtml(paymentModeLabel)}` : ""}</span>
       </div>
-      <div data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
-        <div class="mobile-device">${escapeHtml(deviceTitle)}</div>
+      <div class="mobile-card-content" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
         <div class="mobile-customer">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</div>
-        <div class="mobile-address">${escapeHtml(service.address || "Adres girilmedi")}</div>
-        <div class="mobile-fault">${escapeHtml(service.fault || "Şikayet yazılmadı")}</div>
+        <div class="mobile-phone-line">${escapeHtml(phoneLabel)}</div>
+        <div class="mobile-device-chip">${escapeHtml(deviceTitle)}</div>
+        <div class="mobile-info-block mobile-address-block">
+          <span>Adres</span>
+          <p>${escapeHtml(service.address || "Adres girilmedi")}</p>
+        </div>
+        <div class="mobile-info-block mobile-fault-block">
+          <span>Şikâyet</span>
+          <p>${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
+        </div>
       </div>
       <div class="mobile-card-actions">
         <a href="${phoneHref}" onclick="event.stopPropagation()">Ara</a>
@@ -4096,7 +4104,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V5.2.0 Beta 2";
+  const VERSION = "V5.2.2";
   let mode = "services";
 
   function selectedDate() {
@@ -4593,7 +4601,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.2.0 Beta 2";
+  const VERSION = "V5.2.2";
   let activeBucket = "open";
   let selectedDate = isoToday;
 

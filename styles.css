@@ -7866,3 +7866,198 @@ body.photo-viewer-open {
     font-weight: 700 !important;
   }
 }
+
+/* =========================================================
+   V5.2.2 — Premium mobil servis kartları
+   Yalnızca mobil kart görünümü; çalışma mantığı değişmez.
+   ========================================================= */
+@media (max-width: 760px) {
+  .mobile-service-list {
+    gap: 14px !important;
+  }
+
+  .mobile-service-card {
+    position: relative !important;
+    border: 1px solid rgba(15, 23, 42, .07) !important;
+    border-radius: 22px !important;
+    background: #ffffff !important;
+    box-shadow: 0 9px 28px rgba(15, 23, 42, .085) !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-service-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: #0f766e;
+    z-index: 2;
+  }
+
+  .mobile-service-card.mobile-status-process::before,
+  .mobile-service-card.mobile-status-payment::before { background: #2563eb; }
+  .mobile-service-card.mobile-status-complete::before { background: #64748b; }
+  .mobile-service-card.mobile-status-danger::before { background: #dc2626; }
+
+  .mobile-card-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 15px 17px 11px 20px !important;
+    border-bottom: 1px solid #eef1f4 !important;
+    background: #fbfcfd !important;
+  }
+
+  .mobile-card-schedule {
+    min-width: 0;
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 7px !important;
+  }
+
+  .mobile-card-schedule b {
+    color: #111827 !important;
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+    letter-spacing: -.2px !important;
+  }
+
+  .mobile-card-schedule span {
+    color: #667085 !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+  }
+
+  .mobile-status-pill {
+    flex: 0 1 auto !important;
+    max-width: 55% !important;
+    padding: 6px 10px !important;
+    border: 1px solid rgba(15, 118, 110, .10) !important;
+    border-radius: 999px !important;
+    background: #eaf7f4 !important;
+    color: #0b6b5f !important;
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+  }
+
+  .mobile-status-process .mobile-status-pill,
+  .mobile-status-payment .mobile-status-pill {
+    border-color: rgba(37,99,235,.10) !important;
+    background: #eef4ff !important;
+    color: #1d4ed8 !important;
+  }
+
+  .mobile-status-complete .mobile-status-pill {
+    border-color: rgba(100,116,139,.12) !important;
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+  }
+
+  .mobile-status-danger .mobile-status-pill {
+    border-color: rgba(220,38,38,.10) !important;
+    background: #fff1f2 !important;
+    color: #b42318 !important;
+  }
+
+  .mobile-card-content,
+  .mobile-service-card > div:nth-child(2) {
+    padding: 16px 17px 17px 20px !important;
+  }
+
+  .mobile-customer {
+    margin: 0 !important;
+    color: #101828 !important;
+    font-size: 21px !important;
+    line-height: 1.12 !important;
+    font-weight: 850 !important;
+    letter-spacing: -.55px !important;
+  }
+
+  .mobile-phone-line {
+    margin-top: 5px !important;
+    color: #667085 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+    font-weight: 650 !important;
+  }
+
+  .mobile-device-chip {
+    display: inline-flex !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin-top: 12px !important;
+    padding: 7px 10px !important;
+    border-radius: 10px !important;
+    background: #ecf8f5 !important;
+    color: #0b6b5f !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+  }
+
+  .mobile-info-block {
+    margin-top: 12px !important;
+  }
+
+  .mobile-info-block > span {
+    display: block !important;
+    margin-bottom: 4px !important;
+    color: #98a2b3 !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    font-weight: 800 !important;
+    letter-spacing: .06em !important;
+    text-transform: uppercase !important;
+  }
+
+  .mobile-info-block p {
+    margin: 0 !important;
+    color: #344054 !important;
+    font-size: 14px !important;
+    line-height: 1.42 !important;
+    font-weight: 620 !important;
+  }
+
+  .mobile-fault-block {
+    padding: 11px 12px !important;
+    border-radius: 13px !important;
+    background: #f5f7f9 !important;
+  }
+
+  .mobile-fault-block > span {
+    color: #7b8798 !important;
+  }
+
+  .mobile-card-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    border-top: 1px solid #eaecf0 !important;
+    background: #fbfcfd !important;
+  }
+
+  .mobile-card-actions a,
+  .mobile-card-actions button {
+    min-height: 50px !important;
+    padding: 0 5px !important;
+    border: 0 !important;
+    border-right: 1px solid #eaecf0 !important;
+    background: transparent !important;
+    color: #0f766e !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    text-decoration: none !important;
+  }
+
+  .mobile-card-actions > *:last-child {
+    border-right: 0 !important;
+  }
+
+  .mobile-card-actions a:active,
+  .mobile-card-actions button:active {
+    background: #eef8f6 !important;
+  }
+}
