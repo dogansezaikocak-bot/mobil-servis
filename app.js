@@ -277,76 +277,52 @@ function demoService(id, customerName, phone, district, address, brand, device, 
   };
 }
 
-let localStorageFallbackWarned = false;
-
-function lightweightStateForLocalStorage() {
-  return {
-    ...state,
-    services: state.services.map((service) => ({
+function lightweightStateForLocal(sourceState) {
+  const clone = {
+    ...sourceState,
+    services: (sourceState.services || []).map((service) => ({
       ...service,
+      // iPhone Safari localStorage kotasını fotoğraflar doldurmasın.
+      // Fotoğrafların tam hali Firebase'de tutulmaya devam eder.
       photos: (service.photos || []).map((photo) => ({
-        ...photo,
-        // Fotoğrafın kendisi bulutta tutulur; telefonun küçük localStorage alanını doldurmaz.
+        id: photo.id || uid(),
+        caption: photo.caption || "",
+        createdAt: photo.createdAt || new Date().toISOString(),
         dataUrl: "",
       })),
     })),
   };
+  return clone;
 }
 
 function saveLocalState() {
+  const fullJson = JSON.stringify(state);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, fullJson);
     return true;
   } catch (error) {
-    console.warn("Tam yerel kayıt sığmadı; fotoğrafsız hafif kayıt deneniyor:", error);
+    // Kota doluysa eski ağır kaydı önce kaldır; ardından fotoğrafsız hafif önbellek yaz.
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
     try {
-      const lightweightJson = JSON.stringify(lightweightStateForLocalStorage());
-      // iOS Safari, kota doluyken aynı anahtarı daha küçük veriyle bile atomik olarak
-      // değiştirmeye izin vermeyebiliyor. Önce eski şişmiş kaydı kaldırıp sonra hafif
-      // sürümü yazmak bu kilitlenmeyi çözer. Uygulamanın güncel state'i bellekte kalır.
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.setItem(STORAGE_KEY, lightweightJson);
-      if (!localStorageFallbackWarned) {
-        localStorageFallbackWarned = true;
-        alert("Telefon önbelleği küçültüldü ve kayıt kaydedildi. Fotoğraflar yerel önbelleğe tekrar yazılmayacak.");
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightStateForLocal(state)));
       return true;
     } catch (fallbackError) {
-      console.error("Hafif yerel kayıt da yapılamadı:", fallbackError);
-      // Son çare: diğer eski Ekzen önbellek anahtarlarını temizle ve bir kez daha dene.
-      try {
-        Object.keys(localStorage).forEach((key) => {
-          if (key !== STORAGE_KEY && /ekzen|servis/i.test(key)) localStorage.removeItem(key);
-        });
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightStateForLocalStorage()));
-        if (!localStorageFallbackWarned) {
-          localStorageFallbackWarned = true;
-          alert("Eski telefon önbelleği temizlendi ve kayıt kaydedildi.");
-        }
-        return true;
-      } catch (finalError) {
-        console.error("Yerel kayıt son denemede de yapılamadı:", finalError);
-        alert("Telefon depolaması tamamen dolu. iPhone Ayarlar > Safari > İleri Düzey > Web Sitesi Verileri bölümünden dogansezaikocak-bot.github.io verisini silip sayfayı yeniden açın.");
-        return false;
-      }
+      console.warn("Yerel önbellek yazılamadı; kayıt buluta gönderilmeye devam edecek.", fallbackError);
+      return false;
     }
   }
 }
 
 function saveState() {
-  const localSaved = saveLocalState();
-  // Yerel kayıt başarısız olsa bile bulut hazırsa kullanıcı değişikliğini kaybetme.
-  if (cloudRef && cloudReady && !cloudApplyingState) {
-    cloudRef.set({
-      updatedAt: new Date().toISOString(),
-      state,
-    }).catch(() => {
-      console.warn("Firebase kaydı yapılamadı.");
-    });
-    return true;
-  }
-  return localSaved;
+  // Yerel kota hatası bulut kaydını ve form kapanışını artık durdurmaz.
+  saveLocalState();
+  if (!cloudRef || !cloudReady || cloudApplyingState) return;
+  cloudRef.set({
+    updatedAt: new Date().toISOString(),
+    state,
+  }).catch(() => {
+    console.warn("Firebase kaydı yapılamadı; veri mevcut oturumda korunuyor.");
+  });
 }
 
 function initCloudSync() {
@@ -469,12 +445,6 @@ function bindEvents() {
     if (action === "move-service-order") moveServiceOrder(button.dataset.serviceId, button.dataset.direction);
     if (action === "open-related-service") openRelatedServiceForm(button.dataset.serviceId);
     if (action === "close-service-modal") serviceDialog.close();
-    if (action === "save-service-direct") {
-      // iOS Safari'de <dialog> içindeki form submit olayı zaman zaman tetiklenmiyor.
-      // Kaydet düğmesini doğrudan forma bağlayarak gerçek cihazda güvenilir kayıt sağla.
-      if (typeof serviceForm.reportValidity === "function" && !serviceForm.reportValidity()) return;
-      saveService(new FormData(serviceForm));
-    }
     if (action === "close-detail-modal") detailDialog.close();
     if (action === "close-cash-modal") cashDialog.close();
     if (action === "close-complete-modal") completeDialog.close();
@@ -2412,13 +2382,9 @@ function saveService(formData) {
     history: previous?.history || [],
   };
 
-  const servicesBeforeSave = state.services;
   if (isUpdate) state.services = state.services.map((item) => item.id === service.id ? service : item);
   else state.services.unshift(service);
-  if (!saveState()) {
-    state.services = servicesBeforeSave;
-    return;
-  }
+  saveState();
   serviceDialog.close();
   render();
   if (!isMobileTechViewport()) switchView("services");
@@ -2839,7 +2805,7 @@ async function savePhoto() {
     alert("Fotoğraf seçmeniz gerekiyor.");
     return;
   }
-  const dataUrl = await compressImageFile(file);
+  const dataUrl = await fileToDataUrl(file);
   service.photos.unshift({
     id: uid(),
     caption: photoForm.elements.caption.value,
@@ -3524,35 +3490,6 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#039;",
   })[char]);
-}
-
-
-function compressImageFile(file, maxDimension = 1280, quality = 0.72) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
-      const image = new Image();
-      image.onerror = reject;
-      image.onload = () => {
-        let width = image.naturalWidth || image.width;
-        let height = image.naturalHeight || image.height;
-        const scale = Math.min(1, maxDimension / Math.max(width, height));
-        width = Math.max(1, Math.round(width * scale));
-        height = Math.max(1, Math.round(height * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext("2d", { alpha: false });
-        context.fillStyle = "#fff";
-        context.fillRect(0, 0, width, height);
-        context.drawImage(image, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
 function fileToDataUrl(file) {
@@ -4657,7 +4594,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.1.3";
+  const VERSION = "V5.1.7";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
