@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.0.3</title>
-  <link rel="stylesheet" href="./styles.css?v=v4-3-5">
+  <title>Ekzen Servis Takip V5.2.0 Beta 1</title>
+  <link rel="stylesheet" href="./styles.css?v=5.2.0-beta.1-20260710">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -317,7 +317,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.1.1</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.0 Beta 1</div>
 
 
 
@@ -646,8 +646,27 @@
     <button id="photoViewerNext" class="photo-viewer-nav next" type="button" data-action="photo-viewer-next">›</button>
   </div>
 
+  <script>
+    // V5.2.0 Beta 1: Eski PWA/service worker ve Cache Storage kayıtlarını temizle.
+    (function () {
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (reg) { reg.unregister(); });
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+          });
+        }
+      } catch (e) {
+        console.warn('Önbellek temizleme atlandı:', e);
+      }
+    })();
+  </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=v5-1-1"></script>
+  <script src="./app.js?v=5.2.0-beta.1-20260710"></script>
 </body>
 </html>

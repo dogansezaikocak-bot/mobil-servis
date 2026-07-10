@@ -277,51 +277,18 @@ function demoService(id, customerName, phone, district, address, brand, device, 
   };
 }
 
-function lightweightStateForLocal(sourceState) {
-  const clone = {
-    ...sourceState,
-    services: (sourceState.services || []).map((service) => ({
-      ...service,
-      // iPhone Safari localStorage kotasını fotoğraflar doldurmasın.
-      // Fotoğrafların tam hali Firebase'de tutulmaya devam eder.
-      photos: (service.photos || []).map((photo) => ({
-        id: photo.id || uid(),
-        caption: photo.caption || "",
-        createdAt: photo.createdAt || new Date().toISOString(),
-        dataUrl: "",
-      })),
-    })),
-  };
-  return clone;
-}
-
 function saveLocalState() {
-  const fullJson = JSON.stringify(state);
-  try {
-    localStorage.setItem(STORAGE_KEY, fullJson);
-    return true;
-  } catch (error) {
-    // Kota doluysa eski ağır kaydı önce kaldır; ardından fotoğrafsız hafif önbellek yaz.
-    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightStateForLocal(state)));
-      return true;
-    } catch (fallbackError) {
-      console.warn("Yerel önbellek yazılamadı; kayıt buluta gönderilmeye devam edecek.", fallbackError);
-      return false;
-    }
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 function saveState() {
-  // Yerel kota hatası bulut kaydını ve form kapanışını artık durdurmaz.
   saveLocalState();
   if (!cloudRef || !cloudReady || cloudApplyingState) return;
   cloudRef.set({
     updatedAt: new Date().toISOString(),
     state,
   }).catch(() => {
-    console.warn("Firebase kaydı yapılamadı; veri mevcut oturumda korunuyor.");
+    console.warn("Firebase kaydı yapılamadı, yerel kayıt korundu.");
   });
 }
 
@@ -4097,7 +4064,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V5.0.1";
+  const VERSION = "V5.2.0 Beta 1";
   let mode = "services";
 
   function selectedDate() {
@@ -4594,7 +4561,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.1.7";
+  const VERSION = "V5.2.0 Beta 1";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
