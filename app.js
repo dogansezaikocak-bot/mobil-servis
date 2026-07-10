@@ -106,8 +106,14 @@ function init() {
 }
 
 function loadState() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) return JSON.parse(stored);
+  let stored = null;
+  try {
+    stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch (error) {
+    console.warn("Yerel kayıt okunamadı; bulut verisi bekleniyor.", error);
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  }
 
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -159,7 +165,7 @@ function migrateState(oldState) {
   migrated.services = migrated.services.map((service, index) => ({
     ...service,
     status: service.status || "Yeni Kayıt",
-    sortOrder: Number.isFinite(Number(service.sortOrder)) ? Number(service.sortOrder) : index,
+    sortOrder: Number.isFinite(Number(service.sortOrder)) ? Number(service.sortOrder) : 0,
     technician: service.technician || "",
     notes: normalizeNotes(service.notes),
     photos: normalizePhotos(service.photos),
@@ -251,7 +257,7 @@ function demoService(id, customerName, phone, district, address, brand, device, 
     address,
     brand,
     device,
-    model: mobileNewServiceData.model || "",
+    model: "",
     fault,
     warrantyEnd: "2027-06-20",
     source: "Ali Korkmaz",
@@ -277,8 +283,34 @@ function demoService(id, customerName, phone, district, address, brand, device, 
   };
 }
 
+function buildLightLocalState(sourceState) {
+  const copy = JSON.parse(JSON.stringify(sourceState || {}));
+  if (Array.isArray(copy.services)) {
+    copy.services = copy.services.map((service) => ({
+      ...service,
+      photos: Array.isArray(service.photos)
+        ? service.photos.map((photo) => ({
+            id: photo.id || uid(),
+            caption: photo.caption || "",
+            createdAt: photo.createdAt || "",
+            dataUrl: "",
+          }))
+        : [],
+    }));
+  }
+  return copy;
+}
+
 function saveLocalState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // iPhone Safari kotası dolu olsa bile uygulamanın çalışmasını durdurma.
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(buildLightLocalState(state)));
+    return true;
+  } catch (error) {
+    console.warn("Yerel önbellek yazılamadı; uygulama bulut verisiyle devam ediyor.", error);
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+    return false;
+  }
 }
 
 function saveState() {
@@ -4064,7 +4096,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V5.2.0 Beta 1";
+  const VERSION = "V5.2.0 Beta 2";
   let mode = "services";
 
   function selectedDate() {
@@ -4561,7 +4593,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.2.0 Beta 1";
+  const VERSION = "V5.2.0 Beta 2";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
