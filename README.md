@@ -1,5 +1,8 @@
-# Ekzen Servis Takip V5.2.4.5
+# Ekzen Servis Takip V5.2.4.8
 
-- Açılan servis ve kasa sayfaları sağdan sola kayarak gelir.
-- Ana sayfaya dönüş soldan sağa kayma efektiyle yapılır.
-- V5.2.4.4 işlevleri korunmuştur.
+V5.2.4.3 çalışan kompakt tarih sürümü temel alınmıştır.
+
+- Açılan sayfalar ekranın sağından sola kayar.
+- Ana sayfaya dönüşte ekran soldan sağa kayar.
+- İlk açılışta animasyon uygulanmaz.
+- Karşılama, tarih filtresi, servis listesi ve kasa işlevleri korunmuştur.
