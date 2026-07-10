@@ -1,6 +1,8 @@
-Ekzen Servis Takip V5.1.6
+Ekzen Servis Takip V5.1.1
 
-- iPhone Safari kota doluluğunda eski şişmiş yerel kayıt önce kaldırılır.
-- Fotoğrafsız hafif kayıt yeniden yazılır.
-- Servisi Düzenle > Kaydet işleminin gerçek iPhone'da depolama hatasına takılması düzeltildi.
-- Son çare olarak yalnızca eski Ekzen önbellek anahtarları temizlenir.
+Mobil açık/kapalı fiş sekmeleri ve tarih filtresi tek kayıt kümesinden çalışır.
+
+
+V5.1.3: Mobil Bugün butonu açık/kapalı sayaçları ve servis listesini aynı anda bugüne senkronlar.
+
+V5.1.7: iPhone Safari localStorage kota hatası artık kayıt akışını durdurmaz; fotoğrafsız hafif yerel önbellek ve tam Firebase kaydı kullanılır.
