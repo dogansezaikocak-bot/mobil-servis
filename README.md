@@ -1,6 +1,12 @@
-Ekzen Servis Takip V5.1.1
+Ekzen Servis Takip V5.1.4
 
-Mobil açık/kapalı fiş sekmeleri ve tarih filtresi tek kayıt kümesinden çalışır.
+- Gerçek iPhone/Safari servis düzenleme kaydı düzeltildi.
+- Kaydet düğmesi doğrudan kayıt fonksiyonunu çalıştırır.
+- Telefon depolaması doluysa sessizce başarısız olmak yerine uyarı verir.
 
 
-V5.1.3: Mobil Bugün butonu açık/kapalı sayaçları ve servis listesini aynı anda bugüne senkronlar.
+## V5.1.5
+- iPhone Safari localStorage doluluk sorunu düzeltildi.
+- Yerel alan dolunca fotoğrafsız hafif önbellek kullanılır; tam veri Firebase bulutta korunur.
+- Yeni fotoğraflar otomatik küçültülüp sıkıştırılır.
+- Servis düzenleme kaydı, yerel alan dolu olsa bile bulut hazırsa engellenmez.

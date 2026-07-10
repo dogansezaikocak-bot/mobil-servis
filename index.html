@@ -221,7 +221,7 @@
             <label>Telefon<input name="phone" type="tel"></label>
             <label>E-posta<input name="email" type="email"></label>
             <label>Adres<textarea name="address" rows="3"></textarea></label>
-            <button class="primary-button" type="submit">Kaydet</button>
+            <button class="primary-button" type="button" data-action="save-service-direct">Kaydet</button>
           </form>
           <div id="settingsLists" class="settings-lists"></div>
         </section>
@@ -317,7 +317,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.1.1</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.1.4</div>
 
 
 
@@ -365,7 +365,7 @@
   </dialog>
 
   <dialog id="serviceDialog" class="dialog">
-    <form method="dialog" class="dialog-shell" id="serviceForm">
+    <form method="post" class="dialog-shell" id="serviceForm">
       <header>
         <h2 id="serviceDialogTitle">Yeni Servis</h2>
         <button class="icon-button" type="button" data-action="close-service-modal" title="Kapat">×</button>

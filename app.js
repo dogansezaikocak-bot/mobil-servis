@@ -277,28 +277,56 @@ function demoService(id, customerName, phone, district, address, brand, device, 
   };
 }
 
+let localStorageFallbackWarned = false;
+
+function lightweightStateForLocalStorage() {
+  return {
+    ...state,
+    services: state.services.map((service) => ({
+      ...service,
+      photos: (service.photos || []).map((photo) => ({
+        ...photo,
+        // Fotoğrafın kendisi bulutta tutulur; telefonun küçük localStorage alanını doldurmaz.
+        dataUrl: "",
+      })),
+    })),
+  };
+}
+
 function saveLocalState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch (error) {
-    console.error("Yerel kayıt yapılamadı:", error);
-    alert("Kayıt telefona yazılamadı. Tarayıcı depolama alanı dolmuş olabilir. Fotoğraf yedeği alıp eski fotoğrafları azaltın.");
-    return false;
+    console.warn("Tam yerel kayıt sığmadı; fotoğrafsız hafif kayıt deneniyor:", error);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightStateForLocalStorage()));
+      if (!localStorageFallbackWarned) {
+        localStorageFallbackWarned = true;
+        alert("Telefonun tarayıcı alanı fotoğraflar nedeniyle dolmuş. Kayıt kaydedildi; telefondaki geçici fotoğraf önbelleği küçültüldü. Fotoğraflar internet bağlantısıyla buluttan yeniden gelir.");
+      }
+      return true;
+    } catch (fallbackError) {
+      console.error("Hafif yerel kayıt da yapılamadı:", fallbackError);
+      alert("Telefonun tarayıcı depolama alanı tamamen dolu. Safari site verilerinden eski Ekzen verisini temizleyip sayfayı yeniden açın. Bulut bağlantısı varsa kayıtlar tekrar yüklenir.");
+      return false;
+    }
   }
 }
 
 function saveState() {
   const localSaved = saveLocalState();
-  if (!localSaved) return false;
-  if (!cloudRef || !cloudReady || cloudApplyingState) return true;
-  cloudRef.set({
-    updatedAt: new Date().toISOString(),
-    state,
-  }).catch(() => {
-    console.warn("Firebase kaydı yapılamadı, yerel kayıt korundu.");
-  });
-  return true;
+  // Yerel kayıt başarısız olsa bile bulut hazırsa kullanıcı değişikliğini kaybetme.
+  if (cloudRef && cloudReady && !cloudApplyingState) {
+    cloudRef.set({
+      updatedAt: new Date().toISOString(),
+      state,
+    }).catch(() => {
+      console.warn("Firebase kaydı yapılamadı.");
+    });
+    return true;
+  }
+  return localSaved;
 }
 
 function initCloudSync() {
@@ -2791,7 +2819,7 @@ async function savePhoto() {
     alert("Fotoğraf seçmeniz gerekiyor.");
     return;
   }
-  const dataUrl = await fileToDataUrl(file);
+  const dataUrl = await compressImageFile(file);
   service.photos.unshift({
     id: uid(),
     caption: photoForm.elements.caption.value,
@@ -3476,6 +3504,35 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#039;",
   })[char]);
+}
+
+
+function compressImageFile(file, maxDimension = 1280, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = () => {
+        let width = image.naturalWidth || image.width;
+        let height = image.naturalHeight || image.height;
+        const scale = Math.min(1, maxDimension / Math.max(width, height));
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { alpha: false });
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function fileToDataUrl(file) {
