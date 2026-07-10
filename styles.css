@@ -8216,6 +8216,27 @@ body.photo-viewer-open {
     -webkit-tap-highlight-color: transparent !important;
   }
 
+
+  /* V5.2.4.1 — iPhone Safari alt bar takvim düzeltmesi */
+  .mobile-calendar-nav-item {
+    overflow: hidden !important;
+  }
+
+  .mobile-bottom-date-picker {
+    position: absolute !important;
+    z-index: 5 !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0.001 !important;
+    cursor: pointer !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
   .mobile-bottom-nav-icon {
     display: flex !important;
     align-items: center !important;
@@ -8355,5 +8376,14 @@ body.photo-viewer-open {
     font-size: 12px !important;
     line-height: 1.15 !important;
     font-weight: 800 !important;
+  }
+}
+
+/* V5.2.4.2 — Chrome + Safari alt takvim dokunma düzeltmesi */
+@media (max-width: 760px) {
+  #mobileBottomDatePicker {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    opacity: 0.01 !important;
   }
 }

@@ -4833,7 +4833,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.2.4 — Mobil alt navigasyon */
 (function setupMobileBottomNavigationV524(){
-  const VERSION = "V5.2.4";
+  const VERSION = "V5.2.4.2";
 
   function navItems(){ return Array.from(document.querySelectorAll("#mobileTechApp [data-mobile-nav]")); }
   function setActive(name){
@@ -4859,9 +4859,16 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const target = document.querySelector(`#mobileTechApp [data-mobile-action="${action}"]`);
     if (target) target.click();
   }
+  function syncBottomDatePicker(){
+    const mainPicker = document.querySelector("#mobileDatePicker");
+    const bottomPicker = document.querySelector("#mobileBottomDatePicker");
+    if (mainPicker && bottomPicker) bottomPicker.value = mainPicker.value || mobileSelectedDate || isoToday;
+  }
+
   function openCalendar(){
     closeMenu();
     setActive("calendar");
+    syncBottomDatePicker();
     const picker = document.querySelector("#mobileDatePicker");
     if (!picker) return;
     try {
@@ -4870,7 +4877,35 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     } catch (e) { picker.focus(); }
   }
 
+  document.addEventListener("focus", function(event){
+    if (!event.target.matches("#mobileBottomDatePicker")) return;
+    closeMenu();
+    setActive("calendar");
+    syncBottomDatePicker();
+  }, true);
+
+  document.addEventListener("change", function(event){
+    if (!event.target.matches("#mobileBottomDatePicker")) return;
+    const value = String(event.target.value || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+    const mainPicker = document.querySelector("#mobileDatePicker");
+    if (!mainPicker) return;
+    mainPicker.value = value;
+    mainPicker.dispatchEvent(new Event("input", { bubbles: true }));
+    mainPicker.dispatchEvent(new Event("change", { bubbles: true }));
+    setActive("home");
+  }, true);
+
   document.addEventListener("click", function(event){
+    /* V5.2.4.2: Gerçek date input dokunmasını engelleme.
+       preventDefault uygulanırsa Chrome ve Safari yerel takvimi açmaz. */
+    if (event.target.matches("#mobileBottomDatePicker")) {
+      closeMenu();
+      setActive("calendar");
+      syncBottomDatePicker();
+      return;
+    }
+
     const nav = event.target.closest("#mobileTechApp [data-mobile-nav]");
     if (!nav) {
       if (event.target.closest("#mobileTechApp [data-mobile-nav-close]")) closeMenu();

@@ -1,4 +1,4 @@
-# Ekzen Servis Takip V5.2.4
+# Ekzen Servis Takip V5.2.4.2
 
 V5.2.0 Beta 2 Safari açılış düzeltmeli çalışan sürüm temel alınmıştır.
 
@@ -26,16 +26,20 @@ V5.2.0 Beta 2 Safari açılış düzeltmeli çalışan sürüm temel alınmışt
 - Mevcut servis, kasa, Safari ve PWA işlevleri korunmuştur.
 
 
-## V5.2.4
+## V5.2.4.2
 - Mobil ana ekrana canlı Günlük Özet Paneli eklendi.
 - Toplam Servis, Tamamlanan, Bekleyen ve Günlük Hasılat gösterilir.
 - Değerler seçilen tarih ve kaynağa göre otomatik güncellenir.
 - Mevcut servis, kasa ve Safari çalışma mantığı korunmuştur.
 
 
-## V5.2.4 – Alt Navigasyon
+## V5.2.4.2 – Alt Navigasyon
 - Mobil ekrana sabit alt navigasyon eklendi.
 - Ana Sayfa, Takvim, Kasa ve Menü kısayolları eklendi.
 - Hızlı menü içine Yeni Fiş Aç, Bugüne Git, Tarih Seç, Günlük Kasa ve Kapalı Fişler erişimi eklendi.
 - Eski büyük Yeni Fiş Aç alt çubuğu mobil görünümde kaldırıldı.
 - iPhone güvenli alanı ve Safari uyumluluğu korundu.
+
+
+## Safari Takvim Düzeltmesi
+- Alt navigasyondaki Takvim düğmesi iPhone Safari için doğrudan yerel tarih seçiciyle çalışacak şekilde düzeltildi.
