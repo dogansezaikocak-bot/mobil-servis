@@ -7804,3 +7804,45 @@ body.photo-viewer-open {
     z-index: 2;
   }
 }
+
+/* V5.2.4.3 — Tarih kutusu kompakt boşluk düzeltmesi */
+@media (max-width: 820px) {
+  .mobile-welcome-date-card {
+    min-height: 96px !important;
+    padding: 13px 54px 13px 18px !important;
+    gap: 3px !important;
+    align-content: center !important;
+    justify-content: stretch !important;
+    border-radius: 20px !important;
+  }
+
+  .mobile-welcome-date-card > span {
+    margin: 0 !important;
+    line-height: 1 !important;
+    text-align: left !important;
+  }
+
+  .mobile-welcome-date-display {
+    width: 100% !important;
+    gap: 0 !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+  }
+
+  .mobile-welcome-date-line,
+  .mobile-welcome-day-line {
+    font-size: clamp(19px, 5vw, 22px) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -.35px !important;
+    text-align: left !important;
+  }
+
+  .mobile-welcome-day-line {
+    margin-top: 2px !important;
+  }
+
+  .mobile-welcome-date-card::after {
+    right: 18px !important;
+    font-size: 21px !important;
+  }
+}
