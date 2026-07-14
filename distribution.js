@@ -19,12 +19,22 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function trTitle(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/(^|[\s-])([a-zçğıöşü])/g,(m,a,b)=>a+b.toLocaleUpperCase('tr-TR')).trim()}
 function inferNeighborhood(address){
  const a=String(address||'').replace(/\s+/g,' ').trim();if(!a)return '';
- const patterns=[/([A-ZÇĞİÖŞÜ0-9 .'-]{2,}?)\s+(?:MAHALLESİ|MAHALLESI|MAH\.?|MH\.?)\b/iu,/([A-ZÇĞİÖŞÜ0-9 .'-]{2,}?)\s+MAHALLE\b/iu];
- for(const re of patterns){const m=a.match(re);if(m){let n=m[1].trim().replace(/^(ANKARA|KEÇİÖREN|KECIOREN|PURSAKLAR|YENİMAHALLE|YENIMAHALLE)\s+/iu,'');n=n.split(/[,/]/).pop().trim();if(n)return trTitle(n)+' Mahallesi'}}
- return '';
+ // Kural: Adreste ilk geçen “Mahallesi / Mah. / Mh.” ifadesinin hemen önündeki ad mahalledir.
+ // AI'nin yazdığı eski grup bilgisine güvenilmez; doğrudan adres metni esas alınır.
+ const marker=/(?:MAHALLESİ|MAHALLESI|MAH\.?|MH\.?)\b/iu;
+ const hit=marker.exec(a);if(!hit)return '';
+ let before=a.slice(0,hit.index).trim();
+ // Adres başındaki il/ilçe ifadelerini temizle; mahalle adının kendisini koru.
+ before=before.replace(/^(?:ANKARA(?:\s+İLİ)?|KEÇİÖREN|KECIOREN|PURSAKLAR|YENİMAHALLE|YENIMAHALLE|MAMAK|ALTINDAĞ|ALTINDAG|ÇANKAYA|CANKAYA|ETİMESGUT|ETIMESGUT|SİNCAN|SINCAN)[,\s-]+/iu,'').trim();
+ // Virgül, eğik çizgi veya noktalı virgülden sonraki son bölüm mahalle adıdır.
+ before=before.split(/[,/;]/).pop().trim();
+ // Cadde/sokak gibi önceki adres parçaları yanlışlıkla kaldıysa son parçayı al.
+ before=before.replace(/^(?:CADDE|CADDESİ|CAD\.?|CD\.?|SOKAK|SOK\.?|SK\.?)\s+/iu,'').trim();
+ if(!before)return '';
+ return trTitle(before)+' Mahallesi';
 }
 function shouldInferDistrict(d){const x=foldTr(d||'');return !x||['kecioren','ankara kecioren','ankara','pursaklar','yenimahalle','mamak','altindag','cankaya','etimesgut','sincan'].includes(x)}
-function applyNeighborhood(x){const inferred=inferNeighborhood(x.address||x.rawAddress);if(inferred&&shouldInferDistrict(x.district))x.district=inferred;return x}
+function applyNeighborhood(x){const inferred=inferNeighborhood(x.address||x.rawAddress);if(inferred)x.district=inferred;return x}
 function statusLabel(s){return ({waiting:'Bekliyor',prepared:'Hazırlandı',loaded:'Yüklendi',delivered:'Teslim Edildi'})[s]||'Bekliyor'}
 function nextStatus(s){return ({waiting:'prepared',prepared:'loaded',loaded:'delivered',delivered:'waiting'})[s]||'prepared'}
 function normalizeMaterial(m){
@@ -225,7 +235,7 @@ function canonicalAddress(s){
 }
 function validateAiRows(rows){
  return rows.map(row=>{
-  const x=normalizeItem(row);x.rawAddress=x.rawAddress||x.address;x.address=canonicalAddress(x.address||x.rawAddress);
+  const x=normalizeItem(row);x.rawAddress=x.rawAddress||x.address;x.address=canonicalAddress(x.address||x.rawAddress);const addressNeighborhood=inferNeighborhood(x.address||x.rawAddress);if(addressNeighborhood)x.district=addressNeighborhood;
   let best=null,score=0;for(const old of data){if(!old.customer||!old.address)continue;const sc=similarity(x.customer,old.customer);if(sc>score){score=sc;best=old}}
   if(best&&score>=0.90){if(!x.address||x.needsReview||Number(x.addressConfidence||0)<85){x.address=best.address;x.district=x.district||best.district;x.note=[x.note,'Kayıtlı adresle doğrulandı'].filter(Boolean).join(' · ');x.addressConfidence=Math.max(Number(x.addressConfidence||0),95);x.needsReview=false}}
   if(!x.address){x.needsReview=true;x.addressConfidence=0;x.note=[x.note,'Adres okunamadı'].filter(Boolean).join(' · ')}
@@ -254,7 +264,7 @@ function saveAiRows(){if(!aiRows.length)return;const f=document.querySelector('#
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if(!b)return;const a=b.dataset.dist,id=b.dataset.id;
  if(a==='set-mode'){mode=b.dataset.mode;render();return}
  if(a==='toggle-materials'){expandedStops.has(id)?expandedStops.delete(id):expandedStops.add(id);render();return}
- if(a==='auto-group'){let changed=0;for(const x of data){const before=x.district;const inferred=inferNeighborhood(x.address||x.rawAddress);if(inferred&&(shouldInferDistrict(x.district)||x.district!==inferred)){x.district=inferred;if(before!==x.district)changed++}}save();filters.group='';render();alert(changed+' adres mahalleye göre gruplandı.');return}
+ if(a==='auto-group'){let changed=0;for(const x of data){const before=x.district;const inferred=inferNeighborhood(x.address||x.rawAddress);if(inferred&&x.district!==inferred){x.district=inferred;if(before!==x.district)changed++}}save();filters.group='';render();alert(changed+' adres mahalleye göre gruplandı.');return}
  if(a==='manage-toggle'){manageMode=!manageMode;if(!manageMode)selectedStops.clear();render();return}
  if(a==='select-stop'){return}
  if(a==='select-all'){const list=visible();const all=list.length&&list.every(x=>selectedStops.has(x.id));for(const x of list){if(all)selectedStops.delete(x.id);else selectedStops.add(x.id)}render();return}
