@@ -21,7 +21,7 @@ function inferNeighborhood(address){
  const a=String(address||'').replace(/\s+/g,' ').trim();if(!a)return '';
  // Kural: Adreste ilk geçen “Mahallesi / Mah. / Mh.” ifadesinin hemen önündeki ad mahalledir.
  // AI'nin yazdığı eski grup bilgisine güvenilmez; doğrudan adres metni esas alınır.
- const marker=/(?:MAHALLESİ|MAHALLESI|MAH\.?|MH\.?)\b/iu;
+ const marker=/(?:MAHALLESİ|MAHALLESI|MAHALLE|MAH|MH)\.?(?=\s|[,;/]|$)/iu;
  const hit=marker.exec(a);if(!hit)return '';
  let before=a.slice(0,hit.index).trim();
  // Adres başındaki il/ilçe ifadelerini temizle; mahalle adının kendisini koru.
@@ -34,7 +34,7 @@ function inferNeighborhood(address){
  return trTitle(before)+' Mahallesi';
 }
 function shouldInferDistrict(d){const x=foldTr(d||'');return !x||['kecioren','ankara kecioren','ankara','pursaklar','yenimahalle','mamak','altindag','cankaya','etimesgut','sincan'].includes(x)}
-function applyNeighborhood(x){const inferred=inferNeighborhood(x.address||x.rawAddress);if(inferred)x.district=inferred;return x}
+function applyNeighborhood(x){const inferred=inferNeighborhood(x.address)||inferNeighborhood(x.rawAddress);if(inferred)x.district=inferred;return x}
 function statusLabel(s){return ({waiting:'Bekliyor',prepared:'Hazırlandı',loaded:'Yüklendi',delivered:'Teslim Edildi'})[s]||'Bekliyor'}
 function nextStatus(s){return ({waiting:'prepared',prepared:'loaded',loaded:'delivered',delivered:'waiting'})[s]||'prepared'}
 function normalizeMaterial(m){
