@@ -1,17 +1,10 @@
-# Ekzen Servis Takip V6.1.5 – PDF ve Fotoğraf Okuma
+# Ekzen Servis Takip V7.0 – Malzeme Operasyon Sistemi
 
-V6.1.4 Adres Doğrulama temel alınmıştır.
+V6.1.5 tabanı korunarak üç aşamalı dağıtım operasyonu eklendi:
 
-## Yeni özellikler
-- Orijinal veya taranmış PDF seçme
-- PDF sayfalarını tarayıcı içinde yüksek çözünürlüklü JPEG'e dönüştürme
-- Birden fazla fotoğraf ve PDF sayfasını birlikte okuma
-- En fazla 10 sayfalık toplu işlem
-- HEIC/HEIF fotoğrafları JPEG'e dönüştürme
-- Adres doğrulama, güven puanı ve kontrol işaretleri
-- Cloudflare Worker üzerinden güvenli OpenAI bağlantısı
+1. PDF/fotoğraftan AI ile liste okuma ve aynı müşterileri tek durakta birleştirme
+2. Depo Toplama: malzeme bazında toplam adet, hazırlandı ve araca yüklendi kontrolü
+3. Dağıtıma Çık: her müşterinin malzemelerini tek tek teslim işaretleme
+4. Operasyon Özeti: araçta kalan malzeme ve tamamlanmayan duraklar
 
-## GitHub Pages kurulumu
-ZIP dosyasını doğrudan yüklemeyin. ZIP'i açın ve içindeki tüm dosyaları deponun ana dizinine yükleyerek aynı isimli dosyaları değiştirin.
-
-PDF desteği için `index.html` içinden PDF.js CDN dosyası yüklenir. Bu nedenle PDF seçerken internet bağlantısı gereklidir.
+Eski V6 dağıtım verileri ilk açılışta V7 yapısına aktarılır. Cloudflare Worker adresi aynı şekilde kullanılmaya devam eder.
