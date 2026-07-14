@@ -1,10 +1,12 @@
-# Ekzen Servis Takip V7.0 – Malzeme Operasyon Sistemi
+# Ekzen Servis Takip V7.0.1
 
-V6.1.5 tabanı korunarak üç aşamalı dağıtım operasyonu eklendi:
+## Bu düzeltmede
+- Arama alanı kesintisiz yazılabilir hale getirildi.
+- Depo Toplama ekranı kaldırıldı.
+- Dağıtım kartlarında toplam malzeme adedi gösterilir.
+- Malzemeler butonuyla Soğutucu, Yeni Tasarım ve adet ayrıntıları açılır.
+- Aynı müşteri birden çok satırdaysa malzemeler kaybolmadan adetleri toplanır.
+- PDF/fotoğraf AI okumasında dört zorunlu alan korunur: Müşteri, Adres, Soğutucu, Yeni Tasarım.
+- Toplu seçme, seçilenleri silme ve tüm dağıtımı silme eklendi.
 
-1. PDF/fotoğraftan AI ile liste okuma ve aynı müşterileri tek durakta birleştirme
-2. Depo Toplama: malzeme bazında toplam adet, hazırlandı ve araca yüklendi kontrolü
-3. Dağıtıma Çık: her müşterinin malzemelerini tek tek teslim işaretleme
-4. Operasyon Özeti: araçta kalan malzeme ve tamamlanmayan duraklar
-
-Eski V6 dağıtım verileri ilk açılışta V7 yapısına aktarılır. Cloudflare Worker adresi aynı şekilde kullanılmaya devam eder.
+GitHub'a ZIP'i değil, içindeki tüm dosyaları yükleyin.
