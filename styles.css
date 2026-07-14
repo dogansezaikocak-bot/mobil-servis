@@ -7582,3 +7582,15 @@ body.photo-viewer-open {
 .dist-bulkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px}.dist-bulkbar span{font-weight:900;margin-right:auto}.dist-select{display:flex;align-items:center;gap:7px;margin-bottom:10px;font-weight:900;color:#475569}.dist-select input{width:20px;height:20px;accent-color:#0d9488}
 @media(max-width:900px){.dist-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.dist-toolbar{display:grid;grid-template-columns:1fr}.dist-toolbar>*{width:100%}.dist-bulkbar{display:grid;grid-template-columns:1fr 1fr}.dist-bulkbar span{grid-column:1/-1}.v7-material-toggle{font-size:15px}.v7-stop-materials label{grid-template-columns:auto 1fr}.v7-stop-materials label small{grid-column:2}.dist-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* V7.0.4 - Mahalle sayaçları ve tamamlanma görünümü */
+.dist-neighborhoods{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px}
+.dist-neighborhoods-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.dist-neighborhoods-head b{font-size:17px}.dist-neighborhoods-head span{color:var(--muted);font-size:13px}
+.dist-neighborhood-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
+.dist-neighborhood-chip{position:relative;flex:0 0 auto;min-width:132px;min-height:58px;border:1px solid var(--line);border-radius:9px;background:#f8fafc;padding:9px 12px;text-align:left;cursor:pointer;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;color:var(--text)}
+.dist-neighborhood-chip span{font-weight:800;white-space:nowrap}.dist-neighborhood-chip b{font-size:20px}.dist-neighborhood-chip small{grid-column:1/-1;color:var(--muted);font-weight:700}.dist-neighborhood-chip em{font-style:normal;font-size:20px;color:#fff}
+.dist-neighborhood-chip:hover,.dist-neighborhood-chip.is-active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(30,112,190,.13)}
+.dist-neighborhood-chip.is-complete{background:#16834a;border-color:#16834a;color:#fff}.dist-neighborhood-chip.is-complete small{color:#e8fff1}.dist-neighborhood-chip.is-complete.is-active{box-shadow:0 0 0 3px rgba(22,131,74,.22)}
+.dist-neighborhood-chip.all{min-width:96px}.dist-active-neighborhood{display:flex;align-items:center;gap:12px;background:#eef6ff;border:1px solid #b8d6f4;border-radius:8px;padding:11px 14px}.dist-active-neighborhood span{font-size:18px;font-weight:900}.dist-active-neighborhood b{margin-left:auto}.dist-active-neighborhood em{font-style:normal;font-weight:900;color:#16834a}.dist-active-neighborhood.is-complete{background:#e8f8ef;border-color:#77c596;color:#12643b}
+@media(max-width:620px){.dist-neighborhoods-head{display:grid}.dist-neighborhood-chip{min-width:122px}.dist-active-neighborhood{flex-wrap:wrap}.dist-active-neighborhood b{margin-left:0}.dist-active-neighborhood em{width:100%}}
