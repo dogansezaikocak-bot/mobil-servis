@@ -266,6 +266,56 @@ async function runAi(){
 }
 function renderAiRows(){const s=document.querySelector('#distAiResultSection'),l=document.querySelector('#distAiResultList');s.hidden=false;const review=aiRows.filter(x=>x.needsReview).length;document.querySelector('#distAiResultCount').textContent=aiRows.length+' kayıt'+(review?' · '+review+' adres kontrol gerekli':'');l.innerHTML=aiRows.map((x,i)=>`<article class="${x.needsReview?'needs-review':'address-ok'}"><div class="dist-ai-row-main"><div class="dist-ai-row-title"><input aria-label="Müşteri" data-ai-field="customer" data-index="${i}" value="${esc(x.customer||'')}"><span class="dist-confidence ${x.needsReview?'low':'high'}">${x.needsReview?'⚠ Kontrol':'✓ Doğrulandı'} · %${Math.round(x.addressConfidence||0)}</span></div><input class="dist-ai-group-input" aria-label="Grup" data-ai-field="district" data-index="${i}" value="${esc(x.district||'')}"><textarea aria-label="Adres" data-ai-field="address" data-index="${i}" rows="2">${esc(x.address||'')}</textarea>${x.rawAddress&&x.rawAddress!==x.address?`<small class="dist-raw-address">Kaynakta okunan: ${esc(x.rawAddress)}</small>`:''}<div>${x.materials.map(m=>`<span>${Math.max(1,Number(m.quantity)||1)} adet · Soğutucu: ${esc(m.cooler||m.name||'-')} · Yeni Tasarım: ${esc(m.newDesign||'-')}</span>`).join('')}</div>${x.note?`<em>${esc(x.note)}</em>`:''}</div><button type="button" data-dist="ai-remove-row" data-index="${i}">Sil</button></article>`).join('')}
 function saveAiRows(){if(!aiRows.length)return;const f=document.querySelector('#distributionAiForm');data=mergeDuplicates(f.elements.mode.value==='replace'?aiRows:data.concat(aiRows));save();document.querySelector('#distributionAiDialog').close();render();alert(aiRows.length+' kayıt dağıtım listesine eklendi.')}
+
+function saveDistributionForm(){
+ const f=document.querySelector('#distributionForm');
+ if(!f)return;
+ if(!String(f.elements.customer.value||'').trim()){
+  alert('Müşteri adı boş bırakılamaz.');f.elements.customer.focus();return;
+ }
+ const id=String(f.elements.id.value||'').trim();
+ const old=data.find(x=>x.id===id);
+ const selectedStatus=String(f.elements.status.value||'waiting');
+ const parsed=String(f.elements.materials.value||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).map(line=>{
+  const p=line.split('|').map(v=>v.trim());
+  return {cooler:p[0]||'',newDesign:p[1]||'',quantity:Math.max(1,Number.parseInt(p[2]||'1',10)||1),delivered:selectedStatus==='delivered'};
+ });
+ if(!parsed.length){alert('En az bir malzeme gir.');f.elements.materials.focus();return;}
+ const manualDistrict=String(f.elements.district.value||'').trim();
+ const manualAddress=String(f.elements.address.value||'').trim();
+ const item=normalizeItem({
+  id:id||(old?.id)||uid(),
+  customer:String(f.elements.customer.value||'').trim(),
+  address:manualAddress,
+  district:manualDistrict,
+  phone:String(f.elements.phone.value||'').trim(),
+  materials:parsed,
+  status:selectedStatus,
+  note:String(f.elements.note.value||'').trim(),
+  deliveredAt:old?.deliveredAt||''
+ });
+ // Kullanıcının elle yazdığı mahalleyi koru. Sadece alan boşsa adresten otomatik bul.
+ item.district=manualDistrict||inferNeighborhood(manualAddress)||'';
+ if(selectedStatus==='delivered'){
+  item.materials.forEach(m=>m.delivered=true);item.status='delivered';item.deliveredAt=old?.deliveredAt||new Date().toISOString();
+ }else{
+  item.materials.forEach(m=>m.delivered=false);item.status='waiting';item.deliveredAt='';
+ }
+ const i=data.findIndex(x=>x.id===item.id);
+ if(i>=0)data[i]=item;else data.push(item);
+ save();
+ // Kaydın gerçekten localStorage'a yazıldığını doğrula.
+ try{
+  const check=JSON.parse(localStorage.getItem(KEY)||'[]');
+  const saved=check.find(x=>x.id===item.id);
+  if(!saved)throw new Error('Kayıt doğrulanamadı');
+ }catch(err){alert('Değişiklik kaydedilemedi: '+err.message);return;}
+ const dlg=document.querySelector('#distributionDialog');if(dlg?.open)dlg.close();
+ if(selectedStatus!=='delivered'&&filters.status==='delivered')filters.status='all';
+ render();
+ alert('Değişiklikler kaydedildi.');
+}
+
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if(!b)return;const a=b.dataset.dist,id=b.dataset.id;
  if(a==='set-mode'){mode=b.dataset.mode;render();return}
  if(a==='toggle-materials'){expandedStops.has(id)?expandedStops.delete(id):expandedStops.add(id);render();return}
@@ -280,30 +330,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if
  if(a==='deliver-material'){return}
  if(a==='complete-stop'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' için '+groupedMaterials(x).reduce((a,m)=>a+m.quantity,0)+' adet malzemenin tamamı teslim edildi mi?')){x.materials.forEach(m=>m.delivered=true);syncStatus(x);save();render()}return}
  if(a==='reset-waiting'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' kaydı Bekliyor durumuna geri alınsın mı?')){x.materials.forEach(m=>m.delivered=false);x.status='waiting';x.deliveredAt='';save();filters.status=filters.status==='delivered'?'all':filters.status;render()}return}
- if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){data=data.filter(x=>x.id!==document.querySelector('#distributionForm').elements.id.value);save();document.querySelector('#distributionDialog').close();render()}
+ if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){data=data.filter(x=>x.id!==document.querySelector('#distributionForm').elements.id.value);save();document.querySelector('#distributionDialog').close();render()}
  if(a==='ai-open')aiDialog();if(a==='close-ai')document.querySelector('#distributionAiDialog').close();if(a==='ai-read')runAi();if(a==='ai-save')saveAiRows();if(a==='ai-remove-image'){aiImages.splice(Number(b.dataset.index),1);renderAiImages();setAiStatus(aiImages.length?aiImages.length+' sayfa hazır.':'Henüz PDF veya fotoğraf seçilmedi.')}if(a==='ai-remove-row'){aiRows.splice(Number(b.dataset.index),1);renderAiRows();document.querySelector('#distAiSaveButton').disabled=!aiRows.length}
 });
 document.addEventListener('input',e=>{if(e.target.id==='distSearch'){filters.q=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{render();const i=document.querySelector('#distSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},220);return}const field=e.target.dataset?.aiField;if(field&&aiRows[Number(e.target.dataset.index)]){const x=aiRows[Number(e.target.dataset.index)];x[field]=e.target.value;if(field==='address'){x.needsReview=false;x.addressConfidence=100}document.querySelector('#distAiSaveButton').disabled=!aiRows.length}});
 document.addEventListener('change',e=>{if(e.target.matches('[data-dist=\"select-stop\"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist=\"deliver-material\"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save();render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
-document.addEventListener('submit',e=>{
- if(e.target.id!=='distributionForm')return;
- e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
- const f=e.target;
- const id=f.elements.id.value;
- const old=data.find(x=>x.id===id);
- const selectedStatus=f.elements.status.value;
- const parsed=f.elements.materials.value.split(/\n+/).filter(Boolean).map(line=>{const p=line.split('|').map(v=>v.trim());return {cooler:p[0]||'',new_design:p[1]||'',quantity:p[2]||1,delivered:selectedStatus==='delivered'}});
- const item=normalizeItem({id,customer:f.elements.customer.value,district:f.elements.district.value,address:f.elements.address.value,phone:f.elements.phone.value,materials:parsed,status:selectedStatus,note:f.elements.note.value});
- if(selectedStatus==='delivered'){item.materials.forEach(m=>m.delivered=true);item.status='delivered';item.deliveredAt=old?.deliveredAt||new Date().toISOString()}
- else{item.materials.forEach(m=>m.delivered=false);item.status='waiting';item.deliveredAt=''}
- const i=data.findIndex(x=>x.id===id);
- if(i>=0)data.splice(i,1,item);else data.push(item);
- save();
- const dlg=document.querySelector('#distributionDialog');if(dlg?.open)dlg.close();
- if(selectedStatus!=='delivered'&&filters.status==='delivered')filters.status='all';
- render();
- setTimeout(()=>alert(selectedStatus==='delivered'?'Teslim durumu kaydedildi.':'Kayıt Bekliyor durumuna geri alındı.'),0);
-},true);
+document.addEventListener('submit',e=>{if(e.target.id==='distributionForm'){e.preventDefault();e.stopPropagation();saveDistributionForm();}},true);
 document.querySelector('#distributionImportForm')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,arr=parseImport(f.elements.text.value);if(!arr.length){alert('Okunabilir kayıt bulunamadı.');return}data=mergeDuplicates(f.elements.mode.value==='replace'?arr:data.concat(arr));save();document.querySelector('#distributionImportDialog').close();f.reset();render();alert(arr.length+' kayıt içe aktarıldı.')});
 data=mergeDuplicates(data).map(applyNeighborhood);save();window.renderDistribution=render;render();
 })();

@@ -1,3 +1,10 @@
+Ekzen Servis Takip V7.0.8
+
+- Manuel düzenleme kayıt sorunu giderildi.
+- Kaydet butonu doğrudan kayıt fonksiyonunu çalıştırır.
+- Müşteri, adres, mahalle, telefon, durum, malzemeler ve not localStorage üzerine kalıcı yazılır.
+- Elle girilen mahalle korunur; yalnızca boşsa adresten otomatik çıkarılır.
+
 # Ekzen Servis Takip V7.0.7
 
 - Teslim edilen kayıtlar doğrudan “Beklemeye Al” düğmesiyle geri alınabilir.

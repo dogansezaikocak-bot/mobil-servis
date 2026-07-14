@@ -321,7 +321,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V7.0.7</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V7.0.8</div>
 
 
 
@@ -634,7 +634,7 @@
 
 
   <dialog id="distributionDialog" class="dialog small-dialog">
-    <form method="dialog" class="dialog-shell" id="distributionForm">
+    <form class="dialog-shell" id="distributionForm" novalidate>
       <header><h2>Dağıtım Kaydı</h2><button class="icon-button" type="button" data-dist="close-form">×</button></header>
       <div class="dialog-body dist-form-grid">
         <input name="id" type="hidden">
@@ -646,7 +646,7 @@
         <label class="wide">Malzemeler (her satıra bir malzeme)<textarea name="materials" rows="6" required></textarea></label>
         <label class="wide">Not<textarea name="note" rows="3"></textarea></label>
       </div>
-      <footer><button class="danger-button" type="button" data-dist="delete" data-dist-delete>Sil</button><span></span><button class="secondary-button" type="button" data-dist="close-form">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></footer>
+      <footer><button class="danger-button" type="button" data-dist="delete" data-dist-delete>Sil</button><span></span><button class="secondary-button" type="button" data-dist="close-form">Vazgeç</button><button class="primary-button" type="button" data-dist="save-form">Kaydet</button></footer>
     </form>
   </dialog>
   <dialog id="distributionImportDialog" class="dialog small-dialog">
@@ -737,9 +737,9 @@ Etlik, İncirli = Grup 2"></textarea>
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=7.0.7-20260715"></script>
+  <script src="./app.js?v=7.0.8-20260715"></script>
   <script src="./heic2any.min.js?v=0.0.4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="./distribution.js?v=7.0.7-20260715"></script>
+  <script src="./distribution.js?v=7.0.8-20260715"></script>
 </body>
 </html>
