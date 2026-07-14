@@ -57,6 +57,7 @@ const views = {
   customers: document.querySelector("#customersView"),
   sources: document.querySelector("#sourcesView"),
   cash: document.querySelector("#cashView"),
+  distribution: document.querySelector("#distributionView"),
   ekzenCash: document.querySelector("#ekzenCashView"),
   settings: document.querySelector("#settingsView"),
 };
@@ -698,6 +699,7 @@ function switchView(view) {
     customers: "Müşteri kayıtları",
     sources: "Servis kaynağı yönetimi",
     cash: "Kasa hareketleri",
+    distribution: "Malzeme dağıtım operasyonu",
     ekzenCash: "Ekzen özel kasa",
     settings: "Modül ve firma ayarları",
   };
@@ -718,6 +720,7 @@ function render() {
   renderCash();
   renderEkzenCash();
   renderSettings();
+  if (window.renderDistribution) window.renderDistribution();
   if (detailDialog.open && activeDetailId) renderDetail(activeDetailId);
 }
 
@@ -4747,7 +4750,6 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     selectedDate = nextDate;
     mobileSelectedDate = nextDate;
     renderMobileOpenClosed(false);
-    if (typeof window.ekzenUpdateWelcome === "function") window.ekzenUpdateWelcome();
   }, true);
 
   document.addEventListener("change", (event) => {
@@ -4755,7 +4757,6 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       event.stopImmediatePropagation();
       selectedDate = String(event.target.value || isoToday).slice(0, 10);
       settle(false);
-      if (typeof window.ekzenUpdateWelcome === "function") window.ekzenUpdateWelcome();
       return;
     }
     if (event.target.matches("#mobileSourcePicker")) {
@@ -4803,265 +4804,4 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     selectedDate = String(picker?.value || mobileSelectedDate || isoToday).slice(0, 10);
     settle(false);
   }, 180);
-})();
-
-/* V5.2.1 - Mobil karşılama ana sayfası ve ayrı liste akışı */
-(function setupMobileWelcomeHomeV521() {
-  const root = document.querySelector("#mobileTechApp");
-  if (!root) return;
-
-  const todayIso = () => toIsoDate(new Date());
-  const dateInput = () => document.querySelector("#mobileDatePicker");
-
-  function serviceDates(service) {
-    return [service.availableDate, service.visitDate, service.date, service.createdAt]
-      .filter(Boolean)
-      .map((value) => String(value).slice(0, 10));
-  }
-
-  function selectedDate() {
-    const value = String(dateInput()?.value || todayIso()).slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayIso();
-  }
-
-  function selectedSourceValue() {
-    return document.querySelector("#mobileSourcePicker")?.value || "";
-  }
-
-  function dateRows() {
-    const date = selectedDate();
-    const source = selectedSourceValue();
-    return (state.services || []).filter((service) => {
-      const dateMatch = serviceDates(service).includes(date);
-      const sourceMatch = !source || sourceMatches(service.source, source);
-      return dateMatch && sourceMatch;
-    });
-  }
-
-  function isClosedWelcomeService(service) {
-    return isStatus(service.status, "İşlem Tamam") || isStatus(service.status, "İptal");
-  }
-
-  function formatWelcomeDate(date) {
-    try {
-      return new Intl.DateTimeFormat("tr-TR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric"
-      }).format(new Date(`${date}T12:00:00`));
-    } catch (_) { return date; }
-  }
-
-  function formatWelcomeDay(date) {
-    try {
-      return new Intl.DateTimeFormat("tr-TR", { weekday: "long" })
-        .format(new Date(`${date}T12:00:00`));
-    } catch (_) { return ""; }
-  }
-
-  function formatWelcomeSummary(date) {
-    return date === todayIso() ? "Bugünün servis özeti" : `${formatWelcomeDate(date)} servis özeti`;
-  }
-
-  function updateWelcome() {
-    const rows = dateRows();
-    const openRows = rows.filter((service) => !isClosedWelcomeService(service));
-    const closedRows = rows.filter(isClosedWelcomeService);
-    const openEl = document.querySelector("#mobileWelcomeOpenCount");
-    const closedEl = document.querySelector("#mobileWelcomeClosedCount");
-    const textEl = document.querySelector("#mobileWelcomeDateText");
-    const dateDisplayEl = document.querySelector("#mobileWelcomeDateDisplay");
-    const listDateEl = document.querySelector("#mobileListPageDate");
-    if (openEl) openEl.textContent = String(openRows.length);
-    if (closedEl) closedEl.textContent = String(closedRows.length);
-
-    const source = selectedSourceValue();
-    const cashItems = (state.cash || []).filter((item) => {
-      const itemDate = String(item.date || "").slice(0, 10);
-      const itemSource = cashItemSource(item);
-      return cashIsPosted(item)
-        && matchesPortalSource(itemSource)
-        && (!source || sourceMatches(itemSource, source))
-        && itemDate === selectedDate();
-    });
-    const serviceTotals = serviceOnlyCashBreakdown(cashItems);
-    const income = Number(serviceTotals.income || 0);
-    const earning = income - Number(serviceTotals.commission || 0) - Number(serviceTotals.material || 0);
-    const incomeEl = document.querySelector("#mobileWelcomeIncome");
-    const earningEl = document.querySelector("#mobileWelcomeEarning");
-    if (incomeEl) incomeEl.textContent = money(income);
-    if (earningEl) earningEl.textContent = money(earning);
-
-    if (textEl) textEl.textContent = formatWelcomeSummary(selectedDate());
-    if (dateDisplayEl) {
-      dateDisplayEl.innerHTML = `<span class="mobile-welcome-date-line">${formatWelcomeDate(selectedDate())}</span><span class="mobile-welcome-day-line">${formatWelcomeDay(selectedDate())}</span>`;
-    }
-    if (listDateEl) listDateEl.textContent = selectedDate() === todayIso() ? "Bugün" : formatWelcomeDate(selectedDate());
-  }
-
-  function syncExistingMobile() {
-    const picker = dateInput();
-    if (!picker) return;
-    mobileSelectedDate = selectedDate();
-    picker.dispatchEvent(new Event("change", { bubbles: true }));
-    if (typeof window.ekzenMobileOpenClosedV511 === "function") window.ekzenMobileOpenClosedV511(false);
-    updateWelcome();
-  }
-
-  let nativeActivePage = null;
-  let nativeTransitionTimer = 0;
-
-  function ensureNativePageShell() {
-    let shell = document.querySelector("#mobileNativePageShell");
-    if (shell) return shell;
-
-    shell = document.createElement("section");
-    shell.id = "mobileNativePageShell";
-    shell.className = "mobile-native-page-shell";
-    shell.setAttribute("aria-hidden", "true");
-
-    const nodes = [
-      root.querySelector(":scope > .mobile-tech-header"),
-      root.querySelector(":scope > .mobile-list-head"),
-      root.querySelector(":scope > #mobileDailyCashPage"),
-      root.querySelector(":scope > #mobileServiceList"),
-      root.querySelector(":scope > .mobile-new-service-bar"),
-      root.querySelector(":scope > .mobile-version-badge")
-    ].filter(Boolean);
-    nodes.forEach((node) => shell.appendChild(node));
-
-    const backdrop = document.createElement("button");
-    backdrop.id = "mobileNativePageBackdrop";
-    backdrop.className = "mobile-native-page-backdrop";
-    backdrop.type = "button";
-    backdrop.setAttribute("aria-label", "Ana sayfaya dön");
-    backdrop.addEventListener("click", () => showHome(false));
-
-    root.append(backdrop, shell);
-    return shell;
-  }
-
-  function openNativePage(mode) {
-    const shell = ensureNativePageShell();
-    const backdrop = document.querySelector("#mobileNativePageBackdrop");
-    clearTimeout(nativeTransitionTimer);
-    shell.classList.remove("is-active");
-    shell.setAttribute("aria-hidden", "false");
-    shell.style.visibility = "visible";
-    if (backdrop) backdrop.classList.add("is-active");
-    root.classList.add("has-native-page");
-    nativeActivePage = mode;
-    requestAnimationFrame(() => requestAnimationFrame(() => shell.classList.add("is-active")));
-  }
-
-  function showHome(resetToday = true) {
-    const shell = ensureNativePageShell();
-    const backdrop = document.querySelector("#mobileNativePageBackdrop");
-    clearTimeout(nativeTransitionTimer);
-
-    const finishHome = () => {
-      if (resetToday) {
-        const picker = dateInput();
-        if (picker) picker.value = todayIso();
-        mobileSelectedDate = todayIso();
-      }
-      root.classList.remove("is-list-mode", "is-cash-mode", "has-native-page");
-      root.classList.add("is-welcome-mode");
-      const cashPage = document.querySelector("#mobileDailyCashPage");
-      const serviceList = document.querySelector("#mobileServiceList");
-      const globalNewButton = document.querySelector("#mobileNativePageShell .mobile-new-service-bar");
-      if (cashPage) cashPage.hidden = true;
-      if (serviceList) {
-        serviceList.hidden = true;
-        serviceList.style.setProperty("display", "none", "important");
-      }
-      if (globalNewButton) {
-        globalNewButton.hidden = true;
-        globalNewButton.style.setProperty("display", "none", "important");
-      }
-      shell.setAttribute("aria-hidden", "true");
-      shell.style.visibility = "hidden";
-      nativeActivePage = null;
-      syncExistingMobile();
-      window.scrollTo({ top: 0, behavior: "auto" });
-    };
-
-    if (nativeActivePage && shell.classList.contains("is-active")) {
-      shell.classList.remove("is-active");
-      if (backdrop) backdrop.classList.remove("is-active");
-      nativeTransitionTimer = window.setTimeout(finishHome, 370);
-    } else {
-      if (backdrop) backdrop.classList.remove("is-active");
-      finishHome();
-    }
-  }
-
-  function showList(bucket) {
-    ensureNativePageShell();
-    root.classList.remove("is-welcome-mode", "is-cash-mode");
-    root.classList.add("is-list-mode");
-    const serviceList = document.querySelector("#mobileServiceList");
-    const globalNewButton = document.querySelector("#mobileNativePageShell .mobile-new-service-bar");
-    if (serviceList) {
-      serviceList.hidden = false;
-      serviceList.style.removeProperty("display");
-    }
-    if (globalNewButton) {
-      globalNewButton.hidden = false;
-      globalNewButton.style.removeProperty("display");
-    }
-    const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
-    if (tab) tab.click();
-    updateWelcome();
-    openNativePage("list");
-    document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
-  }
-
-  function showCash() {
-    ensureNativePageShell();
-    root.classList.remove("is-welcome-mode", "is-list-mode");
-    root.classList.add("is-cash-mode");
-    const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
-    if (openCash) openCash.click();
-    openNativePage("cash");
-    document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
-  }
-
-  document.addEventListener("click", (event) => {
-    const counter = event.target.closest("#mobileWelcomePage [data-welcome-target]");
-    if (counter) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      showList(counter.dataset.welcomeTarget === "closed" ? "closed" : "open");
-      return;
-    }
-
-    const action = event.target.closest("#mobileTechApp [data-welcome-action]");
-    if (!action) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    if (action.dataset.welcomeAction === "cash") showCash();
-    if (action.dataset.welcomeAction === "home") showHome(true);
-  }, true);
-
-  document.addEventListener("change", (event) => {
-    if (!event.target.matches("#mobileDatePicker")) return;
-    mobileSelectedDate = selectedDate();
-    updateWelcome();
-  });
-
-  const previousRender = render;
-  render = function renderWithWelcomeHomeV521() {
-    previousRender();
-    updateWelcome();
-  };
-
-  window.ekzenUpdateWelcome = updateWelcome;
-  window.ekzenMobileShowHome = () => showHome(true);
-  window.ekzenMobileShowList = (bucket = "open") => showList(bucket);
-  window.ekzenMobileShowCash = showCash;
-
-  window.addEventListener("pageshow", () => showHome(true));
-  window.addEventListener("load", () => showHome(true));
-  setTimeout(() => showHome(true), 220);
 })();

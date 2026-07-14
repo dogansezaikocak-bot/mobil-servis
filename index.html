@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.3.0 Native Navigation</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.0-native-fix">
+  <title>Ekzen Servis Takip V6.0</title>
+  <link rel="stylesheet" href="./styles.css?v=6.0-20260714">
 </head>
 <body>
   <div class="app-shell admin-shell">
@@ -21,6 +21,7 @@
           <button class="nav-item is-active" type="button" data-view="dashboard" title="Ana Sayfa"><span>⌂</span><b>Ana Sayfa</b></button>
           <button class="nav-item" type="button" data-view="services" title="Servisler"><span>☑</span><b>Servisler</b></button>
           <button class="nav-item" type="button" data-action="show-all-records" title="Tüm Kayıtlar"><span>▦</span><b>Tüm Kayıtlar</b></button>
+          <button class="nav-item" type="button" data-view="distribution" title="Dağıtım"><span>📦</span><b>Dağıtım</b></button>
           <button class="nav-item" type="button" data-view="cash" title="Kasa"><span>₺</span><b>Kasa</b></button>
           <button class="nav-item" type="button" data-view="ekzenCash" title="Ekzen Özel Kasa"><span>◈</span><b>Ekzen Kasa</b></button>
           <button class="nav-item" type="button" data-view="settings" title="Ayarlar"><span>⚙</span><b>Ayarlar</b></button>
@@ -129,6 +130,9 @@
           </section>
         </div>
       </section>
+
+
+      <section class="view" id="distributionView" aria-labelledby="distributionTitle"></section>
 
       <section class="view" id="customersView">
         <section class="panel">
@@ -246,48 +250,7 @@
 </main>
   </div>
 
-  <section id="mobileTechApp" class="mobile-tech-app is-welcome-mode" aria-label="Teknisyen mobil paneli">
-    <section id="mobileWelcomePage" class="mobile-welcome-page" aria-labelledby="mobileWelcomeTitle">
-      <div class="mobile-welcome-brand">
-        <span>Ekzen Servis Takip</span>
-        <h1 id="mobileWelcomeTitle">Hoş Geldiniz</h1>
-        <p id="mobileWelcomeDateText">Bugünün servis özeti</p>
-      </div>
-
-      <label class="mobile-welcome-date-card">
-        <span>Tarih</span>
-        <strong id="mobileWelcomeDateDisplay" class="mobile-welcome-date-display">Bugün</strong>
-        <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Servis tarihi seç">
-      </label>
-
-      <div class="mobile-welcome-counter-grid" aria-label="Günlük servis sayaçları">
-        <button type="button" class="mobile-welcome-counter open" data-welcome-target="open">
-          <span>Günün İşleri</span>
-          <strong><b id="mobileWelcomeOpenCount">0</b> fiş</strong>
-          <small>Servisleri görüntüle</small>
-        </button>
-        <button type="button" class="mobile-welcome-counter closed" data-welcome-target="closed">
-          <span>Kapanan Fişler</span>
-          <strong><b id="mobileWelcomeClosedCount">0</b> fiş</strong>
-          <small>Kapananları görüntüle</small>
-        </button>
-      </div>
-
-      <div class="mobile-welcome-finance-grid" aria-label="Günlük kasa özeti">
-        <button type="button" class="mobile-welcome-finance-card income" data-welcome-action="cash">
-          <span>Toplam Hasılat</span>
-          <strong id="mobileWelcomeIncome">₺0</strong>
-          <small>Kasa sayfasını aç</small>
-        </button>
-        <button type="button" class="mobile-welcome-finance-card earning" data-welcome-action="cash">
-          <span>Hakediş</span>
-          <strong id="mobileWelcomeEarning">₺0</strong>
-          <small>Hasılat − komisyon − malzeme</small>
-        </button>
-      </div>
-
-      <button class="mobile-welcome-new-service" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    </section>
+  <section id="mobileTechApp" class="mobile-tech-app" aria-label="Teknisyen mobil paneli">
     <header class="mobile-tech-header">
       <div class="mobile-summary-actions mobile-summary-actions-v505" aria-label="Teknisyen iş özeti">
         <button type="button" class="mobile-summary-card is-active" data-mobile-bucket="open">
@@ -302,14 +265,11 @@
     </header>
 
     <div class="mobile-list-head mobile-list-head-v3313">
-      <div class="mobile-list-page-title">
-        <span>Servisler</span>
-        <strong id="mobileListPageDate">Bugün</strong>
-      </div>
       <div class="mobile-date-control-row mobile-date-control-row-v353" aria-label="Mobil tarih ve kaynak filtresi">
-        <button class="mobile-list-home-button mobile-top-control" type="button" data-welcome-action="home">
-          <span>‹</span><b>Ana Sayfa</b>
-        </button>
+        <label class="mobile-date-real-label mobile-top-control">
+          <span>Tarih</span>
+          <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Mobil servis tarihi">
+        </label>
         <label class="mobile-source-real-label mobile-top-control">
           <span>Kaynaklar</span>
           <select id="mobileSourcePicker" class="mobile-source-input-real" aria-label="Mobil servis kaynağı">
@@ -324,7 +284,7 @@
 
     <div id="mobileDailyCashPage" class="mobile-daily-cash-page" hidden>
       <div class="mobile-daily-page-head">
-        <button class="mobile-back-button" type="button" data-welcome-action="home" aria-label="Ana sayfaya dön">‹</button>
+        <button class="mobile-back-button" type="button" data-mobile-action="close-daily-cash">‹</button>
         <div>
           <span>Günlük Kasa</span>
           <strong id="mobileDailyCashPageDate">Bugün</strong>
@@ -361,7 +321,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.2 Karşılama</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V6.1</div>
 
 
 
@@ -672,6 +632,72 @@
     </div>
   </dialog>
 
+
+  <dialog id="distributionDialog" class="dialog small-dialog">
+    <form method="dialog" class="dialog-shell" id="distributionForm">
+      <header><h2>Dağıtım Kaydı</h2><button class="icon-button" type="button" data-dist="close-form">×</button></header>
+      <div class="dialog-body dist-form-grid">
+        <input name="id" type="hidden">
+        <label>Dükkân / Müşteri<input name="customer" required></label>
+        <label>Mahalle / Grup<input name="district" placeholder="Örn. Grup 1 - Saray"></label>
+        <label class="wide">Adres<textarea name="address" rows="3"></textarea></label>
+        <label>Telefon<input name="phone" type="tel"></label>
+        <label>Durum<select name="status"><option value="waiting">Bekliyor</option><option value="prepared">Hazırlandı</option><option value="loaded">Yüklendi</option><option value="delivered">Teslim Edildi</option></select></label>
+        <label class="wide">Malzemeler (her satıra bir malzeme)<textarea name="materials" rows="6" required></textarea></label>
+        <label class="wide">Not<textarea name="note" rows="3"></textarea></label>
+      </div>
+      <footer><button class="danger-button" type="button" data-dist="delete" data-dist-delete>Sil</button><span></span><button class="secondary-button" type="button" data-dist="close-form">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></footer>
+    </form>
+  </dialog>
+  <dialog id="distributionImportDialog" class="dialog small-dialog">
+    <form method="dialog" class="dialog-shell" id="distributionImportForm">
+      <header><h2>Dağıtım Listesi İçe Aktar</h2><button class="icon-button" type="button" data-dist="close-import">×</button></header>
+      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Liste<textarea name="text" rows="14" placeholder="Dükkân | Grup | Adres | Malzeme 1, Malzeme 2
+veya JSON yedeğini buraya yapıştır"></textarea></label><small class="wide">Her kayıt ayrı satır olmalı. Sütunları | veya ; ile ayırabilirsin.</small></div>
+      <footer><span></span><span></span><button class="secondary-button" type="button" data-dist="close-import">Vazgeç</button><button class="primary-button" type="submit">İçe Aktar</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="distributionAiDialog" class="dialog wide-modal">
+    <form method="dialog" class="dialog-shell dist-ai-shell" id="distributionAiForm">
+      <header><div><h2>Fotoğraftan AI ile Liste Oluştur · V6.1.3</h2><small>Bir veya birden fazla liste sayfasını çek ya da seç.</small></div><button class="icon-button" type="button" data-dist="close-ai">×</button></header>
+      <div class="dialog-body dist-ai-body">
+        <section class="dist-ai-upload">
+          <div class="dist-ai-file-actions">
+            <label class="dist-camera-button">🖼️ Galeriden Fotoğraf Seç
+              <input id="distAiFiles" name="files" type="file" accept="image/*,.heic,.heif" multiple>
+            </label>
+            <label class="dist-camera-button">📷 Kamerayla Çek
+              <input id="distAiCamera" name="cameraFile" type="file" accept="image/*" capture="environment">
+            </label>
+          </div>
+          <div id="distAiPreviews" class="dist-ai-previews"><p>Henüz fotoğraf seçilmedi.</p></div>
+        </section>
+        <section class="dist-ai-settings">
+          <label>Güvenli AI bağlantı adresi
+            <input name="proxyUrl" id="distAiProxyUrl" type="url" placeholder="https://...workers.dev" autocomplete="url">
+            <small>OpenAI anahtarı telefona girilmez. Anahtar yalnızca Cloudflare Worker içinde gizli tutulur.</small>
+          </label>
+          <label>Aktarma şekli
+            <select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select>
+          </label>
+          <label>Mahalle / grup kuralı
+            <textarea name="groupRules" rows="4" placeholder="Örn: Saray, Altınova = Grup 1
+Etlik, İncirli = Grup 2"></textarea>
+            <small>Boş bırakırsan AI, adresteki mahalleyi grup olarak yazar.</small>
+          </label>
+          <div id="distAiStatus" class="dist-ai-status">Fotoğrafları seçip “AI ile Oku” düğmesine bas.</div>
+        </section>
+        <section id="distAiResultSection" class="dist-ai-result" hidden>
+          <div class="dist-ai-result-head"><strong>Okunan Kayıtlar</strong><span id="distAiResultCount">0 kayıt</span></div>
+          <div id="distAiResultList" class="dist-ai-result-list"></div>
+          <small>Kaydetmeden önce dükkân, adres ve malzemeleri kontrol et. Hatalı satırları silebilirsin.</small>
+        </section>
+      </div>
+      <footer><button class="secondary-button" type="button" data-dist="close-ai">Vazgeç</button><span></span><button class="secondary-button" id="distAiReadButton" type="button" data-dist="ai-read">AI ile Oku</button><button class="primary-button" id="distAiSaveButton" type="button" data-dist="ai-save" disabled>Listeye Kaydet</button></footer>
+    </form>
+  </dialog>
+
   <div id="photoViewer" class="photo-viewer" aria-hidden="true">
     <div class="photo-viewer-toolbar">
       <div>
@@ -711,6 +737,8 @@
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.0-native-fix"></script>
+  <script src="./app.js?v=6.1.3-20260714"></script>
+  <script src="./heic2any.min.js?v=0.0.4"></script>
+  <script src="./distribution.js?v=6.1.3-20260714"></script>
 </body>
 </html>
