@@ -1,4 +1,4 @@
-# Ekzen Servis Takip V6.1.2
+# Ekzen Servis Takip V6.1.4
 
 ## Güvenli AI bağlantısı
 
@@ -21,3 +21,11 @@ API anahtarı uygulama kodunda, tarayıcıda veya localStorage içinde tutulmaz.
 - iPhone HEIC/HEIF fotoğrafları uygulama içinde JPEG'e çevrilir.
 - OpenAI'a yalnızca geçerli JPEG veri adresi gönderilir.
 - Bozuk önizleme ve 'valid image' hatası giderildi.
+
+
+## V6.1.4 Adres Doğrulama
+- Adres sütunu için güçlendirilmiş AI okuma talimatı
+- Türkçe karakter ve Ankara ilçe/mahalle yazım normalizasyonu
+- Kayıtlı müşteriyle güçlü eşleşmede mevcut doğru adresi kullanma
+- Adres güven puanı ve “Kontrol gerekli” işareti
+- AI sonuç ekranında müşteri, grup ve adresi kaydetmeden önce düzenleme
