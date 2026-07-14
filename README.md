@@ -1,31 +1,17 @@
-# Ekzen Servis Takip V6.1.4
+# Ekzen Servis Takip V6.1.5 – PDF ve Fotoğraf Okuma
 
-## Güvenli AI bağlantısı
+V6.1.4 Adres Doğrulama temel alınmıştır.
 
-Bu sürümde OpenAI API anahtarı uygulamaya veya telefona girilmez. Fotoğraf okuma yalnızca Cloudflare Worker üzerinden çalışır.
+## Yeni özellikler
+- Orijinal veya taranmış PDF seçme
+- PDF sayfalarını tarayıcı içinde yüksek çözünürlüklü JPEG'e dönüştürme
+- Birden fazla fotoğraf ve PDF sayfasını birlikte okuma
+- En fazla 10 sayfalık toplu işlem
+- HEIC/HEIF fotoğrafları JPEG'e dönüştürme
+- Adres doğrulama, güven puanı ve kontrol işaretleri
+- Cloudflare Worker üzerinden güvenli OpenAI bağlantısı
 
-### Uygulama kullanımı
-1. Dağıtım > Fotoğraftan AI Oku bölümünü açın.
-2. Cloudflare Worker adresini bir kez girin. Adres cihazda saklanır.
-3. Fotoğrafları seçin ve AI ile Oku düğmesine basın.
+## GitHub Pages kurulumu
+ZIP dosyasını doğrudan yüklemeyin. ZIP'i açın ve içindeki tüm dosyaları deponun ana dizinine yükleyerek aynı isimli dosyaları değiştirin.
 
-### Cloudflare Worker kurulumu
-1. `cloudflare-worker-openai-proxy.js` dosyasını Cloudflare Workers içine yapıştırın.
-2. Worker ayarlarında `OPENAI_API_KEY` adlı encrypted secret oluşturun.
-3. Worker URL adresini uygulamadaki Güvenli AI bağlantı adresi alanına girin.
-
-API anahtarı uygulama kodunda, tarayıcıda veya localStorage içinde tutulmaz.
-
-
-## V6.1.3
-- iPhone HEIC/HEIF fotoğrafları uygulama içinde JPEG'e çevrilir.
-- OpenAI'a yalnızca geçerli JPEG veri adresi gönderilir.
-- Bozuk önizleme ve 'valid image' hatası giderildi.
-
-
-## V6.1.4 Adres Doğrulama
-- Adres sütunu için güçlendirilmiş AI okuma talimatı
-- Türkçe karakter ve Ankara ilçe/mahalle yazım normalizasyonu
-- Kayıtlı müşteriyle güçlü eşleşmede mevcut doğru adresi kullanma
-- Adres güven puanı ve “Kontrol gerekli” işareti
-- AI sonuç ekranında müşteri, grup ve adresi kaydetmeden önce düzenleme
+PDF desteği için `index.html` içinden PDF.js CDN dosyası yüklenir. Bu nedenle PDF seçerken internet bağlantısı gereklidir.

@@ -33,7 +33,7 @@ function parseImport(text){text=text.trim();if(!text)return[];try{const j=JSON.p
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function aiDialog(){
  const d=document.querySelector('#distributionAiDialog'); const f=document.querySelector('#distributionAiForm');
- aiImages=[]; aiRows=[]; f.reset(); document.querySelector('#distAiPreviews').innerHTML='<p>Henüz fotoğraf seçilmedi.</p>'; document.querySelector('#distAiResultSection').hidden=true; document.querySelector('#distAiSaveButton').disabled=true; const proxyInput=document.querySelector('#distAiProxyUrl');if(proxyInput)proxyInput.value=localStorage.getItem(AI_PROXY_KEY)||''; setAiStatus('Fotoğrafları seçip “AI ile Oku” düğmesine bas.'); d.showModal();
+ aiImages=[]; aiRows=[]; f.reset(); document.querySelector('#distAiPreviews').innerHTML='<p>Henüz PDF veya fotoğraf seçilmedi.</p>'; document.querySelector('#distAiResultSection').hidden=true; document.querySelector('#distAiSaveButton').disabled=true; const proxyInput=document.querySelector('#distAiProxyUrl');if(proxyInput)proxyInput.value=localStorage.getItem(AI_PROXY_KEY)||''; setAiStatus('PDF veya fotoğrafları seçip “AI ile Oku” düğmesine bas.'); d.showModal();
 }
 function setAiStatus(text,type=''){const el=document.querySelector('#distAiStatus');if(!el)return;el.textContent=text;el.className='dist-ai-status'+(type?' '+type:'')}
 function readFileAsDataUrl(file){
@@ -75,26 +75,59 @@ async function fileToDataUrl(file){
 }
 function renderAiImages(){
  const box=document.querySelector('#distAiPreviews');if(!box)return;
- box.innerHTML=aiImages.length?aiImages.map((x,i)=>`<figure><img src="${x.url}" alt="Sayfa ${i+1}"><figcaption>Sayfa ${i+1}<button type="button" data-dist="ai-remove-image" data-index="${i}">×</button></figcaption></figure>`).join(''):'<p>Henüz fotoğraf seçilmedi.</p>';
+ box.innerHTML=aiImages.length?aiImages.map((x,i)=>`<figure><img src="${x.url}" alt="Sayfa ${i+1}"><figcaption>${esc(x.label||('Sayfa '+(i+1)))}<button type="button" data-dist="ai-remove-image" data-index="${i}">×</button></figcaption></figure>`).join(''):'<p>Henüz PDF veya fotoğraf seçilmedi.</p>';
+}
+function isPdfFile(file){
+ const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'').toLowerCase();
+ return type==='application/pdf'||/\.pdf$/.test(name);
+}
+async function pdfToPageImages(file,maxPages){
+ if(!window.pdfjsLib)throw new Error('PDF okuyucu yüklenemedi. İnternet bağlantısını kontrol edip sayfayı yenile.');
+ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const bytes=new Uint8Array(await file.arrayBuffer());
+ const pdf=await window.pdfjsLib.getDocument({data:bytes}).promise;
+ const count=Math.min(pdf.numPages,maxPages),out=[];
+ for(let pageNo=1;pageNo<=count;pageNo++){
+  setAiStatus(`${file.name}: ${pageNo}/${count}. sayfa hazırlanıyor…`,'working');
+  const page=await pdf.getPage(pageNo);
+  const base=page.getViewport({scale:1});
+  const scale=Math.min(2.4,1800/Math.max(base.width,base.height));
+  const viewport=page.getViewport({scale:Math.max(1.4,scale)});
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+  const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('PDF sayfası görüntüye çevrilemedi.');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  await page.render({canvasContext:ctx,viewport}).promise;
+  out.push({name:file.name,url:canvas.toDataURL('image/jpeg',0.92),label:`${file.name} · Sayfa ${pageNo}`});
+ }
+ if(pdf.numPages>count)throw new Error(`PDF ${pdf.numPages} sayfa; en fazla ${maxPages} sayfa alınabildi.`);
+ return out;
 }
 async function handleAiFiles(files){
- const list=Array.from(files||[]).slice(0,10-aiImages.length);
- if(!list.length){setAiStatus('Fotoğraf seçilmedi.','error');return}
- setAiStatus(list.length+' fotoğraf alındı, hazırlanıyor…','working');
+ const list=Array.from(files||[]);
+ if(!list.length){setAiStatus('Dosya seçilmedi.','error');return}
+ const remaining=10-aiImages.length;if(remaining<=0){setAiStatus('En fazla 10 sayfa eklenebilir.','error');return}
+ setAiStatus(list.length+' dosya alındı, hazırlanıyor…','working');
  let added=0,errors=[];
  for(const f of list){
-  try{const url=await fileToDataUrl(f);aiImages.push({name:f.name||'Fotoğraf',url});added++}
-  catch(e){console.warn(e);errors.push((f.name||'Fotoğraf')+': '+e.message)}
+  if(aiImages.length>=10)break;
+  try{
+   if(isPdfFile(f)){
+    const pages=await pdfToPageImages(f,10-aiImages.length);aiImages.push(...pages);added+=pages.length;
+   }else{
+    const url=await fileToDataUrl(f);aiImages.push({name:f.name||'Fotoğraf',url,label:f.name||('Fotoğraf '+(aiImages.length+1))});added++;
+   }
+  }catch(e){console.warn(e);errors.push((f.name||'Dosya')+': '+e.message)}
  }
  renderAiImages();
  const input1=document.querySelector('#distAiFiles'),input2=document.querySelector('#distAiCamera');if(input1)input1.value='';if(input2)input2.value='';
- if(added)setAiStatus(aiImages.length+' fotoğraf hazır.'+(errors.length?' '+errors.length+' dosya okunamadı.':''),errors.length?'warning':'success');
- else setAiStatus('Fotoğraf alınamadı. JPG veya PNG olarak tekrar seç.','error');
+ if(added)setAiStatus(aiImages.length+' sayfa hazır.'+(errors.length?' '+errors.join(' | '):''),errors.length?'warning':'success');
+ else setAiStatus('Dosya alınamadı. PDF, JPG veya PNG olarak tekrar seç.','error');
 }
 function aiPrompt(groupRules){
  const existing=[...new Set(data.map(x=>x.district).filter(Boolean))];
  const knownCustomers=data.slice(0,250).filter(x=>x.customer&&x.address).map(x=>`${x.customer} => ${x.address}`).join(' | ');
- return `Bu görseller market dolabı malzeme dağıtım listeleridir. Tablodaki HER satırı yukarıdan aşağıya sırayla oku ve yalnızca geçerli JSON döndür.
+ return `Bu PDF sayfaları veya fotoğraflar market dolabı malzeme dağıtım listeleridir. Tablodaki HER satırı yukarıdan aşağıya sırayla oku ve yalnızca geçerli JSON döndür.
 Şema: {"items":[{"customer":"dükkan/müşteri adı","raw_address":"fotoğrafta görülen adresin harfiyen yazımı","address":"doğrulanmış tam adres","address_confidence":0-100,"needs_review":true/false,"phone":"telefon varsa","district":"mahalle veya grup","materials":["malzeme/stok/ölçü bilgileri"],"note":"belirsiz veya ek bilgi"}]}.
 ADRES KURALLARI:
 1) Adres sütununu müşteri ve malzeme sütunlarından bağımsız, karakter karakter oku.
@@ -139,7 +172,7 @@ function validateAiRows(rows){
 function extractOutputText(j){if(typeof j.output_text==='string')return j.output_text;const out=j.output||[];return out.flatMap(x=>x.content||[]).map(c=>c.text||c.output_text||'').join('\n')}
 function parseAiJson(text){const cleaned=String(text||'').replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();let j;try{j=JSON.parse(cleaned)}catch(e){const a=cleaned.indexOf('{'),b=cleaned.lastIndexOf('}');if(a<0||b<a)throw new Error('AI yanıtında JSON bulunamadı.');j=JSON.parse(cleaned.slice(a,b+1))}const arr=Array.isArray(j)?j:(j.items||[]);return validateAiRows(arr).filter(x=>x.customer||x.address||x.materials.length)}
 async function runAi(){
- const f=document.querySelector('#distributionAiForm');if(!aiImages.length){alert('Önce fotoğraf seç.');return}
+ const f=document.querySelector('#distributionAiForm');if(!aiImages.length){alert('Önce PDF veya fotoğraf seç.');return}
  const proxy=f.elements.proxyUrl.value.trim();if(!proxy){alert('Güvenli AI bağlantı adresini gir.');return}localStorage.setItem(AI_PROXY_KEY,proxy);
  const btn=document.querySelector('#distAiReadButton');btn.disabled=true;document.querySelector('#distAiSaveButton').disabled=true;setAiStatus('AI listeyi okuyor… Bu işlem fotoğraf sayısına göre sürebilir.','working');
  try{
@@ -151,11 +184,11 @@ async function runAi(){
   aiRows=parseAiJson(extractOutputText(j));if(!aiRows.length)throw new Error('Listede okunabilir kayıt bulunamadı.');renderAiRows();setAiStatus(aiRows.length+' kayıt okundu. Kaydetmeden önce kontrol et.','success');document.querySelector('#distAiSaveButton').disabled=false;
  }catch(e){console.error(e);setAiStatus('Hata: '+e.message,'error')}finally{btn.disabled=false}
 }
-function renderAiRows(){const s=document.querySelector('#distAiResultSection'),l=document.querySelector('#distAiResultList');s.hidden=false;const review=aiRows.filter(x=>x.needsReview).length;document.querySelector('#distAiResultCount').textContent=aiRows.length+' kayıt'+(review?' · '+review+' adres kontrol gerekli':'');l.innerHTML=aiRows.map((x,i)=>`<article class="${x.needsReview?'needs-review':'address-ok'}"><div class="dist-ai-row-main"><div class="dist-ai-row-title"><input aria-label="Müşteri" data-ai-field="customer" data-index="${i}" value="${esc(x.customer||'')}"><span class="dist-confidence ${x.needsReview?'low':'high'}">${x.needsReview?'⚠ Kontrol':'✓ Doğrulandı'} · %${Math.round(x.addressConfidence||0)}</span></div><input class="dist-ai-group-input" aria-label="Grup" data-ai-field="district" data-index="${i}" value="${esc(x.district||'')}"><textarea aria-label="Adres" data-ai-field="address" data-index="${i}" rows="2">${esc(x.address||'')}</textarea>${x.rawAddress&&x.rawAddress!==x.address?`<small class="dist-raw-address">Fotoğrafta okunan: ${esc(x.rawAddress)}</small>`:''}<div>${x.materials.map(m=>`<span>${esc(m)}</span>`).join('')}</div>${x.note?`<em>${esc(x.note)}</em>`:''}</div><button type="button" data-dist="ai-remove-row" data-index="${i}">Sil</button></article>`).join('')}
+function renderAiRows(){const s=document.querySelector('#distAiResultSection'),l=document.querySelector('#distAiResultList');s.hidden=false;const review=aiRows.filter(x=>x.needsReview).length;document.querySelector('#distAiResultCount').textContent=aiRows.length+' kayıt'+(review?' · '+review+' adres kontrol gerekli':'');l.innerHTML=aiRows.map((x,i)=>`<article class="${x.needsReview?'needs-review':'address-ok'}"><div class="dist-ai-row-main"><div class="dist-ai-row-title"><input aria-label="Müşteri" data-ai-field="customer" data-index="${i}" value="${esc(x.customer||'')}"><span class="dist-confidence ${x.needsReview?'low':'high'}">${x.needsReview?'⚠ Kontrol':'✓ Doğrulandı'} · %${Math.round(x.addressConfidence||0)}</span></div><input class="dist-ai-group-input" aria-label="Grup" data-ai-field="district" data-index="${i}" value="${esc(x.district||'')}"><textarea aria-label="Adres" data-ai-field="address" data-index="${i}" rows="2">${esc(x.address||'')}</textarea>${x.rawAddress&&x.rawAddress!==x.address?`<small class="dist-raw-address">Kaynakta okunan: ${esc(x.rawAddress)}</small>`:''}<div>${x.materials.map(m=>`<span>${esc(m)}</span>`).join('')}</div>${x.note?`<em>${esc(x.note)}</em>`:''}</div><button type="button" data-dist="ai-remove-row" data-index="${i}">Sil</button></article>`).join('')}
 function saveAiRows(){if(!aiRows.length)return;const f=document.querySelector('#distributionAiForm');data=f.elements.mode.value==='replace'?aiRows:data.concat(aiRows);save();document.querySelector('#distributionAiDialog').close();render();alert(aiRows.length+' kayıt dağıtım listesine eklendi.')}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if(!b)return;const a=b.dataset.dist,id=b.dataset.id;
  if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){data=data.filter(x=>x.id!==document.querySelector('#distributionForm').elements.id.value);save();document.querySelector('#distributionDialog').close();render()}
- if(a==='ai-open')aiDialog();if(a==='close-ai')document.querySelector('#distributionAiDialog').close();if(a==='ai-read')runAi();if(a==='ai-save')saveAiRows();if(a==='ai-remove-image'){aiImages.splice(Number(b.dataset.index),1);renderAiImages();setAiStatus(aiImages.length?aiImages.length+' fotoğraf hazır.':'Henüz fotoğraf seçilmedi.')}if(a==='ai-remove-row'){aiRows.splice(Number(b.dataset.index),1);renderAiRows();document.querySelector('#distAiSaveButton').disabled=!aiRows.length}
+ if(a==='ai-open')aiDialog();if(a==='close-ai')document.querySelector('#distributionAiDialog').close();if(a==='ai-read')runAi();if(a==='ai-save')saveAiRows();if(a==='ai-remove-image'){aiImages.splice(Number(b.dataset.index),1);renderAiImages();setAiStatus(aiImages.length?aiImages.length+' sayfa hazır.':'Henüz PDF veya fotoğraf seçilmedi.')}if(a==='ai-remove-row'){aiRows.splice(Number(b.dataset.index),1);renderAiRows();document.querySelector('#distAiSaveButton').disabled=!aiRows.length}
 });
 document.addEventListener('input',e=>{if(e.target.id==='distSearch'){filters.q=e.target.value;render()}const field=e.target.dataset?.aiField;if(field&&aiRows[Number(e.target.dataset.index)]){const x=aiRows[Number(e.target.dataset.index)];x[field]=e.target.value;if(field==='address'){x.needsReview=false;x.addressConfidence=100}document.querySelector('#distAiSaveButton').disabled=!aiRows.length}});
 document.addEventListener('change',e=>{if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});

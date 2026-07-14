@@ -660,18 +660,18 @@ veya JSON yedeğini buraya yapıştır"></textarea></label><small class="wide">H
 
   <dialog id="distributionAiDialog" class="dialog wide-modal">
     <form method="dialog" class="dialog-shell dist-ai-shell" id="distributionAiForm">
-      <header><div><h2>Fotoğraftan AI ile Liste Oluştur · V6.1.4 Adres Doğrulama</h2><small>Bir veya birden fazla liste sayfasını çek ya da seç.</small></div><button class="icon-button" type="button" data-dist="close-ai">×</button></header>
+      <header><div><h2>PDF ve Fotoğraftan AI ile Liste Oluştur · V6.1.5</h2><small>PDF dosyasını veya birden fazla liste fotoğrafını seç.</small></div><button class="icon-button" type="button" data-dist="close-ai">×</button></header>
       <div class="dialog-body dist-ai-body">
         <section class="dist-ai-upload">
           <div class="dist-ai-file-actions">
-            <label class="dist-camera-button">🖼️ Galeriden Fotoğraf Seç
-              <input id="distAiFiles" name="files" type="file" accept="image/*,.heic,.heif" multiple>
+            <label class="dist-camera-button">📄 PDF veya Fotoğraf Seç
+              <input id="distAiFiles" name="files" type="file" accept="application/pdf,.pdf,image/*,.heic,.heif" multiple>
             </label>
             <label class="dist-camera-button">📷 Kamerayla Çek
               <input id="distAiCamera" name="cameraFile" type="file" accept="image/*" capture="environment">
             </label>
           </div>
-          <div id="distAiPreviews" class="dist-ai-previews"><p>Henüz fotoğraf seçilmedi.</p></div>
+          <div id="distAiPreviews" class="dist-ai-previews"><p>Henüz PDF veya fotoğraf seçilmedi.</p></div>
         </section>
         <section class="dist-ai-settings">
           <label>Güvenli AI bağlantı adresi
@@ -686,12 +686,12 @@ veya JSON yedeğini buraya yapıştır"></textarea></label><small class="wide">H
 Etlik, İncirli = Grup 2"></textarea>
             <small>Boş bırakırsan AI, adresteki mahalleyi grup olarak yazar.</small>
           </label>
-          <div id="distAiStatus" class="dist-ai-status">Fotoğrafları seçip “AI ile Oku” düğmesine bas.</div>
+          <div id="distAiStatus" class="dist-ai-status">PDF veya fotoğrafları seçip “AI ile Oku” düğmesine bas.</div>
         </section>
         <section id="distAiResultSection" class="dist-ai-result" hidden>
           <div class="dist-ai-result-head"><strong>Okunan Kayıtlar</strong><span id="distAiResultCount">0 kayıt</span></div>
           <div id="distAiResultList" class="dist-ai-result-list"></div>
-          <small>Kaydetmeden önce dükkân, adres ve malzemeleri kontrol et. Hatalı satırları silebilirsin.</small>
+          <small>PDF/fotoğraftan okunan dükkân, adres ve malzemeleri kontrol et. Hatalı satırları silebilirsin.</small>
         </section>
       </div>
       <footer><button class="secondary-button" type="button" data-dist="close-ai">Vazgeç</button><span></span><button class="secondary-button" id="distAiReadButton" type="button" data-dist="ai-read">AI ile Oku</button><button class="primary-button" id="distAiSaveButton" type="button" data-dist="ai-save" disabled>Listeye Kaydet</button></footer>
@@ -739,6 +739,7 @@ Etlik, İncirli = Grup 2"></textarea>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="./app.js?v=6.1.4-20260714"></script>
   <script src="./heic2any.min.js?v=0.0.4"></script>
-  <script src="./distribution.js?v=6.1.4-20260714"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="./distribution.js?v=6.1.5-20260714"></script>
 </body>
 </html>
