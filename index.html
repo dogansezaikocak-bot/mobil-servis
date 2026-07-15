@@ -321,7 +321,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V7.0.8</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V7.0.9</div>
 
 
 
@@ -652,7 +652,10 @@
   <dialog id="distributionImportDialog" class="dialog small-dialog">
     <form method="dialog" class="dialog-shell" id="distributionImportForm">
       <header><h2>Dağıtım Listesi İçe Aktar</h2><button class="icon-button" type="button" data-dist="close-import">×</button></header>
-      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Liste<textarea name="text" rows="14" placeholder="Dükkân | Grup | Adres | Malzeme 1, Malzeme 2
+      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Liste<textarea name="text" rows="14" placeholder="Müşteri | Adres
+Örnek: Nokta Kuruyemiş | Etlik Mahallesi, Bağcı Caddesi No:31
+
+Eski biçim de desteklenir: Dükkân | Grup | Adres | Malzeme 1, Malzeme 2
 veya JSON yedeğini buraya yapıştır"></textarea></label><small class="wide">Her kayıt ayrı satır olmalı. Sütunları | veya ; ile ayırabilirsin.</small></div>
       <footer><span></span><span></span><button class="secondary-button" type="button" data-dist="close-import">Vazgeç</button><button class="primary-button" type="submit">İçe Aktar</button></footer>
     </form>
@@ -737,9 +740,9 @@ Etlik, İncirli = Grup 2"></textarea>
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=7.0.8-20260715"></script>
+  <script src="./app.js?v=7.0.9-20260715"></script>
   <script src="./heic2any.min.js?v=0.0.4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="./distribution.js?v=7.0.8-20260715"></script>
+  <script src="./distribution.js?v=7.0.9-20260715"></script>
 </body>
 </html>

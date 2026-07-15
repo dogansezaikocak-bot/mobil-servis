@@ -104,8 +104,22 @@ function card(x){
 }
 function openForm(item){item=item||normalizeItem();const d=document.querySelector('#distributionDialog');const f=d.querySelector('form');f.reset();f.elements.id.value=item.id;f.elements.customer.value=item.customer;f.elements.district.value=item.district;f.elements.address.value=item.address;f.elements.phone.value=item.phone;f.elements.materials.value=item.materials.map(m=>`${m.cooler||m.name||''} | ${m.newDesign||''} | ${Math.max(1,Number(m.quantity)||1)}`).join('\n');f.elements.note.value=item.note;f.elements.status.value=item.status;d.querySelector('[data-dist-delete]').hidden=!data.some(x=>x.id===item.id);d.showModal()}
 function importDialog(){document.querySelector('#distributionImportDialog').showModal()}
-function parseImport(text){text=text.trim();if(!text)return[];try{const j=JSON.parse(text);const arr=Array.isArray(j)?j:(j.items||j.distributions||[]);return arr.map(normalizeItem)}catch(e){}
- return text.split(/\n+/).map(line=>{const p=line.split(/\t|\s*\|\s*|\s*;\s*/);return normalizeItem({customer:p[0]||'',district:p[1]||'',address:p[2]||'',materials:(p.slice(3).join(',')||'').split(',')})}).filter(x=>x.customer)}
+function parseImport(text){
+ text=String(text||'').trim();if(!text)return[];
+ try{const j=JSON.parse(text);const arr=Array.isArray(j)?j:(j.items||j.distributions||[]);return arr.map(normalizeItem)}catch(e){}
+ const looksLikeAddress=v=>/(?:MAHALLESİ|MAHALLESI|MAHALLE|MAH|MH)\.?\b|\b(?:CADDE|CADDESİ|CAD|CD|SOKAK|SOK|SK|BULVAR|NO)\.?\b/iu.test(String(v||''));
+ return text.split(/\n+/).map(line=>{
+  const parts=line.split(/\t|\s*\|\s*|\s*;\s*/).map(v=>v.trim()).filter((v,i,a)=>v||i<a.length-1);
+  if(!parts[0])return null;
+  let customer=parts[0]||'',address='',district='',materials=[];
+  // Yeni ve önerilen biçim: Müşteri | Adres
+  if(parts.length===2){address=parts[1]||'';}
+  // 3+ alan varsa hem yeni biçimi hem eski “Müşteri | Grup | Adres | Malzeme” biçimini destekle.
+  else if(looksLikeAddress(parts[1])){address=parts[1]||'';materials=parts.slice(2).filter(Boolean);}
+  else{district=parts[1]||'';address=parts[2]||'';materials=parts.slice(3).filter(Boolean);}
+  return normalizeItem({customer,address,district,materials});
+ }).filter(x=>x&&x.customer);
+}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function aiDialog(){
  const d=document.querySelector('#distributionAiDialog'); const f=document.querySelector('#distributionAiForm');

@@ -1,4 +1,4 @@
-Ekzen Servis Takip V7.0.8
+Ekzen Servis Takip V7.0.9
 
 - Manuel düzenleme kayıt sorunu giderildi.
 - Kaydet butonu doğrudan kayıt fonksiyonunu çalıştırır.
@@ -16,3 +16,9 @@ Ekzen Servis Takip V7.0.8
 - `Mah.`, `Mh.`, `Mahallesi` ve `Mahalle` ifadelerinin tamamı kesin mahalle işaretçisi olarak tanınır.
 - Düzeltilmiş adreste mahalle bulunamazsa fotoğraftan okunan ham adres de kontrol edilir.
 - Eski yanlış veya boş grup bilgileri uygulama açılırken adres üzerinden yeniden hesaplanır.
+
+
+V7.0.9 düzeltmesi:
+- Manuel toplu içe aktarmada `Müşteri | Adres` biçimi doğrudan desteklenir.
+- Adresteki `Mahallesi`, `Mah.`, `Mah` veya `Mh.` ifadesinden mahalle grubu otomatik oluşturulur.
+- Eski `Müşteri | Grup | Adres | Malzeme` biçimi de çalışmaya devam eder.
