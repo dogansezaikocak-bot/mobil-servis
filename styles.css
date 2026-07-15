@@ -7974,3 +7974,15 @@ body.photo-viewer-open {
     display: block !important;
   }
 }
+
+/* V7.3 Yakınımdaki Dükkânlar */
+.nearby-button.is-active{background:#0f766e;color:#fff;border-color:#0f766e}
+.nearby-status{margin:10px 0;padding:11px 14px;border-radius:12px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-weight:700}
+.nearby-status.success{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.dist-card-badges{display:flex;align-items:flex-end;gap:7px;flex-direction:column}
+.distance-badge{display:inline-flex;align-items:center;white-space:nowrap;padding:6px 9px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:800;font-size:12px;border:1px solid #bae6fd}
+@media (max-width:760px){
+ .nearby-button{width:100%;min-height:48px;font-size:15px}
+ .dist-card-badges{align-items:flex-end}
+ .distance-badge{font-size:13px;padding:7px 10px}
+}
