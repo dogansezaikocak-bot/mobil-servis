@@ -1,4 +1,4 @@
-Ekzen Servis Takip V7.1.0
+Ekzen Servis Takip V7.1.1
 
 - Manuel düzenleme kayıt sorunu giderildi.
 - Kaydet butonu doğrudan kayıt fonksiyonunu çalıştırır.
@@ -30,3 +30,8 @@ V7.1.0 yenilikleri:
 - Baskı levhası ayrı malzeme türü ve ayrı bölüm olarak gösterilir.
 - Aynı müşteri/adresteki dolap satırları tek kartta doğru adetlerle birleştirilir.
 - Mahalle adres içinden otomatik çıkarılır.
+
+
+V7.1.1 düzeltmesi:
+- Baskı levhası adedi, kısa LED (ikinci LED) adedinden otomatik hesaplanır.
+- Örnek: 140 cm x4 + 52,5 cm x2 + 1600 2D => Baskı Levhası 1600 2D x2.

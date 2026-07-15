@@ -130,7 +130,7 @@ function parseImport(text){
    const plate=parts.slice(6).join(' | ').trim();
    if(led1&&qty1)materials.push({kind:'led',cooler:led1,newDesign:'',quantity:qty1});
    if(led2&&qty2)materials.push({kind:'led',cooler:led2,newDesign:'',quantity:qty2});
-   if(plate&&!/^(?:-|LEVHA YOK|YOK)$/iu.test(plate))materials.push({kind:'plate',cooler:'Baskı Levhası',newDesign:plate,quantity:1});
+   if(plate&&!/^(?:-|LEVHA YOK|YOK)$/iu.test(plate))materials.push({kind:'plate',cooler:'Baskı Levhası',newDesign:plate,quantity:Math.max(1,qty2||1)});
   }else if(parts.length===2){address=parts[1]||'';}
   else if(looksLikeAddress(parts[1])){address=parts[1]||'';materials=parts.slice(2).filter(Boolean);}
   else{district=parts[1]||'';address=parts[2]||'';materials=parts.slice(3).filter(Boolean);}
