@@ -7594,3 +7594,7 @@ body.photo-viewer-open {
 .dist-neighborhood-chip.is-complete{background:#16834a;border-color:#16834a;color:#fff}.dist-neighborhood-chip.is-complete small{color:#e8fff1}.dist-neighborhood-chip.is-complete.is-active{box-shadow:0 0 0 3px rgba(22,131,74,.22)}
 .dist-neighborhood-chip.all{min-width:96px}.dist-active-neighborhood{display:flex;align-items:center;gap:12px;background:#eef6ff;border:1px solid #b8d6f4;border-radius:8px;padding:11px 14px}.dist-active-neighborhood span{font-size:18px;font-weight:900}.dist-active-neighborhood b{margin-left:auto}.dist-active-neighborhood em{font-style:normal;font-weight:900;color:#16834a}.dist-active-neighborhood.is-complete{background:#e8f8ef;border-color:#77c596;color:#12643b}
 @media(max-width:620px){.dist-neighborhoods-head{display:grid}.dist-neighborhood-chip{min-width:122px}.dist-active-neighborhood{flex-wrap:wrap}.dist-active-neighborhood b{margin-left:0}.dist-active-neighborhood em{width:100%}}
+/* V7.1 malzeme bölümleri */
+.v7-material-section{display:grid;gap:8px;margin:8px 0 14px}
+.v7-material-section>strong{font-size:.8rem;letter-spacing:.05em;color:#0f766e;border-bottom:1px solid #d7e6e4;padding-bottom:6px}
+.v7-material-section label{margin:0}

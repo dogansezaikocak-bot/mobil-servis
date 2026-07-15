@@ -321,7 +321,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V7.0.9</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V7.1.0</div>
 
 
 
@@ -643,7 +643,9 @@
         <label class="wide">Adres<textarea name="address" rows="3"></textarea></label>
         <label>Telefon<input name="phone" type="tel"></label>
         <label>Durum<select name="status"><option value="waiting">Bekliyor</option><option value="prepared">Hazırlandı</option><option value="loaded">Yüklendi</option><option value="delivered">Teslim Edildi</option></select></label>
-        <label class="wide">Malzemeler (her satıra bir malzeme)<textarea name="materials" rows="6" required></textarea></label>
+        <label class="wide">Malzemeler (LED veya baskı levhası)<textarea name="materials" rows="6" required placeholder="LED | 140 cm | 4
+LED | 52,5 cm | 2
+BASKI LEVHASI | 1600 2D | 1"></textarea></label>
         <label class="wide">Not<textarea name="note" rows="3"></textarea></label>
       </div>
       <footer><button class="danger-button" type="button" data-dist="delete" data-dist-delete>Sil</button><span></span><button class="secondary-button" type="button" data-dist="close-form">Vazgeç</button><button class="primary-button" type="button" data-dist="save-form">Kaydet</button></footer>
@@ -652,11 +654,10 @@
   <dialog id="distributionImportDialog" class="dialog small-dialog">
     <form method="dialog" class="dialog-shell" id="distributionImportForm">
       <header><h2>Dağıtım Listesi İçe Aktar</h2><button class="icon-button" type="button" data-dist="close-import">×</button></header>
-      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Liste<textarea name="text" rows="14" placeholder="Müşteri | Adres
-Örnek: Nokta Kuruyemiş | Etlik Mahallesi, Bağcı Caddesi No:31
+      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Liste<textarea name="text" rows="14" placeholder="Müşteri | Adres | LED 1 | LED 1 Adet | LED 2 | LED 2 Adet | Baskı Levhası
+Örnek: 06 Dayının Yeri Tekel | Karşıyaka Mahallesi, Kayı Caddesi No:31 | 140 cm | 4 | 52,5 cm | 2 | 1600 2D
 
-Eski biçim de desteklenir: Dükkân | Grup | Adres | Malzeme 1, Malzeme 2
-veya JSON yedeğini buraya yapıştır"></textarea></label><small class="wide">Her kayıt ayrı satır olmalı. Sütunları | veya ; ile ayırabilirsin.</small></div>
+Müşteri | Adres biçimi ve JSON yedeği de desteklenir."></textarea></label><small class="wide">Her dolap ayrı satır olmalı. Sütunları | ile ayır. Aynı müşteri tekrar ederse LED ve levha adetleri otomatik toplanır.</small></div>
       <footer><span></span><span></span><button class="secondary-button" type="button" data-dist="close-import">Vazgeç</button><button class="primary-button" type="submit">İçe Aktar</button></footer>
     </form>
   </dialog>
@@ -740,9 +741,9 @@ Etlik, İncirli = Grup 2"></textarea>
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=7.0.9-20260715"></script>
+  <script src="./app.js?v=7.1.0-20260715"></script>
   <script src="./heic2any.min.js?v=0.0.4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="./distribution.js?v=7.0.9-20260715"></script>
+  <script src="./distribution.js?v=7.1.0-20260715"></script>
 </body>
 </html>

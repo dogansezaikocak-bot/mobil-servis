@@ -38,18 +38,20 @@ function applyNeighborhood(x){const inferred=inferNeighborhood(x.address)||infer
 function statusLabel(s){return ({waiting:'Bekliyor',prepared:'Hazırlandı',loaded:'Yüklendi',delivered:'Teslim Edildi'})[s]||'Bekliyor'}
 function nextStatus(s){return ({waiting:'prepared',prepared:'loaded',loaded:'delivered',delivered:'waiting'})[s]||'prepared'}
 function normalizeMaterial(m){
- if(typeof m==='string')return {id:uid(),name:m.trim(),cooler:m.trim(),newDesign:'',quantity:1,delivered:false};
+ if(typeof m==='string')return {id:uid(),kind:'generic',name:m.trim(),cooler:m.trim(),newDesign:'',quantity:1,delivered:false};
+ const rawKind=String(m.kind||m.type||m.category||'').trim().toLocaleLowerCase('tr-TR');
+ const kind=rawKind.includes('levha')||rawKind==='plate'?'plate':rawKind.includes('led')?'led':'generic';
  const cooler=String(m.cooler||m.sogutucu||m.soğutucu||m.name||m.material||'').trim();
  const newDesign=String(m.newDesign||m.new_design||m.yeniTasarim||m.yeni_tasarim||m.design||'').trim();
  const quantity=Math.max(1,Number.parseInt(m.quantity||m.qty||m.adet||1,10)||1);
- const name=String(m.name||[cooler,newDesign].filter(Boolean).join(' · ')).trim();
- return {id:m.id||uid(),name,cooler:cooler||name,newDesign,quantity,delivered:Boolean(m.delivered)};
+ const name=String(m.name||(kind==='plate'?'Baskı Levhası: '+(newDesign||cooler):[cooler,newDesign].filter(Boolean).join(' · '))).trim();
+ return {id:m.id||uid(),kind,name,cooler:cooler||name,newDesign,quantity,delivered:Boolean(m.delivered)};
 }
-function materialKey(m){return foldTr((m.cooler||m.name||'')+'|'+(m.newDesign||''))}
-function materialLabel(m){return [m.cooler||m.name,m.newDesign].filter(Boolean).join(' · ')}
+function materialKey(m){return foldTr((m.kind||'generic')+'|'+(m.cooler||m.name||'')+'|'+(m.newDesign||''))}
+function materialLabel(m){return m.kind==='plate'?'Baskı Levhası: '+(m.newDesign||m.cooler||m.name||'-'):[m.cooler||m.name,m.newDesign].filter(Boolean).join(' · ')}
 function groupedMaterials(stop){
  const map=new Map();
- for(const m of stop.materials||[]){const k=materialKey(m);const cur=map.get(k)||{key:k,cooler:m.cooler||m.name,newDesign:m.newDesign||'',quantity:0,deliveredQuantity:0,ids:[]};cur.quantity+=Math.max(1,Number(m.quantity)||1);if(m.delivered)cur.deliveredQuantity+=Math.max(1,Number(m.quantity)||1);cur.ids.push(m.id);map.set(k,cur)}
+ for(const m of stop.materials||[]){const k=materialKey(m);const cur=map.get(k)||{key:k,kind:m.kind||'generic',cooler:m.cooler||m.name,newDesign:m.newDesign||'',quantity:0,deliveredQuantity:0,ids:[]};cur.quantity+=Math.max(1,Number(m.quantity)||1);if(m.delivered)cur.deliveredQuantity+=Math.max(1,Number(m.quantity)||1);cur.ids.push(m.id);map.set(k,cur)}
  return [...map.values()];
 }
 function normalizeItem(x={}){
@@ -94,27 +96,42 @@ function neighborhoodStats(groups){return groups.map(name=>{const stops=data.fil
 function routeView(groups){
  const list=visible(),stats=neighborhoodStats(groups);
  const neighborhoodBar=`<section class="dist-neighborhoods"><div class="dist-neighborhoods-head"><b>📍 Mahalleler</b><span>Mahalleye dokunarak o bölgedeki dükkânları göster.</span></div><div class="dist-neighborhood-chips"><button class="dist-neighborhood-chip all ${!filters.group?'is-active':''}" data-dist="group-chip" data-group=""><span>Tümü</span><b>${data.length}</b></button>${stats.map(g=>`<button class="dist-neighborhood-chip ${g.complete?'is-complete':''} ${filters.group===g.name?'is-active':''}" data-dist="group-chip" data-group="${esc(g.name)}"><span>${esc(g.name)}</span><b>${g.total}</b>${g.complete?'<em>✓</em>':`<small>${g.total-g.delivered} kaldı</small>`}</button>`).join('')}</div></section>`;
- return `${neighborhoodBar}<div class="dist-toolbar"><input id="distSearch" type="search" autocomplete="off" placeholder="Dükkân, adres, soğutucu veya yeni tasarım ara" value="${esc(filters.q)}"><select id="distGroup"><option value="">Tüm Mahalleler (${data.length})</option>${stats.map(g=>`<option value="${esc(g.name)}" ${g.name===filters.group?'selected':''}>${esc(g.name)} (${g.total})${g.complete?' ✓':''}</option>`).join('')}</select><select id="distStatus"><option value="all">Tüm Durumlar</option>${['waiting','delivered'].map(st=>`<option value="${st}" ${st===filters.status?'selected':''}>${statusLabel(st)}</option>`).join('')}</select><button class="secondary-button" data-dist="manage-toggle">${manageMode?'Bitti':'☑ Seç'}</button><button class="secondary-button" data-dist="export">Yedek Al</button><button class="danger-button" data-dist="clear-delivered">Teslimleri Temizle</button></div>${filters.group?`<div class="dist-active-neighborhood ${stats.find(g=>g.name===filters.group)?.complete?'is-complete':''}"><span>📍 ${esc(filters.group)}</span><b>${stats.find(g=>g.name===filters.group)?.total||0} müşteri</b>${stats.find(g=>g.name===filters.group)?.complete?'<em>✓ Tamamlandı</em>':''}</div>`:''}${manageMode?`<div class="dist-bulkbar"><button class="secondary-button" data-dist="select-all">Tümünü Seç</button><span>${selectedStops.size} seçili</span><button class="danger-button" data-dist="delete-selected" ${selectedStops.size?'':'disabled'}>Seçilenleri Sil</button><button class="danger-button" data-dist="delete-all">Tüm Dağıtımı Sil</button></div>`:''}<div class="dist-list">${list.length?list.map(card).join(''):'<div class="dist-empty">Bu filtrede kayıt yok.</div>'}</div>`
+ return `${neighborhoodBar}<div class="dist-toolbar"><input id="distSearch" type="search" autocomplete="off" placeholder="Dükkân, adres, LED veya baskı levhası ara" value="${esc(filters.q)}"><select id="distGroup"><option value="">Tüm Mahalleler (${data.length})</option>${stats.map(g=>`<option value="${esc(g.name)}" ${g.name===filters.group?'selected':''}>${esc(g.name)} (${g.total})${g.complete?' ✓':''}</option>`).join('')}</select><select id="distStatus"><option value="all">Tüm Durumlar</option>${['waiting','delivered'].map(st=>`<option value="${st}" ${st===filters.status?'selected':''}>${statusLabel(st)}</option>`).join('')}</select><button class="secondary-button" data-dist="manage-toggle">${manageMode?'Bitti':'☑ Seç'}</button><button class="secondary-button" data-dist="export">Yedek Al</button><button class="danger-button" data-dist="clear-delivered">Teslimleri Temizle</button></div>${filters.group?`<div class="dist-active-neighborhood ${stats.find(g=>g.name===filters.group)?.complete?'is-complete':''}"><span>📍 ${esc(filters.group)}</span><b>${stats.find(g=>g.name===filters.group)?.total||0} müşteri</b>${stats.find(g=>g.name===filters.group)?.complete?'<em>✓ Tamamlandı</em>':''}</div>`:''}${manageMode?`<div class="dist-bulkbar"><button class="secondary-button" data-dist="select-all">Tümünü Seç</button><span>${selectedStops.size} seçili</span><button class="danger-button" data-dist="delete-selected" ${selectedStops.size?'':'disabled'}>Seçilenleri Sil</button><button class="danger-button" data-dist="delete-all">Tüm Dağıtımı Sil</button></div>`:''}<div class="dist-list">${list.length?list.map(card).join(''):'<div class="dist-empty">Bu filtrede kayıt yok.</div>'}</div>`
 }
 function summaryView(mats,total,delivered){const remaining=mats.filter(m=>m.total>m.delivered);return `<section class="v7-summary"><div class="v7-summary-hero"><b>${delivered}/${total}</b><span>müşteri tamamlandı</span><div class="dist-progress"><span style="width:${total?Math.round(delivered/total*100):0}%"></span></div></div><div class="v7-summary-grid"><article><h3>Teslim Edilecek Malzemeler</h3>${remaining.length?remaining.map(m=>`<p><span>${esc(m.name)}</span><b>${m.total-m.delivered} adet</b></p>`).join(''):'<p>Tüm malzemeler teslim edildi.</p>'}</article><article><h3>Teslim Edilemeyen Duraklar</h3>${data.filter(x=>x.status!=='delivered').slice(0,30).map(x=>`<p><span>${esc(x.customer)}</span><b>${groupedMaterials(x).reduce((a,m)=>a+(m.quantity-m.deliveredQuantity),0)} adet</b></p>`).join('')||'<p>Kalan durak yok.</p>'}</article></div></section>`}
+function materialCardRow(g,x){
+ const done=g.deliveredQuantity===g.quantity;
+ const text=g.kind==='plate'
+  ? `<span><b>${g.quantity} adet</b> · Baskı Levhası<br><em>${esc(g.newDesign||g.cooler||'-')}</em></span>`
+  : `<span><b>${g.quantity} adet</b> · LED: ${esc(g.cooler||'-')}</span>`;
+ return `<label class="${done?'is-done':''}"><input type="checkbox" data-dist="deliver-group" data-id="${x.id}" data-key="${esc(g.key)}" ${done?'checked':''}>${text}<small>${done?'Teslim edildi':'Bekliyor'}</small></label>`;
+}
 function card(x){
  const map=x.address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.address)}`:'';
  const groups=groupedMaterials(x),totalQty=groups.reduce((a,m)=>a+m.quantity,0),complete=x.materials.length&&x.materials.every(m=>m.delivered),expanded=expandedStops.has(x.id);
- return `<article class="dist-card status-${x.status}">${manageMode?`<label class="dist-select"><input type="checkbox" data-dist="select-stop" data-id="${x.id}" ${selectedStops.has(x.id)?'checked':''}><span>Seç</span></label>`:''}<div class="dist-card-top"><div><small>${esc(x.district||'Grup belirtilmedi')}</small><h3>${esc(x.customer||'İsimsiz dükkân')}</h3><p>${esc(x.address||'Adres girilmedi')}</p></div><span class="dist-badge">${statusLabel(x.status)}</span></div><button class="v7-material-toggle" data-dist="toggle-materials" data-id="${x.id}">📦 Malzemeler (${totalQty} adet) ${expanded?'▲':'▼'}</button>${expanded?`<div class="v7-stop-materials">${groups.length?groups.map(g=>`<label class="${g.deliveredQuantity===g.quantity?'is-done':''}"><input type="checkbox" data-dist="deliver-group" data-id="${x.id}" data-key="${esc(g.key)}" ${g.deliveredQuantity===g.quantity?'checked':''}><span><b>${g.quantity} adet</b> · Soğutucu: ${esc(g.cooler||'-')}<br><em>Yeni Tasarım: ${esc(g.newDesign||'-')}</em></span><small>${g.deliveredQuantity===g.quantity?'Teslim edildi':'Bekliyor'}</small></label>`).join(''):'<span>Malzeme girilmedi</span>'}</div>`:''}${x.note?`<p class="dist-note">Not: ${esc(x.note)}</p>`:''}<div class="dist-card-actions">${x.phone?`<a class="secondary-button" href="tel:${esc(x.phone)}">Ara</a>`:''}${map?`<a class="secondary-button" target="_blank" rel="noopener" href="${map}">Konuma Git</a>`:''}${complete?`<button class="secondary-button" data-dist="reset-waiting" data-id="${x.id}">↩ Beklemeye Al</button>`:''}<button class="secondary-button" data-dist="edit" data-id="${x.id}">Düzenle</button><button class="primary-button" data-dist="complete-stop" data-id="${x.id}" ${complete?'disabled':''}>${complete?'✓ Teslim Tamam':'Tümünü Teslim Et'}</button></div>${x.deliveredAt?`<small class="dist-time">Teslim: ${new Date(x.deliveredAt).toLocaleString('tr-TR')}</small>`:''}</article>`
+ const leds=groups.filter(g=>g.kind!=='plate'),plates=groups.filter(g=>g.kind==='plate');
+ const materialHtml=groups.length?`${leds.length?`<div class="v7-material-section"><strong>LED MALZEMELERİ</strong>${leds.map(g=>materialCardRow(g,x)).join('')}</div>`:''}${plates.length?`<div class="v7-material-section"><strong>BASKI LEVHASI</strong>${plates.map(g=>materialCardRow(g,x)).join('')}</div>`:''}`:'<span>Malzeme girilmedi</span>';
+ return `<article class="dist-card status-${x.status}">${manageMode?`<label class="dist-select"><input type="checkbox" data-dist="select-stop" data-id="${x.id}" ${selectedStops.has(x.id)?'checked':''}><span>Seç</span></label>`:''}<div class="dist-card-top"><div><small>${esc(x.district||'Grup belirtilmedi')}</small><h3>${esc(x.customer||'İsimsiz dükkân')}</h3><p>${esc(x.address||'Adres girilmedi')}</p></div><span class="dist-badge">${statusLabel(x.status)}</span></div><button class="v7-material-toggle" data-dist="toggle-materials" data-id="${x.id}">📦 Malzemeler (${totalQty} adet) ${expanded?'▲':'▼'}</button>${expanded?`<div class="v7-stop-materials">${materialHtml}</div>`:''}${x.note?`<p class="dist-note">Not: ${esc(x.note)}</p>`:''}<div class="dist-card-actions">${x.phone?`<a class="secondary-button" href="tel:${esc(x.phone)}">Ara</a>`:''}${map?`<a class="secondary-button" target="_blank" rel="noopener" href="${map}">Konuma Git</a>`:''}${complete?`<button class="secondary-button" data-dist="reset-waiting" data-id="${x.id}">↩ Beklemeye Al</button>`:''}<button class="secondary-button" data-dist="edit" data-id="${x.id}">Düzenle</button><button class="primary-button" data-dist="complete-stop" data-id="${x.id}" ${complete?'disabled':''}>${complete?'✓ Teslim Tamam':'Tümünü Teslim Et'}</button></div>${x.deliveredAt?`<small class="dist-time">Teslim: ${new Date(x.deliveredAt).toLocaleString('tr-TR')}</small>`:''}</article>`
 }
-function openForm(item){item=item||normalizeItem();const d=document.querySelector('#distributionDialog');const f=d.querySelector('form');f.reset();f.elements.id.value=item.id;f.elements.customer.value=item.customer;f.elements.district.value=item.district;f.elements.address.value=item.address;f.elements.phone.value=item.phone;f.elements.materials.value=item.materials.map(m=>`${m.cooler||m.name||''} | ${m.newDesign||''} | ${Math.max(1,Number(m.quantity)||1)}`).join('\n');f.elements.note.value=item.note;f.elements.status.value=item.status;d.querySelector('[data-dist-delete]').hidden=!data.some(x=>x.id===item.id);d.showModal()}
+function openForm(item){item=item||normalizeItem();const d=document.querySelector('#distributionDialog');const f=d.querySelector('form');f.reset();f.elements.id.value=item.id;f.elements.customer.value=item.customer;f.elements.district.value=item.district;f.elements.address.value=item.address;f.elements.phone.value=item.phone;f.elements.materials.value=item.materials.map(m=>m.kind==='plate'?`BASKI LEVHASI | ${m.newDesign||m.cooler||''} | ${Math.max(1,Number(m.quantity)||1)}`:`LED | ${m.cooler||m.name||''} | ${Math.max(1,Number(m.quantity)||1)}`).join('\n');f.elements.note.value=item.note;f.elements.status.value=item.status;d.querySelector('[data-dist-delete]').hidden=!data.some(x=>x.id===item.id);d.showModal()}
 function importDialog(){document.querySelector('#distributionImportDialog').showModal()}
 function parseImport(text){
  text=String(text||'').trim();if(!text)return[];
  try{const j=JSON.parse(text);const arr=Array.isArray(j)?j:(j.items||j.distributions||[]);return arr.map(normalizeItem)}catch(e){}
  const looksLikeAddress=v=>/(?:MAHALLESİ|MAHALLESI|MAHALLE|MAH|MH)\.?\b|\b(?:CADDE|CADDESİ|CAD|CD|SOKAK|SOK|SK|BULVAR|NO)\.?\b/iu.test(String(v||''));
  return text.split(/\n+/).map(line=>{
-  const parts=line.split(/\t|\s*\|\s*|\s*;\s*/).map(v=>v.trim()).filter((v,i,a)=>v||i<a.length-1);
+  const parts=line.split(/\t|\s*\|\s*|\s*;\s*/).map(v=>v.trim());
   if(!parts[0])return null;
   let customer=parts[0]||'',address='',district='',materials=[];
-  // Yeni ve önerilen biçim: Müşteri | Adres
-  if(parts.length===2){address=parts[1]||'';}
-  // 3+ alan varsa hem yeni biçimi hem eski “Müşteri | Grup | Adres | Malzeme” biçimini destekle.
+  if(parts.length>=7 && looksLikeAddress(parts[1])){
+   address=parts[1]||'';
+   const led1=parts[2]||'',qty1=Math.max(0,Number.parseInt(parts[3]||'0',10)||0);
+   const led2=parts[4]||'',qty2=Math.max(0,Number.parseInt(parts[5]||'0',10)||0);
+   const plate=parts.slice(6).join(' | ').trim();
+   if(led1&&qty1)materials.push({kind:'led',cooler:led1,newDesign:'',quantity:qty1});
+   if(led2&&qty2)materials.push({kind:'led',cooler:led2,newDesign:'',quantity:qty2});
+   if(plate&&!/^(?:-|LEVHA YOK|YOK)$/iu.test(plate))materials.push({kind:'plate',cooler:'Baskı Levhası',newDesign:plate,quantity:1});
+  }else if(parts.length===2){address=parts[1]||'';}
   else if(looksLikeAddress(parts[1])){address=parts[1]||'';materials=parts.slice(2).filter(Boolean);}
   else{district=parts[1]||'';address=parts[2]||'';materials=parts.slice(3).filter(Boolean);}
   return normalizeItem({customer,address,district,materials});
@@ -292,7 +309,10 @@ function saveDistributionForm(){
  const selectedStatus=String(f.elements.status.value||'waiting');
  const parsed=String(f.elements.materials.value||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).map(line=>{
   const p=line.split('|').map(v=>v.trim());
-  return {cooler:p[0]||'',newDesign:p[1]||'',quantity:Math.max(1,Number.parseInt(p[2]||'1',10)||1),delivered:selectedStatus==='delivered'};
+  const kind=/LEVHA|PLATE/iu.test(p[0]||'')?'plate':/LED/iu.test(p[0]||'')?'led':'generic';
+  if(kind==='plate')return {kind,cooler:'Baskı Levhası',newDesign:p[1]||'',quantity:Math.max(1,Number.parseInt(p[2]||'1',10)||1),delivered:selectedStatus==='delivered'};
+  if(kind==='led')return {kind,cooler:p[1]||'',newDesign:'',quantity:Math.max(1,Number.parseInt(p[2]||'1',10)||1),delivered:selectedStatus==='delivered'};
+  return {kind,cooler:p[0]||'',newDesign:p[1]||'',quantity:Math.max(1,Number.parseInt(p[2]||'1',10)||1),delivered:selectedStatus==='delivered'};
  });
  if(!parsed.length){alert('En az bir malzeme gir.');f.elements.materials.focus();return;}
  const manualDistrict=String(f.elements.district.value||'').trim();

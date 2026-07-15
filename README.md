@@ -1,4 +1,4 @@
-Ekzen Servis Takip V7.0.9
+Ekzen Servis Takip V7.1.0
 
 - Manuel düzenleme kayıt sorunu giderildi.
 - Kaydet butonu doğrudan kayıt fonksiyonunu çalıştırır.
@@ -22,3 +22,11 @@ V7.0.9 düzeltmesi:
 - Manuel toplu içe aktarmada `Müşteri | Adres` biçimi doğrudan desteklenir.
 - Adresteki `Mahallesi`, `Mah.`, `Mah` veya `Mh.` ifadesinden mahalle grubu otomatik oluşturulur.
 - Eski `Müşteri | Grup | Adres | Malzeme` biçimi de çalışmaya devam eder.
+
+
+V7.1.0 yenilikleri:
+- 7 sütunlu standart içe aktarma: Müşteri | Adres | LED 1 | Adet | LED 2 | Adet | Baskı Levhası
+- LED ölçüleri ve adetleri ayrı malzeme olarak kaydedilir.
+- Baskı levhası ayrı malzeme türü ve ayrı bölüm olarak gösterilir.
+- Aynı müşteri/adresteki dolap satırları tek kartta doğru adetlerle birleştirilir.
+- Mahalle adres içinden otomatik çıkarılır.
