@@ -7903,3 +7903,74 @@ body.photo-viewer-open {
   .dist-card-actions { grid-template-columns: 1fr !important; }
   .dist-head-actions { grid-template-columns: 1fr !important; }
 }
+
+/* =========================================================
+   V7.2.1 - Mobil dağıtım içeriği görünürlük ve kaydırma düzeltmesi
+   ========================================================= */
+@media (max-width: 768px) {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .app-shell,
+  .app-shell.admin-shell,
+  .workspace,
+  #distributionView,
+  #distributionView.is-visible,
+  #distributionView .dist-page,
+  #distributionView .v7-page {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #distributionView.is-visible {
+    display: block !important;
+    padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #distributionView .v7-tabs {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    position: sticky !important;
+    top: 132px !important;
+    z-index: 35 !important;
+    padding: 8px !important;
+    margin: 0 0 10px !important;
+    background: rgba(238, 244, 242, .96) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  #distributionView .v7-tabs button {
+    display: block !important;
+    min-height: 46px !important;
+  }
+
+  #distributionView .dist-neighborhoods,
+  #distributionView .dist-toolbar,
+  #distributionView .dist-active-neighborhood,
+  #distributionView .dist-bulkbar,
+  #distributionView .dist-list,
+  #distributionView .dist-card,
+  #distributionView .dist-empty,
+  #distributionView .v7-summary {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  #distributionView .dist-list {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    min-height: 80px !important;
+  }
+
+  #distributionView .dist-card {
+    display: block !important;
+  }
+}

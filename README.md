@@ -1,7 +1,3 @@
-# Ekzen Servis Takip V7.2
+Ekzen Servis Takip V7.2.1
 
-- Masaüstü ve mobil tek responsive uygulama olarak çalışır.
-- Telefonda Ana Sayfa, Servisler, Dağıtım, Kasa, Ekzen Kasa ve Ayarlar erişilebilir.
-- Eski ayrı mobil teknisyen kabuğu kapatılmıştır.
-- Dağıtım kartları mobilde LED ölçüleri, adetleri ve baskı levhası için optimize edilmiştir.
-- V7.1.1 baskı levhası adet kuralı korunmuştur.
+Mobil dağıtım ekranında sayaçların altındaki mahalle, filtre ve dağıtım kartlarının görünmemesi düzeltildi. Mobil sayfa kaydırması ve tek responsive uygulama yapısı korunur.
