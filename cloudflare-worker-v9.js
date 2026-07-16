@@ -106,6 +106,45 @@ async function replaceAll(env, input) {
   return { ok: true, count: list.length };
 }
 
+async function upsertDistribution(env, raw, routeId = '') {
+  const d = normalizeDistribution({ ...raw, id: routeId || raw?.id });
+  const statements = [
+    env.DB.prepare(`
+      INSERT INTO distributions
+      (id, customer_name, address, neighborhood, phone, status, notes, latitude, longitude, delivered_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        customer_name=excluded.customer_name, address=excluded.address, neighborhood=excluded.neighborhood,
+        phone=excluded.phone, status=excluded.status, notes=excluded.notes, latitude=excluded.latitude,
+        longitude=excluded.longitude, delivered_at=excluded.delivered_at, updated_at=CURRENT_TIMESTAMP
+    `).bind(d.id, d.customer_name, d.address, d.neighborhood, d.phone, d.status, d.notes,
+      d.latitude, d.longitude, d.delivered_at),
+    env.DB.prepare('DELETE FROM materials WHERE distribution_id=?').bind(d.id)
+  ];
+  for (const rawMaterial of d.materials) {
+    const m = normalizeMaterial(rawMaterial, d.id);
+    statements.push(env.DB.prepare(`
+      INSERT INTO materials
+      (id, distribution_id, kind, name, cooler, new_design, quantity, delivered)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(m.id, d.id, m.kind, m.name, m.cooler, m.new_design, m.quantity, m.delivered));
+  }
+  await env.DB.batch(statements);
+  return { ok: true, id: d.id };
+}
+
+async function deleteDistribution(env, id) {
+  const rows = await env.DB.prepare('SELECT object_key FROM delivery_photos WHERE distribution_id=?').bind(id).all();
+  const keys = (rows.results || []).map(x => x.object_key).filter(Boolean);
+  if (keys.length) await env.PHOTOS.delete(keys);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM delivery_photos WHERE distribution_id=?').bind(id),
+    env.DB.prepare('DELETE FROM materials WHERE distribution_id=?').bind(id),
+    env.DB.prepare('DELETE FROM distributions WHERE id=?').bind(id)
+  ]);
+  return { ok: true, deleted_photos: keys.length };
+}
+
 async function uploadPhoto(request, env, stopId, photoType) {
   const fd = await request.formData();
   const file = fd.get('file');
@@ -155,9 +194,12 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
     if (!tokenOk(request, env, url)) return unauthorized();
     try {
-      if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, version: '9.0.0' });
+      if (url.pathname === '/api/health' && request.method === 'GET') return json({ ok: true, version: '9.1.0' });
       if (url.pathname === '/api/state' && request.method === 'GET') return json(await state(env));
       if (url.pathname === '/api/sync' && request.method === 'POST') return json(await replaceAll(env, await request.json()));
+      let d = url.pathname.match(/^\/api\/distributions\/([^/]+)$/);
+      if (d && request.method === 'PUT') return json(await upsertDistribution(env, await request.json(), decodeURIComponent(d[1])));
+      if (d && request.method === 'DELETE') return json(await deleteDistribution(env, decodeURIComponent(d[1])));
 
       let m = url.pathname.match(/^\/api\/photos\/by-stop\/([^/]+)$/);
       if (m && request.method === 'DELETE') return deleteStopPhotos(env, decodeURIComponent(m[1]));
