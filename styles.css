@@ -8024,3 +8024,17 @@ body.photo-viewer-open {
 .proof-slot{grid-template-columns:minmax(74px,auto) 1fr}
 @media(max-width:640px){.proof-slot{grid-template-columns:1fr}.proof-slot-previews{min-width:0}.proof-thumb{width:72px;height:62px}}
 .cloud-status{margin:12px 0;padding:11px 14px;border:1px solid #b7e4da;background:#effcf8;border-radius:12px;color:#17695b;font-weight:700}.cloud-status.is-error{border-color:#f3b4b4;background:#fff1f1;color:#a12b2b}.cloud-button{border-color:#8bd8c8!important}
+
+
+/* V10.2 - Kararlı teslim fotoğrafı paneli */
+.proof-panel{display:grid;gap:10px;margin:10px 0;padding:10px;border:1px solid #dbe4ee;border-radius:14px;background:#f8fafc}
+.proof-slot{display:block!important;padding:10px!important;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.proof-slot-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.proof-slot-head>div{min-width:0}.proof-slot-head b,.proof-slot-head small{display:block}.proof-slot-head small{margin-top:2px;color:#64748b}
+.proof-thumbs{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;min-height:58px}
+.proof-thumb{width:92px;height:auto;min-height:78px;margin:0;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#e2e8f0}
+.proof-thumb img{display:block;width:92px;height:68px;object-fit:cover}
+.proof-thumb figcaption{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:4px 5px;background:#fff;font-size:10px;color:#475569}
+.proof-thumb figcaption button{border:0;border-radius:6px;padding:3px 5px;background:#b91c1c;color:#fff;font-size:10px}
+.proof-empty{margin:0;color:#94a3b8;font-size:13px;padding:10px 2px}
+@media(max-width:640px){.proof-slot-head{align-items:stretch;flex-direction:column}.proof-slot-head .secondary-button{width:100%;min-height:46px}.proof-thumb,.proof-thumb img{width:84px}.proof-thumb img{height:64px}}

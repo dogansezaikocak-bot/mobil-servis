@@ -1,6 +1,9 @@
-# Ekzen Servis Takip V10.0.1
+# Ekzen Servis Takip V10.2.0
 
-- Aynı kamera seçimi iki kez işlenmez.
-- Fotoğraf cihazda kaydedildiği anda panelde görünür.
-- Bulut yüklemesi arka planda yapılır.
-- Fotoğraf sonrası tüm sayfa yeniden çizilmez.
+Dağıtım modülü korunmuştur.
+
+- Dağıtım kayıtları Firebase canlı senkronizasyonu ile cihazlar arasında paylaşılır.
+- Teslim fotoğrafları tek kamera tetiklemesiyle kaydedilir.
+- Aynı fotoğraf içerik parmak iziyle ikinci kez kaydedilmez.
+- Fotoğraflar Cloudflare R2 üzerinden diğer cihazlarda görünür.
+- Worker binding adları: DB ve PHOTOS.
