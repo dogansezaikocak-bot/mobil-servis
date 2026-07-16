@@ -1,4 +1,4 @@
-const VERSION = '9.3.0';
+const VERSION = '9.5.0';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
@@ -224,6 +224,14 @@ async function upsertDistribution(env, raw, routeId = '') {
   return { ok: true, id: item.id };
 }
 
+async function getDistribution(env, id) {
+  await ensureSchema(env);
+  const state = await getState(env);
+  const distribution = state.distributions.find(row => row.id === id) || null;
+  if (!distribution) return { ok: false, distribution: null };
+  return { ok: true, distribution };
+}
+
 async function deleteDistribution(env, id) {
   await ensureSchema(env);
   requirePhotos(env);
@@ -314,6 +322,7 @@ export default {
       if (url.pathname === '/api/sync' && request.method === 'POST') return json(await replaceAll(env, await request.json()));
 
       let match = url.pathname.match(/^\/api\/distributions\/([^/]+)$/);
+      if (match && request.method === 'GET') return json(await getDistribution(env, decodeURIComponent(match[1])));
       if (match && request.method === 'PUT') return json(await upsertDistribution(env, await request.json(), decodeURIComponent(match[1])));
       if (match && request.method === 'DELETE') return json(await deleteDistribution(env, decodeURIComponent(match[1])));
 

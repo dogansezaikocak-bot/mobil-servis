@@ -1,19 +1,8 @@
-# Ekzen Servis Takip V9.4 — Bulut Senkronizasyonu
+# Ekzen Servis Takip V9.5
 
-Bu sürüm V9.2 Worker + D1 + R2 mimarisini korur ve çevrimdışı işlem kuyruğu ekler.
+Bulut kayıt doğrulama ve cihazlar arası otomatik yenileme sürümü.
 
-## Özellikler
-- Kayıt ekleme, düzenleme ve silme işlemleri internet yokken cihazda sıraya alınır.
-- İnternet geri geldiğinde bekleyen işlemler otomatik olarak Worker API üzerinden D1'e gönderilir.
-- Uygulama görünür olduğunda ve her 60 saniyede senkronizasyon kontrol edilir.
-- Fotoğraflar cihazda IndexedDB içinde korunur; buluta eksik olanlar otomatik yüklenir.
-- Kayıt tamamen silindiğinde D1, malzemeler ve R2 fotoğrafları birlikte silinir.
-
-## Worker testi
-`/api/health?token=APP_TOKEN` sonucu aşağıdaki gibi olmalıdır:
-
-```json
-{"ok":true,"version":"9.3.0","bindings":{"DB":true,"PHOTOS":true}}
-```
-
-Önce `cloudflare-worker-v9.js` dosyasını Worker'a Deploy edin. Ardından diğer uygulama dosyalarını GitHub Pages üzerine yükleyin. Mevcut listeyi silmeyin.
+- Yeni/düzenlenen dağıtım D1 üzerinde doğrulanmadan başarı mesajı gösterilmez.
+- Uygulama açıkken 30 saniyede bir buluttaki değişiklikleri kontrol eder.
+- Toplu değişiklikler mevcut bulut listesini silmeden kayıt bazında güncellenir.
+- Worker sağlık sürümü: 9.5.0.
