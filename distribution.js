@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-// V9.5.2 - PUT cevabında D1 doğrulaması; ayrı GET yarışı kaldırıldı.
+// V9.6.0 - Dağıtım kayıtları, Servisler ile aynı Firebase canlı senkronizasyonunu kullanır.
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
@@ -12,6 +12,49 @@ const CLOUD_FIXED_TOKEN='EKZEN-2026-BULUT-9047';
 const CLOUD_LAST_OK_KEY='ekzen-cloud-last-ok-v9';
 const CLOUD_QUEUE_KEY='ekzen-cloud-offline-queue-v93';
 let cloudBusy=false,cloudStatus='',cloudTimer=null,cloudPhotoIndex=new Map(),cloudQueue=Promise.resolve(),cloudPulling=false,cloudFlushing=false;
+const DIST_FIREBASE_PATH='servis_takip_v2/distributions';
+const DIST_FIREBASE_CONFIG={
+ apiKey:'AIzaSyArRO3GilYemYHX8sJdzNqv-uG7V6LsskQ',
+ authDomain:'ekzen-teknik.firebaseapp.com',
+ databaseURL:'https://ekzen-teknik-default-rtdb.europe-west1.firebasedatabase.app',
+ projectId:'ekzen-teknik',
+ storageBucket:'ekzen-teknik.firebasestorage.app',
+ messagingSenderId:'199852526862',
+ appId:'1:199852526862:web:5b2efb44f0a26ca76f5b5f'
+};
+let distFirebaseRef=null,distFirebaseReady=false,distFirebaseApplying=false,distFirebaseInitialHandled=false,distFirebaseTimer=null;
+function distFirebaseSave(immediate=false){
+ if(!distFirebaseRef||!distFirebaseReady||distFirebaseApplying)return;
+ if(!immediate){clearTimeout(distFirebaseTimer);distFirebaseTimer=setTimeout(()=>distFirebaseSave(true),250);return;}
+ const payload={updatedAt:new Date().toISOString(),data};
+ distFirebaseRef.set(payload).then(()=>updateCloudStatus('Canlı senkronize · '+cloudTime())).catch(e=>updateCloudStatus('Senkronizasyon hatası: '+e.message));
+}
+function initDistributionFirebaseSync(){
+ if(!window.firebase?.database){updateCloudStatus('Firebase yüklenemedi · Yerel kayıtla devam');return;}
+ try{
+  if(!firebase.apps.length)firebase.initializeApp(DIST_FIREBASE_CONFIG);
+  distFirebaseRef=firebase.database().ref(DIST_FIREBASE_PATH);
+  distFirebaseRef.on('value',async snapshot=>{
+   const remote=snapshot.val();distFirebaseReady=true;
+   if(remote&&Array.isArray(remote.data)){
+    distFirebaseApplying=true;
+    data=mergeDuplicates(remote.data.map(normalizeItem)).map(applyNeighborhood);
+    saveLocalOnly();
+    distFirebaseApplying=false;
+    await refreshProofCounts();
+    if(!inputIsActive())render();
+    updateCloudStatus('Canlı senkronize · '+cloudTime());
+   }else if(!distFirebaseInitialHandled&&data.length){
+    distFirebaseSave(true);
+   }
+   distFirebaseInitialHandled=true;
+  },err=>{distFirebaseReady=false;updateCloudStatus('Senkronizasyon hatası: '+err.message)});
+ }catch(e){distFirebaseReady=false;updateCloudStatus('Senkronizasyon hatası: '+e.message)}
+}
+async function refreshCloudPhotosOnly(){
+ try{const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);await refreshProofCounts();if(!inputIsActive())render()}catch(e){console.warn(e)}
+}
+
 function loadCloudOps(){try{const v=JSON.parse(localStorage.getItem(CLOUD_QUEUE_KEY)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
 function saveCloudOps(ops){localStorage.setItem(CLOUD_QUEUE_KEY,JSON.stringify(ops))}
 function queuedCount(){return loadCloudOps().length}
@@ -258,9 +301,7 @@ function saveLocalOnly(){
 }
 function save(item=null){
  saveLocalOnly();
- if(item){cloudUpsertStop(item);return}
- // Toplu değişikliklerde tüm kayıtları tek tek UPSERT et; buluttaki diğer cihaz verilerini silme.
- for(const row of data)cloudUpsertStop(row);
+ distFirebaseSave();
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function trTitle(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/(^|[\s-])([a-zçğıöşü])/g,(m,a,b)=>a+b.toLocaleUpperCase('tr-TR')).trim()}
@@ -620,19 +661,22 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if
  if(a==='manage-toggle'){manageMode=!manageMode;if(!manageMode)selectedStops.clear();render();return}
  if(a==='select-stop'){return}
  if(a==='select-all'){const list=visible();const all=list.length&&list.every(x=>selectedStops.has(x.id));for(const x of list){if(all)selectedStops.delete(x.id);else selectedStops.add(x.id)}render();return}
- if(a==='delete-selected'){if(!selectedStops.size)return;if(confirm(selectedStops.size+' seçili dağıtım silinsin mi?')){const ids=[...selectedStops];data=data.filter(x=>!selectedStops.has(x.id));selectedStops.clear();ids.forEach(id=>{proofDeleteStop(id);cloudDeleteStop(id)});saveLocalOnly();render()}return}
- if(a==='delete-all'){if(confirm('Bütün dağıtım listesi ve fotoğrafları silinsin mi? Bu işlem geri alınamaz.')){const ids=data.map(x=>x.id);data=[];selectedStops.clear();ids.forEach(id=>{proofDeleteStop(id);cloudDeleteStop(id)});saveLocalOnly();render()}return}
+ if(a==='delete-selected'){if(!selectedStops.size)return;if(confirm(selectedStops.size+' seçili dağıtım silinsin mi?')){const ids=[...selectedStops];data=data.filter(x=>!selectedStops.has(x.id));selectedStops.clear();ids.forEach(id=>{proofDeleteStop(id)});save();render()}return}
+ if(a==='delete-all'){if(confirm('Bütün dağıtım listesi ve fotoğrafları silinsin mi? Bu işlem geri alınamaz.')){const ids=data.map(x=>x.id);data=[];selectedStops.clear();ids.forEach(id=>{proofDeleteStop(id)});save();render()}return}
  if(a==='bulk-material'){const name=b.dataset.name,stage=b.dataset.stage;for(const x of data)for(const m of x.materials)if(m.name===name){if(stage==='prepared')m.prepared=true;if(stage==='loaded'&&m.prepared)m.loaded=true}data.forEach(syncStatus);save();render();return}
  if(a==='load-all-prepared'){for(const x of data)for(const m of x.materials)if(m.prepared)m.loaded=true;data.forEach(syncStatus);save();render();return}
  if(a==='deliver-material'){return}
  if(a==='complete-stop'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' için '+groupedMaterials(x).reduce((a,m)=>a+m.quantity,0)+' adet malzemenin tamamı teslim edildi mi?')){x.materials.forEach(m=>m.delivered=true);syncStatus(x);save(x);render()}return}
  if(a==='reset-waiting'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' kaydı Bekliyor durumuna geri alınsın mı?')){x.materials.forEach(m=>m.delivered=false);x.status='waiting';x.deliveredAt='';save(x);filters.status=filters.status==='delivered'?'all':filters.status;render()}return}
- if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){const deletedId=document.querySelector('#distributionForm').elements.id.value;data=data.filter(x=>x.id!==deletedId);proofDeleteStop(deletedId);cloudDeleteStop(deletedId);saveLocalOnly();document.querySelector('#distributionDialog').close();render()}
+ if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){const deletedId=document.querySelector('#distributionForm').elements.id.value;data=data.filter(x=>x.id!==deletedId);proofDeleteStop(deletedId);save();document.querySelector('#distributionDialog').close();render()}
  if(a==='ai-open')aiDialog();if(a==='close-ai')document.querySelector('#distributionAiDialog').close();if(a==='ai-read')runAi();if(a==='ai-save')saveAiRows();if(a==='ai-remove-image'){aiImages.splice(Number(b.dataset.index),1);renderAiImages();setAiStatus(aiImages.length?aiImages.length+' sayfa hazır.':'Henüz PDF veya fotoğraf seçilmedi.')}if(a==='ai-remove-row'){aiRows.splice(Number(b.dataset.index),1);renderAiRows();document.querySelector('#distAiSaveButton').disabled=!aiRows.length}
 });
 document.addEventListener('input',e=>{if(e.target.id==='distSearch'){filters.q=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{render();const i=document.querySelector('#distSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},220);return}const field=e.target.dataset?.aiField;if(field&&aiRows[Number(e.target.dataset.index)]){const x=aiRows[Number(e.target.dataset.index)];x[field]=e.target.value;if(field==='address'){x.needsReview=false;x.addressConfidence=100}document.querySelector('#distAiSaveButton').disabled=!aiRows.length}});
 document.addEventListener('change',async e=>{if(e.target.matches('[data-dist-photo]')){const files=[...(e.target.files||[])];if(!files.length)return;const id=e.target.dataset.id,slot=e.target.dataset.distPhoto,slotDef=PROOF_SLOTS.find(x=>x.key===slot);try{for(const file of files){const blob=await photoFileToJpeg(file);await proofPut(id,slot,blob,!!slotDef?.multi)}render()}catch(err){alert('Fotoğraf kaydedilemedi: '+err.message)}e.target.value='';return}if(e.target.matches('[data-dist=\"select-stop\"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist=\"deliver-material\"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save(x);render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
 document.addEventListener('submit',e=>{if(e.target.id==='distributionForm'){e.preventDefault();e.stopPropagation();saveDistributionForm();}},true);
 document.querySelector('#distributionImportForm')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,arr=parseImport(f.elements.text.value);if(!arr.length){alert('Okunabilir kayıt bulunamadı.');return}data=mergeDuplicates(f.elements.mode.value==='replace'?arr:data.concat(arr));save();document.querySelector('#distributionImportDialog').close();f.reset();render();alert(arr.length+' kayıt içe aktarıldı.')});
-data=mergeDuplicates(data).map(applyNeighborhood);saveLocalOnly();window.renderDistribution=render;window.addEventListener('online',()=>{updateCloudStatus('İnternet geldi · Bekleyen işlemler gönderiliyor…');flushCloudOps().then(()=>updateCloudStatus('Bekleyen işlemler gönderildi · '+cloudTime())).catch(e=>updateCloudStatus('Senkronizasyon bekliyor: '+e.message))});window.addEventListener('offline',()=>updateCloudStatus('Çevrimdışı · Değişiklikler cihazda korunuyor'));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&cloudEnabled()&&navigator.onLine&&!inputIsActive())flushCloudOps().catch(()=>{})});setInterval(()=>{if(cloudEnabled()&&navigator.onLine&&document.visibilityState==='visible'&&!inputIsActive()){flushCloudOps().then(()=>cloudPull()).catch(()=>{})}},30000);refreshProofCounts().finally(()=>{render();cloudPull();});
+data=mergeDuplicates(data).map(applyNeighborhood);saveLocalOnly();window.renderDistribution=render;
+window.addEventListener('online',()=>{updateCloudStatus('İnternet geldi · Canlı bağlantı yenileniyor…');distFirebaseSave(true);refreshCloudPhotosOnly()});
+window.addEventListener('offline',()=>updateCloudStatus('Çevrimdışı · Değişiklikler cihazda korunuyor'));
+refreshProofCounts().finally(()=>{render();initDistributionFirebaseSync();refreshCloudPhotosOnly();});
 })();
