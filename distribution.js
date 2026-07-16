@@ -60,14 +60,26 @@ async function cloudPull(){
  try{
   await cloudTest();
   await flushCloudOps();
+  // Kuyruk tamamen gönderilmeden buluttaki eski liste yerel kayıtların üzerine yazılmasın.
+  if(queuedCount()>0){
+   cloudStatus='Buluta gönderilmeyi bekleyen '+queuedCount()+' işlem var';updateCloudStatus();return false;
+  }
   const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);
   const remote=Array.isArray(state.distributions)?state.distributions.map(normalizeItem):[];
   if(remote.length){
-   const remoteSnapshot=JSON.stringify(remote);
+   // Bulutta henüz görünmeyen yeni yerel kayıtları koru.
+   // Böylece yeni kayıt eklenirken 30 saniyelik çekme işlemi eski bulut listesini getirip kaydı silemez.
+   const remoteIds=new Set(remote.map(x=>String(x.id)));
+   const localOnly=data.filter(x=>x&&x.id&&!remoteIds.has(String(x.id)));
+   const merged=remote.concat(localOnly);
+   const remoteSnapshot=JSON.stringify(merged);
    const localSnapshot=JSON.stringify(data);
    if(remoteSnapshot!==localSnapshot){
-    data=remote;saveLocalOnly();await refreshProofCounts();render();
+    data=merged;saveLocalOnly();await refreshProofCounts();render();
    }
+   // Yerelde korunmuş fakat bulutta bulunmayan kayıtları tekrar gönder.
+   for(const row of localOnly) queueCloudOp({type:'upsert',id:row.id,data:row,at:Date.now()});
+   if(localOnly.length) flushCloudOps().catch(()=>{});
    const uploaded=await migrateLocalPhotosToCloud();
    cloudStatus='Bulut senkronize · '+cloudTime()+(uploaded?' · '+uploaded+' yerel fotoğraf yüklendi':'');
    updateCloudStatus();
