@@ -1,7 +1,6 @@
 (function(){
 'use strict';
-// V10.2.0 - Dağıtım modülü korunarak fotoğraf sistemi yeniden düzenlendi.
-// Tek kamera tetiklemesi, içerik parmak iziyle çift kayıt engeli ve R2 cihazlar arası fotoğraf görünümü.
+// V10.3.0 - Dağıtım modülü korunur; D1 tek veri kaynağı, kararlı tek fotoğraf yakalama ve R2 senkronizasyonu.
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
@@ -61,10 +60,7 @@ function initDistributionFirebaseSync(){
  }catch(e){distFirebaseReady=false;updateCloudStatus('Senkronizasyon hatası: '+e.message)}
 }
 async function refreshCloudPhotosOnly(){
- try{
-  const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);await refreshProofCounts();
-  for(const id of proofExpanded){updateProofCardMeta(id);await renderProofPanel(id)}
- }catch(e){console.warn(e)}
+ try{const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);await refreshProofCounts();if(!inputIsActive())render()}catch(e){console.warn(e)}
 }
 
 function loadCloudOps(){try{const v=JSON.parse(localStorage.getItem(CLOUD_QUEUE_KEY)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
@@ -224,7 +220,6 @@ let proofExpanded=new Set();
 let proofCounts=new Map();
 let proofObjectUrls=[];
 let proofCaptureBusy=false;
-let proofRefreshTimer=null;
 const proofRemoteBlobCache=new Map();
 function proofKey(stopId,slot){return stopId+':'+slot}
 function proofRecordId(stopId,slot){return proofKey(stopId,slot)+':'+Date.now()+':'+Math.random().toString(36).slice(2,8)}
@@ -232,100 +227,41 @@ function openProofDb(){return new Promise((resolve,reject)=>{const req=indexedDB
 async function proofAll(){const db=await openProofDb();const rows=await new Promise((resolve,reject)=>{const req=db.transaction(PROOF_STORE).objectStore(PROOF_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close();return rows}
 async function proofGetAll(stopId,slot){const rows=await proofAll();return rows.filter(r=>r.stopId===stopId&&r.slot===slot).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0))}
 async function proofBlobFingerprint(blob){
- try{
-  const bytes=await blob.arrayBuffer();
-  const hash=await crypto.subtle.digest('SHA-256',bytes);
-  return [...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,'0')).join('');
- }catch(_){return `${blob.size}:${blob.type}`}
+ try{const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());return [...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,'0')).join('')}catch(_){return `${blob.size}:${blob.type}`}
 }
 async function proofPut(stopId,slot,blob,multi=false){
  const fingerprint=await proofBlobFingerprint(blob);
  const existing=await proofGetAll(stopId,slot);
- if(existing.some(row=>row.fingerprint===fingerprint))return {id:existing.find(row=>row.fingerprint===fingerprint).id,duplicate:true};
- const db=await openProofDb();
- const recordId=proofRecordId(stopId,slot);
- const removed=[];
- await new Promise((resolve,reject)=>{
-  const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);
-  if(!multi){
-   const req=store.getAll();
-   req.onsuccess=()=>{
-    for(const row of req.result||[])if(row.stopId===stopId&&row.slot===slot){removed.push(row.id);store.delete(row.id)}
-    store.put({id:recordId,stopId,slot,blob,fingerprint,updatedAt:Date.now()});
-   };
-   req.onerror=()=>reject(req.error);
-  }else store.put({id:recordId,stopId,slot,blob,fingerprint,updatedAt:Date.now()});
-  tx.oncomplete=resolve;
-  tx.onerror=()=>reject(tx.error||new Error('Fotoğraf cihaz hafızasına yazılamadı.'));
- });
- db.close();
+ const duplicate=existing.find(r=>r.fingerprint===fingerprint);
+ if(duplicate)return {id:duplicate.id,duplicate:true};
+ const db=await openProofDb();const recordId=proofRecordId(stopId,slot);const removed=[];
+ await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);
+  if(!multi){const req=store.getAll();req.onsuccess=()=>{for(const row of req.result||[])if(row.stopId===stopId&&row.slot===slot){removed.push(row.id);store.delete(row.id)}store.put({id:recordId,stopId,slot,blob,fingerprint,updatedAt:Date.now()})};req.onerror=()=>reject(req.error)}
+  else store.put({id:recordId,stopId,slot,blob,fingerprint,updatedAt:Date.now()});
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Fotoğraf cihaz hafızasına yazılamadı.'))});db.close();
  for(const oldId of removed)cloudDeletePhoto(oldId).catch(()=>{});
  await refreshProofCounts();
  if(cloudEnabled()&&navigator.onLine){
-  cloudUploadPhoto(stopId,slot,blob,recordId,false).then(async()=>{
-   const rows=cloudPhotoIndex.get(stopId)||[];
-   if(!rows.some(x=>String(x.id)===String(recordId)))rows.push({id:recordId,distribution_id:stopId,photo_type:slot});
-   cloudPhotoIndex.set(stopId,rows.filter(x=>!removed.includes(x.id)));
-   proofRemoteBlobCache.set(recordId,blob);
-   await refreshProofCounts();
-   updateProofCardMeta(stopId);
-   if(proofExpanded.has(stopId))await renderProofPanel(stopId);
-   updateCloudStatus('Fotoğraf buluta kaydedildi · '+cloudTime());
-  }).catch(e=>{console.warn(e);updateCloudStatus('Fotoğraf buluta yüklenemedi · cihazda korundu');});
+  try{await cloudUploadPhoto(stopId,slot,blob,recordId,false);const rows=(cloudPhotoIndex.get(stopId)||[]).filter(x=>!removed.includes(x.id));if(!rows.some(x=>String(x.id)===String(recordId)))rows.push({id:recordId,distribution_id:stopId,photo_type:slot});cloudPhotoIndex.set(stopId,rows);proofRemoteBlobCache.set(recordId,blob);updateCloudStatus('Fotoğraf buluta kaydedildi · '+cloudTime())}
+  catch(e){updateCloudStatus('Fotoğraf cihazda korundu · bulut bekliyor')}
  }
  return {id:recordId,duplicate:false};
 }
-async function proofRemoteBlob(meta){
- if(proofRemoteBlobCache.has(meta.id))return proofRemoteBlobCache.get(meta.id);
- const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));
- const blob=await resp.blob();proofRemoteBlobCache.set(meta.id,blob);return blob;
-}
+async function proofRemoteBlob(meta){if(proofRemoteBlobCache.has(meta.id))return proofRemoteBlobCache.get(meta.id);const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));const blob=await resp.blob();proofRemoteBlobCache.set(meta.id,blob);return blob}
 async function renderProofPanel(stopId){
  const panel=document.querySelector(`[data-proof-panel="${CSS.escape(String(stopId))}"]`);if(!panel)return;
- panel.innerHTML='<p class="proof-loading">Fotoğraflar hazırlanıyor…</p>';
- const chunks=[];
- for(const slot of PROOF_SLOTS){
-  const local=await proofGetAll(stopId,slot.key);
-  const localIds=new Set(local.map(x=>String(x.id)));
-  const remoteMeta=(cloudPhotoIndex.get(stopId)||[]).filter(x=>x.photo_type===slot.key&&!localIds.has(String(x.id)));
-  const rows=local.map(x=>({...x,source:'local'}));
-  for(const meta of remoteMeta){
-   try{rows.push({id:meta.id,blob:await proofRemoteBlob(meta),source:'cloud'})}catch(e){console.warn('Fotoğraf indirilemedi',e)}
-  }
-  const thumbs=rows.map((row,index)=>{
-   const url=URL.createObjectURL(row.blob);proofObjectUrls.push(url);
-   return `<figure class="proof-thumb"><img src="${url}" alt="${esc(slot.label)} ${index+1}"><figcaption><span>${index+1}${row.source==='cloud'?' · Bulut':''}</span><button type="button" data-dist="proof-delete" data-record="${esc(row.id)}">Sil</button></figcaption></figure>`;
-  }).join('');
-  chunks.push(`<div class="proof-slot"><div class="proof-slot-head"><div><b>${esc(slot.label)}</b><small>${rows.length} fotoğraf</small></div><button type="button" class="secondary-button" data-dist="capture-photo" data-id="${esc(stopId)}" data-slot="${esc(slot.key)}">📷 ${slot.multi||!rows.length?'Fotoğraf Ekle':'Tekrar Çek'}</button></div><div class="proof-thumbs">${thumbs||'<p class="proof-empty">Henüz fotoğraf yok.</p>'}</div></div>`);
- }
- panel.innerHTML=chunks.join('');
- updateProofCardMeta(stopId);
+ panel.innerHTML='<p class="proof-loading">Fotoğraflar hazırlanıyor…</p>';const chunks=[];
+ for(const slot of PROOF_SLOTS){const local=await proofGetAll(stopId,slot.key);const ids=new Set(local.map(x=>String(x.id)));const remote=(cloudPhotoIndex.get(stopId)||[]).filter(x=>x.photo_type===slot.key&&!ids.has(String(x.id)));const rows=local.map(x=>({...x,source:'local'}));for(const meta of remote){try{rows.push({id:meta.id,blob:await proofRemoteBlob(meta),source:'cloud'})}catch(_){}}
+  const thumbs=rows.map((row,i)=>{const url=URL.createObjectURL(row.blob);proofObjectUrls.push(url);return `<figure class="proof-thumb"><img src="${url}" alt="${esc(slot.label)} ${i+1}"><figcaption><span>${i+1}${row.source==='cloud'?' · Bulut':''}</span><button type="button" data-dist="proof-delete" data-record="${esc(row.id)}">Sil</button></figcaption></figure>`}).join('');
+  chunks.push(`<div class="proof-slot"><div class="proof-slot-head"><div><b>${esc(slot.label)}</b><small>${rows.length} fotoğraf</small></div><button type="button" class="secondary-button" data-dist="capture-photo" data-id="${esc(stopId)}" data-slot="${esc(slot.key)}">📷 ${slot.multi||!rows.length?'Fotoğraf Ekle':'Tekrar Çek'}</button></div><div class="proof-thumbs">${thumbs||'<p class="proof-empty">Henüz fotoğraf yok.</p>'}</div></div>`)}
+ panel.innerHTML=chunks.join('');updateProofCardMeta(stopId)
 }
 async function captureProofPhoto(stopId,slot){
- if(proofCaptureBusy)return;
- proofCaptureBusy=true;
- const input=document.createElement('input');
- input.type='file';input.accept='image/*';input.capture='environment';input.multiple=false;
- input.style.position='fixed';input.style.left='-9999px';input.style.opacity='0';
- document.body.appendChild(input);
- const cleanup=()=>{try{input.remove()}catch(_){ }proofCaptureBusy=false};
- input.addEventListener('change',async()=>{
-  const file=input.files&&input.files[0];
-  if(!file){cleanup();return}
-  const slotDef=PROOF_SLOTS.find(x=>x.key===slot);
-  try{
-   updateCloudStatus('Fotoğraf kaydediliyor…');
-   const blob=await photoFileToJpeg(file);
-   const result=await proofPut(stopId,slot,blob,!!slotDef?.multi);
-   updateProofCardMeta(stopId);
-   await renderProofPanel(stopId);
-   if(result.duplicate)updateCloudStatus('Aynı fotoğraf zaten kayıtlı');
-   else if(!navigator.onLine)updateCloudStatus('Fotoğraf cihazda kaydedildi · internet bekleniyor');
-  }catch(err){alert('Fotoğraf kaydedilemedi: '+err.message)}finally{cleanup()}
- },{once:true});
- input.click();
- // Bazı mobil tarayıcılarda kamera iptalinde change oluşmaz.
- window.setTimeout(()=>{if(document.body.contains(input)&&document.visibilityState==='visible'&&!input.files?.length)cleanup()},120000);
+ if(proofCaptureBusy)return;proofCaptureBusy=true;
+ const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';input.multiple=false;input.style.display='none';document.body.appendChild(input);
+ const cleanup=()=>{input.remove();proofCaptureBusy=false};
+ input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file){cleanup();return}try{const blob=await photoFileToJpeg(file);const def=PROOF_SLOTS.find(x=>x.key===slot);const result=await proofPut(stopId,slot,blob,!!def?.multi);updateProofCardMeta(stopId);await renderProofPanel(stopId);if(result.duplicate)updateCloudStatus('Aynı fotoğraf zaten kayıtlı')}catch(e){alert('Fotoğraf kaydedilemedi: '+e.message)}finally{cleanup()}},{once:true});
+ input.click();setTimeout(()=>{if(document.body.contains(input)&&!input.files?.length)cleanup()},120000)
 }
 async function shareProofPhotos(stopId){const stop=data.find(x=>x.id===stopId);if(!stop)return;const files=[];let sequence=1;for(const slot of PROOF_SLOTS){let rows=await proofGetAll(stopId,slot.key);const localIds=new Set(rows.map(r=>r.id));const remote=(cloudPhotoIndex.get(stopId)||[]).filter(r=>r.photo_type===slot.key&&!localIds.has(r.id));for(const meta of remote){try{const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));rows.push({id:meta.id,blob:await resp.blob()})}catch(e){console.warn(e)}}if(!rows.length){alert(`${slot.label} fotoğrafı eksik.`);return}for(let i=0;i<rows.length;i++){const suffix=rows.length>1?'_'+String(i+1).padStart(2,'0'):'';files.push(new File([rows[i].blob],`${safeFileName(stop.customer)}_${slot.file}${suffix}.jpg`,{type:'image/jpeg'}));sequence++}}try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files}))){await navigator.share({files,title:stop.customer,text:`${stop.customer}
 ${stop.address}`});return}}catch(e){if(e?.name==='AbortError')return;console.warn(e)}for(const file of files){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}alert(`Telefon çoklu paylaşımı desteklemedi. ${files.length} fotoğraf indirildi.`)}
@@ -382,9 +318,42 @@ function load(){
 function saveLocalOnly(){
  try{const json=JSON.stringify(data);localStorage.setItem(KEY,json);localStorage.setItem(BACKUP_KEY,json);if(data.length)localStorage.setItem(SNAPSHOT_KEY,json)}catch(e){alert('Kayıt yapılamadı: '+e.message)}
 }
+let distSyncTimer=null;
+let distSyncBusy=false;
+let distDirty=false;
+async function pushDistributionState(){
+ if(distSyncBusy||!navigator.onLine||!cloudEnabled())return false;
+ distSyncBusy=true;
+ try{
+  await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});
+  distDirty=false;
+  updateCloudStatus('Canlı senkronize · '+cloudTime());
+  return true;
+ }catch(e){
+  distDirty=true;
+  updateCloudStatus('Bulut kaydı bekliyor · '+e.message);
+  return false;
+ }finally{distSyncBusy=false}
+}
 function save(item=null){
  saveLocalOnly();
- distFirebaseSave();
+ distDirty=true;
+ clearTimeout(distSyncTimer);
+ distSyncTimer=setTimeout(pushDistributionState,350);
+}
+async function pullDistributionState(force=false){
+ if(!navigator.onLine||!cloudEnabled()||distSyncBusy||inputIsActive()||(!force&&distDirty))return false;
+ try{
+  const state=await cloudRequest('/api/state');
+  rebuildCloudPhotoIndex(state.photos||[]);
+  const incoming=Array.isArray(state.distributions)?mergeDuplicates(state.distributions.map(normalizeItem)).map(applyNeighborhood):[];
+  if(incoming.length){
+   const a=JSON.stringify(incoming),b=JSON.stringify(data);
+   if(a!==b){data=incoming;saveLocalOnly();await refreshProofCounts();render()}
+  }else if(data.length){await pushDistributionState()}
+  updateCloudStatus('Canlı senkronize · '+cloudTime());
+  return true;
+ }catch(e){updateCloudStatus('Bulut bağlantı hatası · '+e.message);return false}
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function trTitle(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/(^|[\s-])([a-zçğıöşü])/g,(m,a,b)=>a+b.toLocaleUpperCase('tr-TR')).trim()}
@@ -466,7 +435,7 @@ function render(){
  const groups=[...new Set(data.map(x=>x.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
  const mats=materialTotals();
  root.innerHTML=`<div class="dist-page v7-page">
- <div class="dist-head"><div><span class="section-kicker">V10.2 Stabil Bulut</span><h2>Malzeme Operasyon Sistemi</h2><p>Kayıtlar ve fotoğraflar otomatik buluta kaydedilir. Her cihazda aynı liste açılır; kullanıcı ayarı gerekmez.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
+ <div class="dist-head"><div><span class="section-kicker">V10.3 Stabil Bulut</span><h2>Malzeme Operasyon Sistemi</h2><p>Kayıtlar ve fotoğraflar otomatik buluta kaydedilir. Her cihazda aynı liste açılır; kullanıcı ayarı gerekmez.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
  <div class="dist-stats"><article><span>Toplam Müşteri</span><b>${total}</b></article><article><span>Toplam Malzeme</span><b>${mats.reduce((a,m)=>a+m.total,0)}</b></article><article><span>Teslim</span><b>${delivered}</b></article><article><span>Kalan</span><b>${total-delivered}</b></article></div>
  <div id="ekzenCloudStatus" class="cloud-status ${cloudStatus.includes('hatası')||cloudStatus.includes('başarısız')?'is-error':''}" ${cloudStatus?'':'hidden'}>${cloudStatus?'☁️ '+esc(cloudStatus):''}</div><div class="v7-tabs"><button class="${mode==='route'?'is-active':''}" data-dist="set-mode" data-mode="route">🚚 Dağıtım</button><button class="${mode==='summary'?'is-active':''}" data-dist="set-mode" data-mode="summary">📊 Operasyon Özeti</button></div>
  ${mode==='summary'?summaryView(mats,total,delivered):routeView(groups)}
@@ -762,11 +731,7 @@ document.addEventListener('change',async e=>{if(e.target.matches('[data-dist="se
 document.addEventListener('submit',e=>{if(e.target.id==='distributionForm'){e.preventDefault();e.stopPropagation();saveDistributionForm();}},true);
 document.querySelector('#distributionImportForm')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,arr=parseImport(f.elements.text.value);if(!arr.length){alert('Okunabilir kayıt bulunamadı.');return}data=mergeDuplicates(f.elements.mode.value==='replace'?arr:data.concat(arr));save();document.querySelector('#distributionImportDialog').close();f.reset();render();alert(arr.length+' kayıt içe aktarıldı.')});
 data=mergeDuplicates(data).map(applyNeighborhood);saveLocalOnly();window.renderDistribution=render;
-window.addEventListener('online',()=>{updateCloudStatus('İnternet geldi · Canlı bağlantı yenileniyor…');distFirebaseSave(true);refreshCloudPhotosOnly()});
+window.addEventListener('online',()=>{updateCloudStatus('İnternet geldi · Senkronize ediliyor…');if(distDirty)pushDistributionState();else pullDistributionState(true);refreshCloudPhotosOnly()});
 window.addEventListener('offline',()=>updateCloudStatus('Çevrimdışı · Değişiklikler cihazda korunuyor'));
-refreshProofCounts().finally(()=>{
- render();initDistributionFirebaseSync();refreshCloudPhotosOnly();
- clearInterval(proofRefreshTimer);
- proofRefreshTimer=setInterval(()=>{if(navigator.onLine&&!inputIsActive()&&!proofCaptureBusy)refreshCloudPhotosOnly()},15000);
-});
+refreshProofCounts().finally(()=>{render();pullDistributionState(true);refreshCloudPhotosOnly();setInterval(()=>{if(!inputIsActive()&&!proofCaptureBusy)pullDistributionState(false)},5000);});
 })();
