@@ -1,9 +1,23 @@
-# Ekzen Servis Takip V9.1 — Bulut Veri Katmanı
+# Ekzen Servis Takip V9.2 — Doğru Bulut Mimarisi
 
-- Dağıtım kayıtları D1 üzerinde cihazlar arasında ortak okunur.
-- Tek kayıt düzenleme ve teslim durumu değişiklikleri ilgili D1 kaydını doğrudan günceller.
-- Bir kayıt silindiğinde D1 kaydı, malzemeleri ve R2 fotoğrafları birlikte kalıcı silinir.
-- Yerel kopya çevrimdışı güvenlik yedeği olarak korunur.
-- İlk bağlantıda bulut boşsa mevcut yerel liste otomatik buluta aktarılır.
+Bu sürümde telefon/masaüstü uygulaması D1 veya R2'ye doğrudan erişmez. Tüm işlemler HTTPS üzerinden Cloudflare Worker API'sine gönderilir.
 
-Kurulum: `cloudflare-worker-v9.js` dosyasını Worker editörüne yeniden yapıştırıp Deploy edin. Health sürümü `9.1.0` görünmelidir.
+## Worker kurulumu
+1. `cloudflare-worker-v9.js` içeriğini mevcut Worker kodunun tamamının yerine yapıştırın ve Deploy edin.
+2. Worker binding adları tam olarak:
+   - D1: `DB` → `ekzen-servis-db`
+   - R2: `PHOTOS` → `ekzen-servis-fotograflar`
+   - Secret: `APP_TOKEN`
+3. Test:
+   `https://WORKER-ADRESI/api/health?token=UYGULAMA_ANAHTARI`
+4. Doğru yanıt içinde `"version":"9.2.0"` ve `"bindings":{"DB":true,"PHOTOS":true}` görünmelidir.
+
+Worker gerekli tabloları ve eksik kolonları otomatik kontrol eder. D1 Console'da yeniden SQL çalıştırmanız gerekmez.
+
+## Uygulama kurulumu
+GitHub Pages'e ZIP içindeki uygulama dosyalarının tamamını yükleyin. Dağıtım sayfasında `Bulut Ayarları` butonuna Worker adresini ve APP_TOKEN değerini girin. Bağlantı test edilmeden ayarlar kaydedilmez.
+
+İlk bağlantıda:
+- Bulutta kayıt varsa cihaz buluttaki listeyi alır.
+- Bulut boş, cihazda liste varsa cihazdaki liste otomatik D1'e yüklenir.
+- Cihazda bulunan yerel teslim fotoğrafları R2'ye taşınır.

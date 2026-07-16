@@ -6,19 +6,72 @@ const BACKUP_KEY='ekzen-distribution-backup-v8';
 const SNAPSHOT_KEY='ekzen-distribution-last-good-v8';
 const CLOUD_URL_KEY='ekzen-cloud-api-url-v9';
 const CLOUD_TOKEN_KEY='ekzen-cloud-api-token-v9';
-let cloudBusy=false,cloudStatus='',cloudTimer=null,cloudPhotoIndex=new Map(),cloudQueue=Promise.resolve();
-function cloudConfig(){return {url:(localStorage.getItem(CLOUD_URL_KEY)||'').replace(/\/+$/,''),token:localStorage.getItem(CLOUD_TOKEN_KEY)||''}}
+const CLOUD_LAST_OK_KEY='ekzen-cloud-last-ok-v9';
+let cloudBusy=false,cloudStatus='',cloudTimer=null,cloudPhotoIndex=new Map(),cloudQueue=Promise.resolve(),cloudPulling=false;
+function cloudConfig(){return {url:(localStorage.getItem(CLOUD_URL_KEY)||'').trim().replace(/\/+$/,''),token:(localStorage.getItem(CLOUD_TOKEN_KEY)||'').trim()}}
 function cloudEnabled(){const c=cloudConfig();return Boolean(c.url&&c.token)}
-async function cloudRequest(path,options={}){const c=cloudConfig();if(!c.url||!c.token)throw new Error('Bulut bağlantısı ayarlanmamış.');const headers=new Headers(options.headers||{});headers.set('X-Ekzen-Token',c.token);if(options.body&&!(options.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');const r=await fetch(c.url+path,{...options,headers});if(!r.ok){let m='Bulut hatası ('+r.status+')';try{const j=await r.json();m=j.error||m}catch(e){}throw new Error(m)}const ct=r.headers.get('content-type')||'';return ct.includes('application/json')?r.json():r}
+function cloudTime(){return new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}
+async function cloudRequest(path,options={},configOverride=null){
+ const c=configOverride||cloudConfig();
+ if(!c.url||!c.token)throw new Error('Bulut bağlantısı ayarlanmamış.');
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+ const headers=new Headers(options.headers||{});headers.set('X-Ekzen-Token',c.token);
+ if(options.body&&!(options.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+ try{
+  const r=await fetch(c.url+path,{...options,headers,signal:controller.signal,cache:'no-store'});
+  if(!r.ok){let m='Bulut hatası ('+r.status+')';try{const j=await r.json();m=j.error||m}catch(e){}throw new Error(m)}
+  const ct=r.headers.get('content-type')||'';return ct.includes('application/json')?r.json():r;
+ }catch(e){if(e?.name==='AbortError')throw new Error('Bulut bağlantısı zaman aşımına uğradı.');throw e}finally{clearTimeout(timeout)}
+}
 function rebuildCloudPhotoIndex(rows=[]){cloudPhotoIndex=new Map();for(const x of rows){const a=cloudPhotoIndex.get(x.distribution_id)||[];a.push(x);cloudPhotoIndex.set(x.distribution_id,a)}}
-async function cloudPull(){if(!cloudEnabled())return false;cloudBusy=true;cloudStatus='Buluttan kayıtlar alınıyor…';render();try{const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);if(Array.isArray(state.distributions)&&state.distributions.length){data=state.distributions.map(normalizeItem);saveLocalOnly();cloudStatus='Bulut senkronize · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});return true}if(data.length){await cloudPush(true);return true}cloudStatus='Bulut bağlı · Henüz kayıt yok';return true}catch(e){cloudStatus='Bulut bağlantı hatası: '+e.message;return false}finally{cloudBusy=false;render()}}
-async function cloudPush(immediate=false){if(!cloudEnabled()||cloudBusy)return;if(!immediate){clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>cloudPush(true),700);return}cloudBusy=true;cloudStatus='Buluta kaydediliyor…';render();try{await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});cloudStatus='Buluta kaydedildi · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}catch(e){cloudStatus='Bulut kaydı başarısız: '+e.message}finally{cloudBusy=false;render()}}
-async function openCloudSettings(){const old=cloudConfig();const url=prompt('Cloudflare Worker bağlantı adresi:',old.url||'https://');if(url===null)return;const token=prompt('V9 uygulama erişim anahtarı:',old.token);if(token===null)return;localStorage.setItem(CLOUD_URL_KEY,url.trim().replace(/\/+$/,''));localStorage.setItem(CLOUD_TOKEN_KEY,token.trim());cloudStatus='Bağlantı deneniyor…';render();await cloudPull()}
-async function cloudUploadPhoto(stopId,slot,blob,recordId){if(!cloudEnabled())return;const fd=new FormData();fd.append('file',blob,'photo.jpg');fd.append('id',recordId);await cloudRequest('/api/photos/'+encodeURIComponent(stopId)+'/'+encodeURIComponent(slot),{method:'POST',body:fd});const st=await cloudRequest('/api/state');rebuildCloudPhotoIndex(st.photos||[])}
+async function cloudTest(configOverride=null){
+ const info=await cloudRequest('/api/health',{},configOverride);
+ if(!info?.ok){const missing=[];if(info?.bindings&&!info.bindings.DB)missing.push('DB');if(info?.bindings&&!info.bindings.PHOTOS)missing.push('PHOTOS');throw new Error(missing.length?missing.join(' ve ')+' bağlantısı eksik.':'Worker hazır değil.');}
+ localStorage.setItem(CLOUD_LAST_OK_KEY,new Date().toISOString());
+ return info;
+}
+async function migrateLocalPhotosToCloud(){
+ if(!cloudEnabled())return 0;
+ const rows=await proofAll();let uploaded=0;
+ const remoteIds=new Set([...cloudPhotoIndex.values()].flat().map(x=>x.id));
+ for(const row of rows){if(remoteIds.has(row.id))continue;await cloudUploadPhoto(row.stopId,row.slot,row.blob,row.id,false);uploaded++}
+ return uploaded;
+}
+async function cloudPull(){
+ if(!cloudEnabled()||cloudPulling)return false;cloudPulling=true;cloudBusy=true;cloudStatus='Bulut bağlantısı kontrol ediliyor…';render();
+ try{
+  const health=await cloudTest();
+  cloudStatus='Buluttan kayıtlar alınıyor…';render();
+  const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);
+  const remote=Array.isArray(state.distributions)?state.distributions:[];
+  if(remote.length){data=remote.map(normalizeItem);saveLocalOnly();const uploaded=await migrateLocalPhotosToCloud();cloudStatus='Bulut senkronize · '+cloudTime()+(uploaded?' · '+uploaded+' yerel fotoğraf yüklendi':'');return true}
+  if(data.length){await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});const uploaded=await migrateLocalPhotosToCloud();cloudStatus='Yerel liste buluta aktarıldı · '+cloudTime()+(uploaded?' · '+uploaded+' fotoğraf':'');return true}
+  cloudStatus='Bulut bağlı · Henüz kayıt yok · V'+(health.version||'9');return true;
+ }catch(e){cloudStatus='Bulut bağlantı hatası: '+e.message;return false}finally{cloudBusy=false;cloudPulling=false;await refreshProofCounts();render()}
+}
+async function cloudPush(immediate=false){
+ if(!cloudEnabled())return;if(!immediate){clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>cloudPush(true),800);return}
+ if(cloudBusy||cloudPulling)return;cloudBusy=true;cloudStatus='Buluta kaydediliyor…';render();
+ try{await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});cloudStatus='Buluta kaydedildi · '+cloudTime()}
+ catch(e){cloudStatus='Bulut kaydı başarısız: '+e.message}finally{cloudBusy=false;render()}
+}
+async function openCloudSettings(){
+ const old=cloudConfig();const url=prompt('Cloudflare Worker bağlantı adresi:',old.url||'https://yellow-bar-4da3.dogansezaikocak.workers.dev');if(url===null)return;
+ const token=prompt('V9 uygulama erişim anahtarı:',old.token);if(token===null)return;
+ const next={url:url.trim().replace(/\/+$/,''),token:token.trim()};if(!next.url||!next.token){alert('Worker adresi ve uygulama anahtarı boş bırakılamaz.');return}
+ cloudStatus='Bağlantı test ediliyor…';render();
+ try{const info=await cloudTest(next);localStorage.setItem(CLOUD_URL_KEY,next.url);localStorage.setItem(CLOUD_TOKEN_KEY,next.token);alert('Bulut bağlantısı başarılı. Worker V'+(info.version||'9')+' · DB ve R2 hazır.');await cloudPull()}
+ catch(e){cloudStatus='Bulut bağlantı hatası: '+e.message;render();alert('Bağlantı kurulamadı: '+e.message)}
+}
+async function cloudUploadPhoto(stopId,slot,blob,recordId,refresh=true){
+ if(!cloudEnabled())return;const fd=new FormData();fd.append('file',blob,'photo.jpg');fd.append('id',recordId);
+ await cloudRequest('/api/photos/'+encodeURIComponent(stopId)+'/'+encodeURIComponent(slot),{method:'POST',body:fd});
+ if(refresh){const st=await cloudRequest('/api/state');rebuildCloudPhotoIndex(st.photos||[])}
+}
 async function cloudDeletePhoto(recordId){if(!cloudEnabled())return;await cloudRequest('/api/photos/'+encodeURIComponent(recordId),{method:'DELETE'});for(const [k,a] of cloudPhotoIndex)cloudPhotoIndex.set(k,a.filter(x=>x.id!==recordId))}
 async function cloudDeleteStopPhotos(stopId){if(!cloudEnabled())return;await cloudRequest('/api/photos/by-stop/'+encodeURIComponent(stopId),{method:'DELETE'});cloudPhotoIndex.delete(stopId)}
-async function cloudUpsertStop(stop){if(!cloudEnabled()||!stop)return;cloudQueue=cloudQueue.then(()=>cloudRequest('/api/distributions/'+encodeURIComponent(stop.id),{method:'PUT',body:JSON.stringify(stop)})).then(()=>{cloudStatus='Buluta kaydedildi · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});render()}).catch(e=>{cloudStatus='Bulut kayıt hatası: '+e.message;render()});return cloudQueue}
-async function cloudDeleteStop(stopId){if(!cloudEnabled())return;cloudQueue=cloudQueue.then(()=>cloudRequest('/api/distributions/'+encodeURIComponent(stopId),{method:'DELETE'})).then(()=>{cloudPhotoIndex.delete(stopId);cloudStatus='Kayıt buluttan tamamen silindi';render()}).catch(e=>{cloudStatus='Buluttan silme hatası: '+e.message;render()});return cloudQueue}
+async function cloudUpsertStop(stop){if(!cloudEnabled()||!stop)return;cloudQueue=cloudQueue.then(()=>cloudRequest('/api/distributions/'+encodeURIComponent(stop.id),{method:'PUT',body:JSON.stringify(stop)})).then(()=>{cloudStatus='Buluta kaydedildi · '+cloudTime();render()}).catch(e=>{cloudStatus='Bulut kayıt hatası: '+e.message;render()});return cloudQueue}
+async function cloudDeleteStop(stopId){if(!cloudEnabled())return;cloudQueue=cloudQueue.then(()=>cloudRequest('/api/distributions/'+encodeURIComponent(stopId),{method:'DELETE'})).then(()=>{cloudPhotoIndex.delete(stopId);cloudStatus='Kayıt ve fotoğraflar buluttan tamamen silindi';render()}).catch(e=>{cloudStatus='Buluttan silme hatası: '+e.message;render()});return cloudQueue}
 
 const AI_PROXY_KEY='ekzen-ai-proxy-url';
 let data=load();
@@ -213,7 +266,7 @@ function render(){
  const groups=[...new Set(data.map(x=>x.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
  const mats=materialTotals();
  root.innerHTML=`<div class="dist-page v7-page">
- <div class="dist-head"><div><span class="section-kicker">V9.1 Bulut Veri Katmanı</span><h2>Malzeme Operasyon Sistemi</h2><p>Kayıtlar D1 veritabanında, teslim fotoğrafları R2 bulut deposunda güvenle saklanır; tüm cihazlarda aynı liste açılır.</p></div><div class="dist-head-actions"><button class="secondary-button cloud-button" data-dist="cloud-settings">☁️ Bulut Ayarları</button><button class="secondary-button" data-dist="cloud-refresh" ${cloudBusy?'disabled':''}>🔄 Senkronize Et</button><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
+ <div class="dist-head"><div><span class="section-kicker">V9.2 Doğru Bulut Mimarisi</span><h2>Malzeme Operasyon Sistemi</h2><p>Telefon yalnızca Worker API'sine bağlanır; kayıtlar D1, fotoğraflar R2 üzerinde saklanır ve tüm cihazlarda aynı liste açılır.</p></div><div class="dist-head-actions"><button class="secondary-button cloud-button" data-dist="cloud-settings">☁️ Bulut Ayarları</button><button class="secondary-button" data-dist="cloud-refresh" ${cloudBusy?'disabled':''}>🔄 Senkronize Et</button><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
  <div class="dist-stats"><article><span>Toplam Müşteri</span><b>${total}</b></article><article><span>Toplam Malzeme</span><b>${mats.reduce((a,m)=>a+m.total,0)}</b></article><article><span>Teslim</span><b>${delivered}</b></article><article><span>Kalan</span><b>${total-delivered}</b></article></div>
  ${cloudStatus?`<div class="cloud-status ${cloudStatus.includes('hatası')||cloudStatus.includes('başarısız')?'is-error':''}">☁️ ${esc(cloudStatus)}</div>`:''}<div class="v7-tabs"><button class="${mode==='route'?'is-active':''}" data-dist="set-mode" data-mode="route">🚚 Dağıtım</button><button class="${mode==='summary'?'is-active':''}" data-dist="set-mode" data-mode="summary">📊 Operasyon Özeti</button></div>
  ${mode==='summary'?summaryView(mats,total,delivered):routeView(groups)}
