@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-// V9.6.0 - Dağıtım kayıtları, Servisler ile aynı Firebase canlı senkronizasyonunu kullanır.
+// V9.6.1 - Fotoğraf paneli titreşim ve canlı senkronizasyon render döngüsü düzeltmesi.
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
@@ -22,7 +22,7 @@ const DIST_FIREBASE_CONFIG={
  messagingSenderId:'199852526862',
  appId:'1:199852526862:web:5b2efb44f0a26ca76f5b5f'
 };
-let distFirebaseRef=null,distFirebaseReady=false,distFirebaseApplying=false,distFirebaseInitialHandled=false,distFirebaseTimer=null;
+let distFirebaseRef=null,distFirebaseReady=false,distFirebaseApplying=false,distFirebaseInitialHandled=false,distFirebaseTimer=null,distFirebaseLastSnapshot='';
 function distFirebaseSave(immediate=false){
  if(!distFirebaseRef||!distFirebaseReady||distFirebaseApplying)return;
  if(!immediate){clearTimeout(distFirebaseTimer);distFirebaseTimer=setTimeout(()=>distFirebaseSave(true),250);return;}
@@ -37,12 +37,20 @@ function initDistributionFirebaseSync(){
   distFirebaseRef.on('value',async snapshot=>{
    const remote=snapshot.val();distFirebaseReady=true;
    if(remote&&Array.isArray(remote.data)){
-    distFirebaseApplying=true;
-    data=mergeDuplicates(remote.data.map(normalizeItem)).map(applyNeighborhood);
-    saveLocalOnly();
-    distFirebaseApplying=false;
-    await refreshProofCounts();
-    if(!inputIsActive())render();
+    const incoming=mergeDuplicates(remote.data.map(normalizeItem)).map(applyNeighborhood);
+    const incomingSnapshot=JSON.stringify(incoming);
+    const currentSnapshot=JSON.stringify(data);
+    distFirebaseLastSnapshot=incomingSnapshot;
+    // Kendi yazdığımız veri Firebase'den aynen geri gelirse ekranı yeniden kurma.
+    // Özellikle açık fotoğraf paneli ve kamera düğmesi sabit kalsın.
+    if(incomingSnapshot!==currentSnapshot){
+     distFirebaseApplying=true;
+     data=incoming;
+     saveLocalOnly();
+     distFirebaseApplying=false;
+     await refreshProofCounts();
+     if(!inputIsActive())render();
+    }
     updateCloudStatus('Canlı senkronize · '+cloudTime());
    }else if(!distFirebaseInitialHandled&&data.length){
     distFirebaseSave(true);
@@ -375,13 +383,15 @@ function materialTotals(){
 }
 function render(){
  const root=document.querySelector('#distributionView'); if(!root)return;
- data.forEach(syncStatus);save();
+ // Render yalnızca ekranı çizer. Buradan buluta kayıt başlatmak sonsuz
+ // Firebase -> render -> save döngüsü oluşturur ve fotoğraf panelini titretir.
+ data.forEach(syncStatus);
  if(mode==='warehouse')mode='route';
  const total=data.length,delivered=data.filter(x=>x.status==='delivered').length;
  const groups=[...new Set(data.map(x=>x.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
  const mats=materialTotals();
  root.innerHTML=`<div class="dist-page v7-page">
- <div class="dist-head"><div><span class="section-kicker">V9.4 Otomatik Bulut</span><h2>Malzeme Operasyon Sistemi</h2><p>Kayıtlar ve fotoğraflar otomatik buluta kaydedilir. Her cihazda aynı liste açılır; kullanıcı ayarı gerekmez.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
+ <div class="dist-head"><div><span class="section-kicker">V9.6.1 Canlı Bulut</span><h2>Malzeme Operasyon Sistemi</h2><p>Kayıtlar ve fotoğraflar otomatik buluta kaydedilir. Her cihazda aynı liste açılır; kullanıcı ayarı gerekmez.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
  <div class="dist-stats"><article><span>Toplam Müşteri</span><b>${total}</b></article><article><span>Toplam Malzeme</span><b>${mats.reduce((a,m)=>a+m.total,0)}</b></article><article><span>Teslim</span><b>${delivered}</b></article><article><span>Kalan</span><b>${total-delivered}</b></article></div>
  <div id="ekzenCloudStatus" class="cloud-status ${cloudStatus.includes('hatası')||cloudStatus.includes('başarısız')?'is-error':''}" ${cloudStatus?'':'hidden'}>${cloudStatus?'☁️ '+esc(cloudStatus):''}</div><div class="v7-tabs"><button class="${mode==='route'?'is-active':''}" data-dist="set-mode" data-mode="route">🚚 Dağıtım</button><button class="${mode==='summary'?'is-active':''}" data-dist="set-mode" data-mode="summary">📊 Operasyon Özeti</button></div>
  ${mode==='summary'?summaryView(mats,total,delivered):routeView(groups)}
