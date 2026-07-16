@@ -1,4 +1,4 @@
-# Ekzen Servis Takip V8.2.1
+# Ekzen Servis Takip V8.2.2
 
 Teslim kanıtı fotoğraflarında çoklu dolap desteği eklendi.
 
