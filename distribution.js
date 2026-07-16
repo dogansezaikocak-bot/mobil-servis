@@ -1,5 +1,6 @@
 (function(){
 'use strict';
+// V9.5.2 - PUT cevabında D1 doğrulaması; ayrı GET yarışı kaldırıldı.
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
@@ -15,7 +16,7 @@ function loadCloudOps(){try{const v=JSON.parse(localStorage.getItem(CLOUD_QUEUE_
 function saveCloudOps(ops){localStorage.setItem(CLOUD_QUEUE_KEY,JSON.stringify(ops))}
 function queuedCount(){return loadCloudOps().length}
 function queueCloudOp(op){let ops=loadCloudOps();if(op.type==='sync'){ops=[op]}else if(op.type==='upsert'){ops=ops.filter(x=>!(x.type==='upsert'&&x.id===op.id)&&!(x.type==='delete'&&x.id===op.id));ops.push(op)}else if(op.type==='delete'){ops=ops.filter(x=>!(x.id===op.id&&(x.type==='upsert'||x.type==='delete')));ops.push(op)}else if(op.type==='photoDelete'){ops=ops.filter(x=>!(x.type==='photoDelete'&&x.id===op.id));ops.push(op)}else if(op.type==='photoDeleteStop'){ops=ops.filter(x=>!(x.type==='photoDeleteStop'&&x.stopId===op.stopId));ops.push(op)}else ops.push(op);saveCloudOps(ops);return ops.length}
-async function flushCloudOps(){if(!cloudEnabled()||cloudFlushing||!navigator.onLine)return false;cloudFlushing=true;try{let ops=loadCloudOps();while(ops.length){const op=ops[0];if(op.type==='sync')await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:op.data||[]})});else if(op.type==='upsert')await cloudRequest('/api/distributions/'+encodeURIComponent(op.id),{method:'PUT',body:JSON.stringify(op.data)});else if(op.type==='delete')await cloudRequest('/api/distributions/'+encodeURIComponent(op.id),{method:'DELETE'});else if(op.type==='photoDelete')await cloudRequest('/api/photos/'+encodeURIComponent(op.id),{method:'DELETE'});else if(op.type==='photoDeleteStop')await cloudRequest('/api/photos/by-stop/'+encodeURIComponent(op.stopId),{method:'DELETE'});ops.shift();saveCloudOps(ops)}return true}finally{cloudFlushing=false}}
+async function flushCloudOps(){if(!cloudEnabled()||cloudFlushing||!navigator.onLine)return false;cloudFlushing=true;try{let ops=loadCloudOps();while(ops.length){const op=ops[0];let result=null;if(op.type==='sync')result=await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:op.data||[]})});else if(op.type==='upsert'){result=await cloudRequest('/api/distributions/'+encodeURIComponent(op.id),{method:'PUT',body:JSON.stringify(op.data)});if(!result?.ok||!result?.distribution||String(result.distribution.id)!==String(op.id))throw new Error('Kayıt D1 tarafından doğrulanmadı.');}else if(op.type==='delete')result=await cloudRequest('/api/distributions/'+encodeURIComponent(op.id),{method:'DELETE'});else if(op.type==='photoDelete')result=await cloudRequest('/api/photos/'+encodeURIComponent(op.id),{method:'DELETE'});else if(op.type==='photoDeleteStop')result=await cloudRequest('/api/photos/by-stop/'+encodeURIComponent(op.stopId),{method:'DELETE'});ops.shift();saveCloudOps(ops)}return true}finally{cloudFlushing=false}}
 function cloudConfig(){return {url:CLOUD_FIXED_URL,token:CLOUD_FIXED_TOKEN}}
 function cloudEnabled(){const c=cloudConfig();return Boolean(c.url&&c.token)}
 function cloudTime(){return new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}
@@ -132,10 +133,9 @@ async function cloudUpsertStop(stop){
  if(!navigator.onLine){updateCloudStatus('Çevrimdışı · '+queuedCount()+' işlem sırada');return false}
  cloudQueue=cloudQueue.then(async()=>{
   await flushCloudOps();
-  // Gerçekten D1'e yazıldığını doğrula; doğrulanmadan başarı mesajı gösterme.
-  const check=await cloudRequest('/api/distributions/'+encodeURIComponent(stop.id));
-  if(!check?.ok||!check?.distribution)throw new Error('Kayıt bulutta doğrulanamadı.');
   updateCloudStatus('Buluta kaydedildi · '+cloudTime());
+  // Diğer cihazların kaydı kısa sürede görmesi için bulut durumunu gecikmesiz yenile.
+  setTimeout(()=>cloudPull().catch(()=>{}),500);
   return true;
  }).catch(e=>{updateCloudStatus('Bulut kayıt işlemi sırada · '+queuedCount()+' · '+e.message);return false});
  return cloudQueue;

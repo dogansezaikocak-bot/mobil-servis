@@ -1,4 +1,4 @@
-const VERSION = '9.5.0';
+const VERSION = '9.5.2';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
@@ -221,7 +221,9 @@ async function upsertDistribution(env, raw, routeId = '') {
         material.new_design, material.quantity, material.delivered));
   }
   await env.DB.batch(statements);
-  return { ok: true, id: item.id };
+  const saved = await getDistribution(env, item.id);
+  if (!saved?.ok || !saved?.distribution) throw new Error('Kayıt D1 içine yazıldıktan sonra okunamadı.');
+  return { ok: true, id: item.id, distribution: saved.distribution };
 }
 
 async function getDistribution(env, id) {
