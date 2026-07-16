@@ -1,4 +1,4 @@
-# Ekzen Servis Takip V9.3.1 — Senkronizasyon Döngüsü Düzeltmesi
+# Ekzen Servis Takip V9.4 — Bulut Senkronizasyonu
 
 Bu sürüm V9.2 Worker + D1 + R2 mimarisini korur ve çevrimdışı işlem kuyruğu ekler.
 
@@ -17,10 +17,3 @@ Bu sürüm V9.2 Worker + D1 + R2 mimarisini korur ve çevrimdışı işlem kuyru
 ```
 
 Önce `cloudflare-worker-v9.js` dosyasını Worker'a Deploy edin. Ardından diğer uygulama dosyalarını GitHub Pages üzerine yükleyin. Mevcut listeyi silmeyin.
-
-## V9.3.1 düzeltmesi
-- Bulut durum mesajları artık tüm dağıtım ekranını yeniden çizmez.
-- Arama kutusu ve form alanları odak kaybetmez.
-- Otomatik kontrol yalnızca bekleyen kuyruğu gönderir; her dakika buluttan tam liste çekmez.
-- Aynı veri değişmeden tekrar tekrar buluta gönderilmez.
-- Manuel “Senkronize Et” düğmesi buluttan güncel listeyi çekmeye devam eder.
