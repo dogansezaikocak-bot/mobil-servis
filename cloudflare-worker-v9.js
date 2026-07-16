@@ -1,4 +1,4 @@
-const VERSION = '9.2.0';
+const VERSION = '9.3.0';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',

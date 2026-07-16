@@ -1,23 +1,26 @@
-# Ekzen Servis Takip V9.2 — Doğru Bulut Mimarisi
+# Ekzen Servis Takip V9.3.1 — Senkronizasyon Döngüsü Düzeltmesi
 
-Bu sürümde telefon/masaüstü uygulaması D1 veya R2'ye doğrudan erişmez. Tüm işlemler HTTPS üzerinden Cloudflare Worker API'sine gönderilir.
+Bu sürüm V9.2 Worker + D1 + R2 mimarisini korur ve çevrimdışı işlem kuyruğu ekler.
 
-## Worker kurulumu
-1. `cloudflare-worker-v9.js` içeriğini mevcut Worker kodunun tamamının yerine yapıştırın ve Deploy edin.
-2. Worker binding adları tam olarak:
-   - D1: `DB` → `ekzen-servis-db`
-   - R2: `PHOTOS` → `ekzen-servis-fotograflar`
-   - Secret: `APP_TOKEN`
-3. Test:
-   `https://WORKER-ADRESI/api/health?token=UYGULAMA_ANAHTARI`
-4. Doğru yanıt içinde `"version":"9.2.0"` ve `"bindings":{"DB":true,"PHOTOS":true}` görünmelidir.
+## Özellikler
+- Kayıt ekleme, düzenleme ve silme işlemleri internet yokken cihazda sıraya alınır.
+- İnternet geri geldiğinde bekleyen işlemler otomatik olarak Worker API üzerinden D1'e gönderilir.
+- Uygulama görünür olduğunda ve her 60 saniyede senkronizasyon kontrol edilir.
+- Fotoğraflar cihazda IndexedDB içinde korunur; buluta eksik olanlar otomatik yüklenir.
+- Kayıt tamamen silindiğinde D1, malzemeler ve R2 fotoğrafları birlikte silinir.
 
-Worker gerekli tabloları ve eksik kolonları otomatik kontrol eder. D1 Console'da yeniden SQL çalıştırmanız gerekmez.
+## Worker testi
+`/api/health?token=APP_TOKEN` sonucu aşağıdaki gibi olmalıdır:
 
-## Uygulama kurulumu
-GitHub Pages'e ZIP içindeki uygulama dosyalarının tamamını yükleyin. Dağıtım sayfasında `Bulut Ayarları` butonuna Worker adresini ve APP_TOKEN değerini girin. Bağlantı test edilmeden ayarlar kaydedilmez.
+```json
+{"ok":true,"version":"9.3.0","bindings":{"DB":true,"PHOTOS":true}}
+```
 
-İlk bağlantıda:
-- Bulutta kayıt varsa cihaz buluttaki listeyi alır.
-- Bulut boş, cihazda liste varsa cihazdaki liste otomatik D1'e yüklenir.
-- Cihazda bulunan yerel teslim fotoğrafları R2'ye taşınır.
+Önce `cloudflare-worker-v9.js` dosyasını Worker'a Deploy edin. Ardından diğer uygulama dosyalarını GitHub Pages üzerine yükleyin. Mevcut listeyi silmeyin.
+
+## V9.3.1 düzeltmesi
+- Bulut durum mesajları artık tüm dağıtım ekranını yeniden çizmez.
+- Arama kutusu ve form alanları odak kaybetmez.
+- Otomatik kontrol yalnızca bekleyen kuyruğu gönderir; her dakika buluttan tam liste çekmez.
+- Aynı veri değişmeden tekrar tekrar buluta gönderilmez.
+- Manuel “Senkronize Et” düğmesi buluttan güncel listeyi çekmeye devam eder.
