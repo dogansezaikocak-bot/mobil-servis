@@ -1,12 +1,11 @@
-# Ekzen Servis Takip V8.2
+# Ekzen Servis Takip V8.2.1
 
-## Teslim Kanıtı ve WhatsApp Paylaşımı
+Teslim kanıtı fotoğraflarında çoklu dolap desteği eklendi.
 
-Her dağıtım kartında 5 fotoğraf saklanır:
-1. Dükkân önü
-2. Montaj öncesi
-3. Montaj sonrası
-4. Seri no / model
-5. Kaşeli servis fişi
-
-Fotoğraflar cihazda IndexedDB içinde ilgili karta bağlı saklanır. Beşi tamamlandığında tek düğmeyle telefonun paylaşım ekranına verilir ve WhatsApp'ta beş ayrı fotoğraf olarak gönderilebilir. V8.0 canlı konum ve veri koruma özellikleri korunmuştur.
+- Dükkân önü: 1 fotoğraf (yeniden çekilirse değişir)
+- Montaj öncesi: sınırsız fotoğraf
+- Montaj sonrası: sınırsız fotoğraf
+- Seri no / model: sınırsız fotoğraf
+- Kaşeli servis fişi: 1 fotoğraf (yeniden çekilirse değişir)
+- Her fotoğraf ayrı silinebilir.
+- Beş bölümün her birinde en az bir fotoğraf olduğunda tüm fotoğraflar tek paylaşımda WhatsApp'a gönderilebilir.

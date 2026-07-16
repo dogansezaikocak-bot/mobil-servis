@@ -8016,3 +8016,10 @@ body.photo-viewer-open {
 .proof-camera input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .proof-delete{padding:8px 11px}.proof-share{width:100%;margin:8px 0}.proof-loading{padding:12px;text-align:center;color:#64748b}
 @media(max-width:640px){.proof-slot{grid-template-columns:64px 1fr}.proof-slot-preview{width:64px;height:58px}.proof-slot-main>div .secondary-button,.proof-slot-main>div .danger-button{min-height:42px}.proof-share{min-height:48px}}
+/* V8.2.1 çoklu teslim fotoğrafları */
+.proof-slot-previews{display:flex;gap:7px;flex-wrap:wrap;align-items:center;min-width:74px}
+.proof-thumb{position:relative;width:74px;height:62px;border-radius:9px;overflow:hidden;background:#e2e8f0;border:1px solid #cbd5e1}
+.proof-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.proof-thumb-delete{position:absolute;right:3px;top:3px;width:24px;height:24px;border:0;border-radius:999px;background:rgba(185,28,28,.92);color:#fff;font-size:17px;line-height:20px;cursor:pointer;padding:0}
+.proof-slot{grid-template-columns:minmax(74px,auto) 1fr}
+@media(max-width:640px){.proof-slot{grid-template-columns:1fr}.proof-slot-previews{min-width:0}.proof-thumb{width:72px;height:62px}}
