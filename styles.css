@@ -8023,3 +8023,4 @@ body.photo-viewer-open {
 .proof-thumb-delete{position:absolute;right:3px;top:3px;width:24px;height:24px;border:0;border-radius:999px;background:rgba(185,28,28,.92);color:#fff;font-size:17px;line-height:20px;cursor:pointer;padding:0}
 .proof-slot{grid-template-columns:minmax(74px,auto) 1fr}
 @media(max-width:640px){.proof-slot{grid-template-columns:1fr}.proof-slot-previews{min-width:0}.proof-thumb{width:72px;height:62px}}
+.cloud-status{margin:12px 0;padding:11px 14px;border:1px solid #b7e4da;background:#effcf8;border-radius:12px;color:#17695b;font-weight:700}.cloud-status.is-error{border-color:#f3b4b4;background:#fff1f1;color:#a12b2b}.cloud-button{border-color:#8bd8c8!important}
