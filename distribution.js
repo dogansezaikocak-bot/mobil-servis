@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-// V10.0 - Kod temizliği: teslim fotoğrafı tek tetikleme, her basışta tek fotoğraf ve canlı senkronizasyon korunur.
+// V10.0.1 - Fotoğraf kayıt kararlılığı: çift change engeli, anlık panel güncelleme, bulut yükleme arka planda.
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
@@ -224,33 +224,34 @@ function proofRecordId(stopId,slot){return proofKey(stopId,slot)+':'+Date.now()+
 function openProofDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(PROOF_DB,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(PROOF_STORE))db.createObjectStore(PROOF_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Fotoğraf deposu açılamadı.'))})}
 async function proofAll(){const db=await openProofDb();const rows=await new Promise((resolve,reject)=>{const req=db.transaction(PROOF_STORE).objectStore(PROOF_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close();return rows}
 async function proofGetAll(stopId,slot){const rows=await proofAll();return rows.filter(r=>r.stopId===stopId&&r.slot===slot).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0))}
-async function proofPut(stopId,slot,blob,multi=false){const db=await openProofDb();const recordId=proofRecordId(stopId,slot);await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);if(!multi){const req=store.getAll();req.onsuccess=()=>{for(const row of req.result||[])if(row.stopId===stopId&&row.slot===slot)store.delete(row.id);store.put({id:recordId,stopId,slot,blob,updatedAt:Date.now()})};req.onerror=()=>reject(req.error)}else store.put({id:recordId,stopId,slot,blob,updatedAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();await refreshProofCounts();try{await cloudUploadPhoto(stopId,slot,blob,recordId)}catch(e){console.warn(e);cloudStatus='Fotoğraf buluta yüklenemedi: '+e.message}}
-async function proofDeleteRecord(recordId){const db=await openProofDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite');tx.objectStore(PROOF_STORE).delete(recordId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();await refreshProofCounts();try{await cloudDeletePhoto(recordId)}catch(e){console.warn(e)}}
-async function proofDeleteStop(stopId){const rows=await proofAll(),db=await openProofDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);for(const row of rows)if(row.stopId===stopId)store.delete(row.id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();proofCounts.delete(stopId);try{await cloudDeleteStopPhotos(stopId)}catch(e){console.warn(e)}}
-async function refreshProofCounts(){try{const rows=await proofAll();proofCounts=new Map();for(const row of rows){const s=proofCounts.get(row.stopId)||{total:0,slots:new Set()};s.total++;s.slots.add(row.slot);proofCounts.set(row.stopId,s)}for(const [stopId,cloudRows] of cloudPhotoIndex){const s=proofCounts.get(stopId)||{total:0,slots:new Set()};const ids=new Set(rows.filter(r=>r.stopId===stopId).map(r=>r.id));for(const r of cloudRows)if(!ids.has(r.id)){s.total++;s.slots.add(r.photo_type)}proofCounts.set(stopId,s)}}catch(e){console.warn(e)}}
-function proofSummary(stopId){const s=proofCounts.get(stopId)||{total:0,slots:new Set()};return {total:s.total||0,complete:(s.slots?.size||0)===PROOF_SLOTS.length,sections:s.slots?.size||0}}
-async function photoFileToJpeg(file){let source=file;if(isHeicFile(file))source=await heicToJpegBlob(file);const img=await loadImageFromBlob(source),max=1800,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('Fotoğraf hazırlanamadı.')),'image/jpeg',0.86))}
-function revokeProofUrls(){for(const u of proofObjectUrls)URL.revokeObjectURL(u);proofObjectUrls=[]}
-async function renderProofPanel(stopId){
- const box=document.querySelector(`[data-proof-panel="${stopId}"]`);if(!box)return;
- box.innerHTML='<p class="proof-loading">Fotoğraflar yükleniyor…</p>';
- try{
-  const parts=[];
-  for(const slot of PROOF_SLOTS){
-   let photos=await proofGetAll(stopId,slot.key);
-   const cloudRows=(cloudPhotoIndex.get(stopId)||[]).filter(r=>r.photo_type===slot.key);
-   const localIds=new Set(photos.map(r=>r.id));
-   const remoteOnly=cloudRows.filter(r=>!localIds.has(r.id));
-   const thumbsLocal=photos.map((row,i)=>{const url=URL.createObjectURL(row.blob);proofObjectUrls.push(url);return `<div class="proof-thumb"><img src="${url}" alt="${esc(slot.label)} ${i+1}"><button type="button" class="proof-thumb-delete" data-dist="proof-delete" data-record="${esc(row.id)}" title="Sil">×</button></div>`}).join('');
-   const c=cloudConfig();const thumbsRemote=remoteOnly.map((row,i)=>`<div class="proof-thumb"><img src="${c.url}/api/photos/${encodeURIComponent(row.id)}?token=${encodeURIComponent(c.token)}" alt="${esc(slot.label)} bulut ${i+1}"><button type="button" class="proof-thumb-delete" data-dist="proof-delete" data-record="${esc(row.id)}" title="Sil">×</button></div>`).join('');const thumbs=thumbsLocal+thumbsRemote;const count=photos.length+remoteOnly.length;
-   const status=slot.multi?(count+' fotoğraf'):(count?'Fotoğraf hazır':'Fotoğraf eksik');
-   parts.push(`<div class="proof-slot ${count?'has-photo':''}"><div class="proof-slot-previews">${thumbs||'<div class="proof-slot-preview"><span>📷</span></div>'}</div><div class="proof-slot-main"><b>${esc(slot.label)}</b><small>${status}${slot.multi?' · Her basışta bir fotoğraf eklenir':''}</small><div><label class="secondary-button proof-camera">${slot.multi?'Fotoğraf Ekle':(photos.length?'Tekrar Çek':'Fotoğraf Çek')}<input type="file" accept="image/*" capture="environment" data-dist-photo="${slot.key}" data-id="${stopId}"></label></div></div></div>`);
-  }
-  box.innerHTML=parts.join('');
- }catch(err){
-  console.error('Teslim fotoğrafları açılamadı:',err);
-  box.innerHTML=`<div class="dist-empty">Fotoğraf bölümü açılamadı. Sayfayı yenileyip tekrar dene.<br><small>${esc(err?.message||'Bilinmeyen hata')}</small></div>`;
+async function proofPut(stopId,slot,blob,multi=false){
+ const db=await openProofDb();
+ const recordId=proofRecordId(stopId,slot);
+ await new Promise((resolve,reject)=>{
+  const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);
+  if(!multi){
+   const req=store.getAll();
+   req.onsuccess=()=>{
+    for(const row of req.result||[])if(row.stopId===stopId&&row.slot===slot)store.delete(row.id);
+    store.put({id:recordId,stopId,slot,blob,updatedAt:Date.now()});
+   };
+   req.onerror=()=>reject(req.error);
+  }else store.put({id:recordId,stopId,slot,blob,updatedAt:Date.now()});
+  tx.oncomplete=resolve;
+  tx.onerror=()=>reject(tx.error||new Error('Fotoğraf cihaz hafızasına yazılamadı.'));
+ });
+ db.close();
+ await refreshProofCounts();
+ if(cloudEnabled()&&navigator.onLine){
+  cloudUploadPhoto(stopId,slot,blob,recordId).then(async()=>{
+   const rows=cloudPhotoIndex.get(stopId)||[];
+   if(!rows.some(x=>String(x.id)===String(recordId)))rows.push({id:recordId,distribution_id:stopId,photo_type:slot});
+   cloudPhotoIndex.set(stopId,rows);
+   await refreshProofCounts();
+   updateProofCardMeta(stopId);
+  }).catch(e=>{console.warn(e);updateCloudStatus('Fotoğraf buluta yüklenemedi · cihazda korundu');});
  }
+ return recordId;
 }
 async function shareProofPhotos(stopId){const stop=data.find(x=>x.id===stopId);if(!stop)return;const files=[];let sequence=1;for(const slot of PROOF_SLOTS){let rows=await proofGetAll(stopId,slot.key);const localIds=new Set(rows.map(r=>r.id));const remote=(cloudPhotoIndex.get(stopId)||[]).filter(r=>r.photo_type===slot.key&&!localIds.has(r.id));for(const meta of remote){try{const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));rows.push({id:meta.id,blob:await resp.blob()})}catch(e){console.warn(e)}}if(!rows.length){alert(`${slot.label} fotoğrafı eksik.`);return}for(let i=0;i<rows.length;i++){const suffix=rows.length>1?'_'+String(i+1).padStart(2,'0'):'';files.push(new File([rows[i].blob],`${safeFileName(stop.customer)}_${slot.file}${suffix}.jpg`,{type:'image/jpeg'}));sequence++}}try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files}))){await navigator.share({files,title:stop.customer,text:`${stop.customer}
 ${stop.address}`});return}}catch(e){if(e?.name==='AbortError')return;console.warn(e)}for(const file of files){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}alert(`Telefon çoklu paylaşımı desteklemedi. ${files.length} fotoğraf indirildi.`)}
@@ -683,7 +684,25 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if
 });
 document.addEventListener('input',e=>{if(e.target.id==='distSearch'){filters.q=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{render();const i=document.querySelector('#distSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},220);return}const field=e.target.dataset?.aiField;if(field&&aiRows[Number(e.target.dataset.index)]){const x=aiRows[Number(e.target.dataset.index)];x[field]=e.target.value;if(field==='address'){x.needsReview=false;x.addressConfidence=100}document.querySelector('#distAiSaveButton').disabled=!aiRows.length}});
 let proofPhotoInputBusy=false;
-document.addEventListener('change',async e=>{if(e.target.matches('[data-dist-photo]')){e.stopImmediatePropagation();const input=e.target;const file=input.files&&input.files[0];if(!file||proofPhotoInputBusy){input.value='';return}proofPhotoInputBusy=true;input.disabled=true;const id=input.dataset.id,slot=input.dataset.distPhoto,slotDef=PROOF_SLOTS.find(x=>x.key===slot);try{const blob=await photoFileToJpeg(file);await proofPut(id,slot,blob,!!slotDef?.multi);render()}catch(err){alert('Fotoğraf kaydedilemedi: '+err.message)}finally{proofPhotoInputBusy=false;try{input.disabled=false;input.value=''}catch(_){}}return}if(e.target.matches('[data-dist=\"select-stop\"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist=\"deliver-material\"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save(x);render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
+let lastProofSelection={key:'',at:0};
+document.addEventListener('change',async e=>{if(e.target.matches('[data-dist-photo]')){
+ e.stopImmediatePropagation();
+ const input=e.target,file=input.files&&input.files[0];
+ const id=input.dataset.id,slot=input.dataset.distPhoto;
+ const selectionKey=file?`${id}|${slot}|${file.name}|${file.size}|${file.lastModified}`:'';
+ const now=Date.now();
+ if(!file||proofPhotoInputBusy||(selectionKey===lastProofSelection.key&&now-lastProofSelection.at<5000)){input.value='';return}
+ lastProofSelection={key:selectionKey,at:now};
+ proofPhotoInputBusy=true;input.disabled=true;
+ const slotDef=PROOF_SLOTS.find(x=>x.key===slot);
+ try{
+  const blob=await photoFileToJpeg(file);
+  await proofPut(id,slot,blob,!!slotDef?.multi);
+  updateProofCardMeta(id);
+  await renderProofPanel(id);
+ }catch(err){alert('Fotoğraf kaydedilemedi: '+err.message)}finally{proofPhotoInputBusy=false;try{input.disabled=false;input.value=''}catch(_){}}
+ return
+}if(e.target.matches('[data-dist="select-stop"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist="deliver-material"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save(x);render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
 document.addEventListener('submit',e=>{if(e.target.id==='distributionForm'){e.preventDefault();e.stopPropagation();saveDistributionForm();}},true);
 document.querySelector('#distributionImportForm')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,arr=parseImport(f.elements.text.value);if(!arr.length){alert('Okunabilir kayıt bulunamadı.');return}data=mergeDuplicates(f.elements.mode.value==='replace'?arr:data.concat(arr));save();document.querySelector('#distributionImportDialog').close();f.reset();render();alert(arr.length+' kayıt içe aktarıldı.')});
 data=mergeDuplicates(data).map(applyNeighborhood);saveLocalOnly();window.renderDistribution=render;
