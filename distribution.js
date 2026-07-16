@@ -2,6 +2,8 @@
 'use strict';
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
+const BACKUP_KEY='ekzen-distribution-backup-v8';
+const SNAPSHOT_KEY='ekzen-distribution-last-good-v8';
 const AI_PROXY_KEY='ekzen-ai-proxy-url';
 let data=load();
 let filters={q:'',group:'',status:'all'};
@@ -29,7 +31,7 @@ function getPhoneLocation(){return new Promise((resolve,reject)=>{
  navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude}),e=>{
   const msg=e.code===1?'Konum izni verilmedi. Telefon ayarlarından bu siteye konum izni ver.':e.code===2?'Telefon konumu belirleyemedi. GPS ve internet bağlantısını kontrol et.':'Konum alınırken zaman aşımı oluştu.';
   reject(new Error(msg));
- },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+ },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 })}
 async function geocodeStop(stop){
  if(Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lng)))return {lat:Number(stop.lat),lng:Number(stop.lng)};
@@ -53,12 +55,26 @@ async function activateNearby(){
     await new Promise(r=>setTimeout(r,1050));
    }
   }
-  nearbyMode=true;filters.status='waiting';filters.group='';nearbyMessage=missing?`${missing} adres bulunamadı; bulunanlar yakından uzağa sıralandı.`:'Yakındaki dükkânlar yakından uzağa sıralandı.';
+  nearbyMode=true;filters.status='waiting';filters.group='';const now=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});nearbyMessage=missing?`${now}: ${missing} adres bulunamadı; bulunanlar güncel konumuna göre sıralandı.`:`${now}: Dükkânlar güncel konumuna göre yakından uzağa sıralandı.`;
  }catch(e){nearbyMessage=e.message;nearbyMode=false;}
  finally{nearbyBusy=false;save();render();}
 }
-function load(){try{const raw=localStorage.getItem(KEY)||localStorage.getItem(LEGACY_KEY)||'[]';const x=JSON.parse(raw);return Array.isArray(x)?x:[]}catch(e){return []}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){alert('Kayıt yapılamadı: '+e.message)}}
+function parseStored(raw){try{const x=JSON.parse(raw||'null');if(Array.isArray(x))return x;if(x&&Array.isArray(x.data))return x.data;return []}catch(e){return []}}
+function load(){
+ try{
+  const candidates=[KEY,BACKUP_KEY,SNAPSHOT_KEY,LEGACY_KEY].map(k=>({key:k,items:parseStored(localStorage.getItem(k))}));
+  const best=candidates.sort((a,b)=>b.items.length-a.items.length)[0];
+  return best&&best.items.length?best.items:[];
+ }catch(e){return []}
+}
+function save(){
+ try{
+  const json=JSON.stringify(data);
+  localStorage.setItem(KEY,json);
+  localStorage.setItem(BACKUP_KEY,json);
+  if(data.length)localStorage.setItem(SNAPSHOT_KEY,json);
+ }catch(e){alert('Kayıt yapılamadı: '+e.message)}
+}
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function trTitle(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/(^|[\s-])([a-zçğıöşü])/g,(m,a,b)=>a+b.toLocaleUpperCase('tr-TR')).trim()}
 function inferNeighborhood(address){
@@ -147,7 +163,7 @@ function neighborhoodStats(groups){return groups.map(name=>{const stops=data.fil
 function routeView(groups){
  const list=visible(),stats=neighborhoodStats(groups);
  const neighborhoodBar=`<section class="dist-neighborhoods"><div class="dist-neighborhoods-head"><b>📍 Mahalleler</b><span>Mahalleye dokunarak o bölgedeki dükkânları göster.</span></div><div class="dist-neighborhood-chips"><button class="dist-neighborhood-chip all ${!filters.group?'is-active':''}" data-dist="group-chip" data-group=""><span>Tümü</span><b>${data.length}</b></button>${stats.map(g=>`<button class="dist-neighborhood-chip ${g.complete?'is-complete':''} ${filters.group===g.name?'is-active':''}" data-dist="group-chip" data-group="${esc(g.name)}"><span>${esc(g.name)}</span><b>${g.total}</b>${g.complete?'<em>✓</em>':`<small>${g.total-g.delivered} kaldı</small>`}</button>`).join('')}</div></section>`;
- return `${neighborhoodBar}<div class="dist-toolbar"><input id="distSearch" type="search" autocomplete="off" placeholder="Dükkân, adres, LED veya baskı levhası ara" value="${esc(filters.q)}"><select id="distGroup"><option value="">Tüm Mahalleler (${data.length})</option>${stats.map(g=>`<option value="${esc(g.name)}" ${g.name===filters.group?'selected':''}>${esc(g.name)} (${g.total})${g.complete?' ✓':''}</option>`).join('')}</select><select id="distStatus"><option value="all">Tüm Durumlar</option>${['waiting','delivered'].map(st=>`<option value="${st}" ${st===filters.status?'selected':''}>${statusLabel(st)}</option>`).join('')}</select><button class="primary-button nearby-button ${nearbyMode?'is-active':''}" data-dist="nearby" ${nearbyBusy?'disabled':''}>${nearbyBusy?'📍 Hesaplanıyor…':nearbyMode?'↩ Normal Sıra':'📍 Yakınımdaki Dükkânlar'}</button><button class="secondary-button" data-dist="manage-toggle">${manageMode?'Bitti':'☑ Seç'}</button><button class="secondary-button" data-dist="export">Yedek Al</button><button class="danger-button" data-dist="clear-delivered">Teslimleri Temizle</button></div>${nearbyMessage?`<div class="nearby-status ${nearbyMode?'success':''}">${esc(nearbyMessage)}</div>`:''}${filters.group?`<div class="dist-active-neighborhood ${stats.find(g=>g.name===filters.group)?.complete?'is-complete':''}"><span>📍 ${esc(filters.group)}</span><b>${stats.find(g=>g.name===filters.group)?.total||0} müşteri</b>${stats.find(g=>g.name===filters.group)?.complete?'<em>✓ Tamamlandı</em>':''}</div>`:''}${manageMode?`<div class="dist-bulkbar"><button class="secondary-button" data-dist="select-all">Tümünü Seç</button><span>${selectedStops.size} seçili</span><button class="danger-button" data-dist="delete-selected" ${selectedStops.size?'':'disabled'}>Seçilenleri Sil</button><button class="danger-button" data-dist="delete-all">Tüm Dağıtımı Sil</button></div>`:''}<div class="dist-list">${list.length?list.map(card).join(''):'<div class="dist-empty">Bu filtrede kayıt yok.</div>'}</div>`
+ return `${neighborhoodBar}<div class="dist-toolbar"><input id="distSearch" type="search" autocomplete="off" placeholder="Dükkân, adres, LED veya baskı levhası ara" value="${esc(filters.q)}"><select id="distGroup"><option value="">Tüm Mahalleler (${data.length})</option>${stats.map(g=>`<option value="${esc(g.name)}" ${g.name===filters.group?'selected':''}>${esc(g.name)} (${g.total})${g.complete?' ✓':''}</option>`).join('')}</select><select id="distStatus"><option value="all">Tüm Durumlar</option>${['waiting','delivered'].map(st=>`<option value="${st}" ${st===filters.status?'selected':''}>${statusLabel(st)}</option>`).join('')}</select><button class="primary-button nearby-button ${nearbyMode?'is-active':''}" data-dist="nearby" ${nearbyBusy?'disabled':''}>${nearbyBusy?'📍 Konum yenileniyor…':nearbyMode?'📍 Konumumu Yenile':'📍 Yakınımdaki Dükkânlar'}</button>${nearbyMode?'<button class="secondary-button" data-dist="normal-order">↩ Normal Sıra</button>':''}<button class="secondary-button" data-dist="manage-toggle">${manageMode?'Bitti':'☑ Seç'}</button><button class="secondary-button" data-dist="export">Yedek Al</button><button class="danger-button" data-dist="clear-delivered">Teslimleri Temizle</button></div>${nearbyMessage?`<div class="nearby-status ${nearbyMode?'success':''}">${esc(nearbyMessage)}</div>`:''}${filters.group?`<div class="dist-active-neighborhood ${stats.find(g=>g.name===filters.group)?.complete?'is-complete':''}"><span>📍 ${esc(filters.group)}</span><b>${stats.find(g=>g.name===filters.group)?.total||0} müşteri</b>${stats.find(g=>g.name===filters.group)?.complete?'<em>✓ Tamamlandı</em>':''}</div>`:''}${manageMode?`<div class="dist-bulkbar"><button class="secondary-button" data-dist="select-all">Tümünü Seç</button><span>${selectedStops.size} seçili</span><button class="danger-button" data-dist="delete-selected" ${selectedStops.size?'':'disabled'}>Seçilenleri Sil</button><button class="danger-button" data-dist="delete-all">Tüm Dağıtımı Sil</button></div>`:''}<div class="dist-list">${list.length?list.map(card).join(''):'<div class="dist-empty">Bu filtrede kayıt yok.</div>'}</div>`
 }
 function summaryView(mats,total,delivered){const remaining=mats.filter(m=>m.total>m.delivered);return `<section class="v7-summary"><div class="v7-summary-hero"><b>${delivered}/${total}</b><span>müşteri tamamlandı</span><div class="dist-progress"><span style="width:${total?Math.round(delivered/total*100):0}%"></span></div></div><div class="v7-summary-grid"><article><h3>Teslim Edilecek Malzemeler</h3>${remaining.length?remaining.map(m=>`<p><span>${esc(m.name)}</span><b>${m.total-m.delivered} adet</b></p>`).join(''):'<p>Tüm malzemeler teslim edildi.</p>'}</article><article><h3>Teslim Edilemeyen Duraklar</h3>${data.filter(x=>x.status!=='delivered').slice(0,30).map(x=>`<p><span>${esc(x.customer)}</span><b>${groupedMaterials(x).reduce((a,m)=>a+(m.quantity-m.deliveredQuantity),0)} adet</b></p>`).join('')||'<p>Kalan durak yok.</p>'}</article></div></section>`}
 function materialCardRow(g,x){
@@ -403,7 +419,8 @@ function saveDistributionForm(){
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if(!b)return;const a=b.dataset.dist,id=b.dataset.id;
  if(a==='set-mode'){mode=b.dataset.mode;render();return}
- if(a==='nearby'){if(nearbyMode){nearbyMode=false;currentLocation=null;nearbyMessage='';render()}else activateNearby();return}
+ if(a==='nearby'){activateNearby();return}
+ if(a==='normal-order'){nearbyMode=false;currentLocation=null;nearbyMessage='';render();return}
  if(a==='toggle-materials'){expandedStops.has(id)?expandedStops.delete(id):expandedStops.add(id);render();return}
  if(a==='group-chip'){filters.group=b.dataset.group||'';render();return}
  if(a==='manage-toggle'){manageMode=!manageMode;if(!manageMode)selectedStops.clear();render();return}
