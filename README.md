@@ -1,3 +1,3 @@
-# Ekzen Servis Takip V10.3.0
+# Ekzen Servis Takip V8.1
 
-Dağıtım modülü korunur. D1 tek veri kaynağıdır. Fotoğraflar R2 ile cihazlar arasında görünür.
+Kalıcı koordinat ve hızlı Yakınımdaki Dükkânlar sistemi.

@@ -1,198 +1,10 @@
+/* Ekzen V8.1 - Kalıcı Koordinat Sistemi */
 (function(){
 'use strict';
-// V10.3.0 - Dağıtım modülü korunur; D1 tek veri kaynağı, kararlı tek fotoğraf yakalama ve R2 senkronizasyonu.
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
 const SNAPSHOT_KEY='ekzen-distribution-last-good-v8';
-const CLOUD_URL_KEY='ekzen-cloud-api-url-v9';
-const CLOUD_TOKEN_KEY='ekzen-cloud-api-token-v9';
-const CLOUD_FIXED_URL='https://yellow-bar-4da3.dogansezaikocak.workers.dev';
-const CLOUD_FIXED_TOKEN='EKZEN-2026-BULUT-9047';
-const CLOUD_LAST_OK_KEY='ekzen-cloud-last-ok-v9';
-const CLOUD_QUEUE_KEY='ekzen-cloud-offline-queue-v93';
-let cloudBusy=false,cloudStatus='',cloudTimer=null,cloudPhotoIndex=new Map(),cloudQueue=Promise.resolve(),cloudPulling=false,cloudFlushing=false;
-const DIST_FIREBASE_PATH='servis_takip_v2/distributions';
-const DIST_FIREBASE_CONFIG={
- apiKey:'AIzaSyArRO3GilYemYHX8sJdzNqv-uG7V6LsskQ',
- authDomain:'ekzen-teknik.firebaseapp.com',
- databaseURL:'https://ekzen-teknik-default-rtdb.europe-west1.firebasedatabase.app',
- projectId:'ekzen-teknik',
- storageBucket:'ekzen-teknik.firebasestorage.app',
- messagingSenderId:'199852526862',
- appId:'1:199852526862:web:5b2efb44f0a26ca76f5b5f'
-};
-let distFirebaseRef=null,distFirebaseReady=false,distFirebaseApplying=false,distFirebaseInitialHandled=false,distFirebaseTimer=null,distFirebaseLastSnapshot='';
-function distFirebaseSave(immediate=false){
- if(!distFirebaseRef||!distFirebaseReady||distFirebaseApplying)return;
- if(!immediate){clearTimeout(distFirebaseTimer);distFirebaseTimer=setTimeout(()=>distFirebaseSave(true),250);return;}
- const payload={updatedAt:new Date().toISOString(),data};
- distFirebaseRef.set(payload).then(()=>updateCloudStatus('Canlı senkronize · '+cloudTime())).catch(e=>updateCloudStatus('Senkronizasyon hatası: '+e.message));
-}
-function initDistributionFirebaseSync(){
- if(!window.firebase?.database){updateCloudStatus('Firebase yüklenemedi · Yerel kayıtla devam');return;}
- try{
-  if(!firebase.apps.length)firebase.initializeApp(DIST_FIREBASE_CONFIG);
-  distFirebaseRef=firebase.database().ref(DIST_FIREBASE_PATH);
-  distFirebaseRef.on('value',async snapshot=>{
-   const remote=snapshot.val();distFirebaseReady=true;
-   if(remote&&Array.isArray(remote.data)){
-    const incoming=mergeDuplicates(remote.data.map(normalizeItem)).map(applyNeighborhood);
-    const incomingSnapshot=JSON.stringify(incoming);
-    const currentSnapshot=JSON.stringify(data);
-    distFirebaseLastSnapshot=incomingSnapshot;
-    // Kendi yazdığımız veri Firebase'den aynen geri gelirse ekranı yeniden kurma.
-    // Özellikle açık fotoğraf paneli ve kamera düğmesi sabit kalsın.
-    if(incomingSnapshot!==currentSnapshot){
-     distFirebaseApplying=true;
-     data=incoming;
-     saveLocalOnly();
-     distFirebaseApplying=false;
-     await refreshProofCounts();
-     if(!inputIsActive())render();
-    }
-    updateCloudStatus('Canlı senkronize · '+cloudTime());
-   }else if(!distFirebaseInitialHandled&&data.length){
-    distFirebaseSave(true);
-   }
-   distFirebaseInitialHandled=true;
-  },err=>{distFirebaseReady=false;updateCloudStatus('Senkronizasyon hatası: '+err.message)});
- }catch(e){distFirebaseReady=false;updateCloudStatus('Senkronizasyon hatası: '+e.message)}
-}
-async function refreshCloudPhotosOnly(){
- try{const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);await refreshProofCounts();if(!inputIsActive())render()}catch(e){console.warn(e)}
-}
-
-function loadCloudOps(){try{const v=JSON.parse(localStorage.getItem(CLOUD_QUEUE_KEY)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
-function saveCloudOps(ops){localStorage.setItem(CLOUD_QUEUE_KEY,JSON.stringify(ops))}
-function queuedCount(){return loadCloudOps().length}
-function queueCloudOp(op){let ops=loadCloudOps();if(op.type==='sync'){ops=[op]}else if(op.type==='upsert'){ops=ops.filter(x=>!(x.type==='upsert'&&x.id===op.id)&&!(x.type==='delete'&&x.id===op.id));ops.push(op)}else if(op.type==='delete'){ops=ops.filter(x=>!(x.id===op.id&&(x.type==='upsert'||x.type==='delete')));ops.push(op)}else if(op.type==='photoDelete'){ops=ops.filter(x=>!(x.type==='photoDelete'&&x.id===op.id));ops.push(op)}else if(op.type==='photoDeleteStop'){ops=ops.filter(x=>!(x.type==='photoDeleteStop'&&x.stopId===op.stopId));ops.push(op)}else ops.push(op);saveCloudOps(ops);return ops.length}
-async function flushCloudOps(){if(!cloudEnabled()||cloudFlushing||!navigator.onLine)return false;cloudFlushing=true;try{let ops=loadCloudOps();while(ops.length){const op=ops[0];let result=null;if(op.type==='sync')result=await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:op.data||[]})});else if(op.type==='upsert'){result=await cloudRequest('/api/distributions/'+encodeURIComponent(op.id),{method:'PUT',body:JSON.stringify(op.data)});if(!result?.ok||!result?.distribution||String(result.distribution.id)!==String(op.id))throw new Error('Kayıt D1 tarafından doğrulanmadı.');}else if(op.type==='delete')result=await cloudRequest('/api/distributions/'+encodeURIComponent(op.id),{method:'DELETE'});else if(op.type==='photoDelete')result=await cloudRequest('/api/photos/'+encodeURIComponent(op.id),{method:'DELETE'});else if(op.type==='photoDeleteStop')result=await cloudRequest('/api/photos/by-stop/'+encodeURIComponent(op.stopId),{method:'DELETE'});ops.shift();saveCloudOps(ops)}return true}finally{cloudFlushing=false}}
-function cloudConfig(){return {url:CLOUD_FIXED_URL,token:CLOUD_FIXED_TOKEN}}
-function cloudEnabled(){const c=cloudConfig();return Boolean(c.url&&c.token)}
-function cloudTime(){return new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}
-function updateCloudStatus(message=cloudStatus){
- cloudStatus=message||'';
- const el=document.querySelector('#ekzenCloudStatus');
- if(!el)return;
- el.textContent=cloudStatus?'☁️ '+cloudStatus:'';
- el.hidden=!cloudStatus;
- el.classList.toggle('is-error',/hatası|başarısız|beklemede/iu.test(cloudStatus));
-}
-function inputIsActive(){const a=document.activeElement;return Boolean(a&&(a.matches('input,textarea,select')||a.isContentEditable));}
-async function cloudRequest(path,options={},configOverride=null){
- const c=configOverride||cloudConfig();
- if(!c.url||!c.token)throw new Error('Bulut bağlantısı ayarlanmamış.');
- const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
- const headers=new Headers(options.headers||{});headers.set('X-Ekzen-Token',c.token);
- if(options.body&&!(options.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
- try{
-  const r=await fetch(c.url+path,{...options,headers,signal:controller.signal,cache:'no-store'});
-  if(!r.ok){let m='Bulut hatası ('+r.status+')';try{const j=await r.json();m=j.error||m}catch(e){}throw new Error(m)}
-  const ct=r.headers.get('content-type')||'';return ct.includes('application/json')?r.json():r;
- }catch(e){if(e?.name==='AbortError')throw new Error('Bulut bağlantısı zaman aşımına uğradı.');throw e}finally{clearTimeout(timeout)}
-}
-function rebuildCloudPhotoIndex(rows=[]){cloudPhotoIndex=new Map();for(const x of rows){const a=cloudPhotoIndex.get(x.distribution_id)||[];a.push(x);cloudPhotoIndex.set(x.distribution_id,a)}}
-async function cloudTest(configOverride=null){
- const info=await cloudRequest('/api/health',{},configOverride);
- if(!info?.ok){const missing=[];if(info?.bindings&&!info.bindings.DB)missing.push('DB');if(info?.bindings&&!info.bindings.PHOTOS)missing.push('PHOTOS');throw new Error(missing.length?missing.join(' ve ')+' bağlantısı eksik.':'Worker hazır değil.');}
- localStorage.setItem(CLOUD_LAST_OK_KEY,new Date().toISOString());
- return info;
-}
-async function migrateLocalPhotosToCloud(){
- if(!cloudEnabled())return 0;
- const rows=await proofAll();let uploaded=0;
- const remoteIds=new Set([...cloudPhotoIndex.values()].flat().map(x=>x.id));
- for(const row of rows){if(remoteIds.has(row.id))continue;await cloudUploadPhoto(row.stopId,row.slot,row.blob,row.id,false);uploaded++}
- return uploaded;
-}
-async function cloudPull(){
- if(!cloudEnabled()||cloudPulling||inputIsActive()||!navigator.onLine)return false;
- cloudPulling=true;cloudBusy=true;
- try{
-  await cloudTest();
-  await flushCloudOps();
-  // Kuyruk tamamen gönderilmeden buluttaki eski liste yerel kayıtların üzerine yazılmasın.
-  if(queuedCount()>0){
-   cloudStatus='Buluta gönderilmeyi bekleyen '+queuedCount()+' işlem var';updateCloudStatus();return false;
-  }
-  const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);
-  const remote=Array.isArray(state.distributions)?state.distributions.map(normalizeItem):[];
-  if(remote.length){
-   // Bulutta henüz görünmeyen yeni yerel kayıtları koru.
-   // Böylece yeni kayıt eklenirken 30 saniyelik çekme işlemi eski bulut listesini getirip kaydı silemez.
-   const remoteIds=new Set(remote.map(x=>String(x.id)));
-   const localOnly=data.filter(x=>x&&x.id&&!remoteIds.has(String(x.id)));
-   const merged=remote.concat(localOnly);
-   const remoteSnapshot=JSON.stringify(merged);
-   const localSnapshot=JSON.stringify(data);
-   if(remoteSnapshot!==localSnapshot){
-    data=merged;saveLocalOnly();await refreshProofCounts();render();
-   }
-   // Yerelde korunmuş fakat bulutta bulunmayan kayıtları tekrar gönder.
-   for(const row of localOnly) queueCloudOp({type:'upsert',id:row.id,data:row,at:Date.now()});
-   if(localOnly.length) flushCloudOps().catch(()=>{});
-   const uploaded=await migrateLocalPhotosToCloud();
-   cloudStatus='Bulut senkronize · '+cloudTime()+(uploaded?' · '+uploaded+' yerel fotoğraf yüklendi':'');
-   updateCloudStatus();
-   return true;
-  }
-  if(data.length){
-   // Bulut ilk kez boşsa mevcut listeyi tek seferde aktar.
-   await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});
-   const uploaded=await migrateLocalPhotosToCloud();
-   cloudStatus='Yerel liste buluta aktarıldı · '+cloudTime()+(uploaded?' · '+uploaded+' fotoğraf':'');
-   updateCloudStatus();
-   return true;
-  }
-  cloudStatus='Bulut bağlı · Henüz kayıt yok';updateCloudStatus();return true;
- }catch(e){cloudStatus='Bulut bağlantı hatası: '+e.message;updateCloudStatus();return false}
- finally{cloudBusy=false;cloudPulling=false}
-}
-
-async function cloudPush(immediate=false){
- if(!cloudEnabled())return;
- if(!immediate){clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>cloudPush(true),1200);return}
- const snapshot=JSON.stringify(data);
- if(snapshot===cloudPush.lastSnapshot&&queuedCount()===0)return;
- cloudPush.lastSnapshot=snapshot;
- queueCloudOp({type:'sync',data:JSON.parse(snapshot),at:Date.now()});
- if(!navigator.onLine){updateCloudStatus('Çevrimdışı · '+queuedCount()+' işlem sırada');return}
- if(cloudBusy||cloudPulling||cloudFlushing)return;
- cloudBusy=true;updateCloudStatus('Buluta kaydediliyor…');
- try{await flushCloudOps();updateCloudStatus('Buluta kaydedildi · '+cloudTime())}
- catch(e){updateCloudStatus('Bulut kaydı beklemede · '+queuedCount()+' işlem · '+e.message)}
- finally{cloudBusy=false}
-}
-cloudPush.lastSnapshot='';
-
-async function openCloudSettings(){
- // V9.4: Bulut bağlantısı uygulamaya sabitlenmiştir; kullanıcı ayarı gerekmez.
- updateCloudStatus('Bulut bağlantısı kontrol ediliyor…');
- try{await cloudPull()}catch(e){updateCloudStatus('Bulut bağlantı hatası: '+e.message)}
-}
-async function cloudUploadPhoto(stopId,slot,blob,recordId,refresh=true){
- if(!cloudEnabled())return;const fd=new FormData();fd.append('file',blob,'photo.jpg');fd.append('id',recordId);
- await cloudRequest('/api/photos/'+encodeURIComponent(stopId)+'/'+encodeURIComponent(slot),{method:'POST',body:fd});
- if(refresh){const st=await cloudRequest('/api/state');rebuildCloudPhotoIndex(st.photos||[])}
-}
-async function cloudDeletePhoto(recordId){if(!cloudEnabled())return;queueCloudOp({type:'photoDelete',id:recordId,at:Date.now()});for(const [k,a] of cloudPhotoIndex)cloudPhotoIndex.set(k,a.filter(x=>x.id!==recordId));try{await flushCloudOps()}catch(e){updateCloudStatus('Fotoğraf silme işlemi sırada · '+queuedCount())}}
-async function cloudDeleteStopPhotos(stopId){if(!cloudEnabled())return;queueCloudOp({type:'photoDeleteStop',stopId,at:Date.now()});cloudPhotoIndex.delete(stopId);try{await flushCloudOps()}catch(e){updateCloudStatus('Fotoğraf silme işlemi sırada · '+queuedCount())}}
-async function cloudUpsertStop(stop){
- if(!cloudEnabled()||!stop)return false;
- queueCloudOp({type:'upsert',id:stop.id,data:stop,at:Date.now()});
- if(!navigator.onLine){updateCloudStatus('Çevrimdışı · '+queuedCount()+' işlem sırada');return false}
- cloudQueue=cloudQueue.then(async()=>{
-  await flushCloudOps();
-  updateCloudStatus('Buluta kaydedildi · '+cloudTime());
-  // Diğer cihazların kaydı kısa sürede görmesi için bulut durumunu gecikmesiz yenile.
-  setTimeout(()=>cloudPull().catch(()=>{}),500);
-  return true;
- }).catch(e=>{updateCloudStatus('Bulut kayıt işlemi sırada · '+queuedCount()+' · '+e.message);return false});
- return cloudQueue;
-}
-async function cloudDeleteStop(stopId){if(!cloudEnabled())return;queueCloudOp({type:'delete',id:stopId,at:Date.now()});cloudPhotoIndex.delete(stopId);if(!navigator.onLine){updateCloudStatus('Çevrimdışı · Silme işlemi sırada');return}cloudQueue=cloudQueue.then(()=>flushCloudOps()).then(()=>{updateCloudStatus('Kayıt ve fotoğraflar buluttan tamamen silindi')}).catch(e=>{updateCloudStatus('Buluttan silme işlemi sırada · '+queuedCount()+' · '+e.message)});return cloudQueue}
-
 const AI_PROXY_KEY='ekzen-ai-proxy-url';
 let data=load();
 let filters={q:'',group:'',status:'all'};
@@ -207,65 +19,6 @@ let nearbyMode=false;
 let currentLocation=null;
 let nearbyBusy=false;
 let nearbyMessage='';
-const PROOF_DB='ekzen-proof-photos-v1';
-const PROOF_STORE='photos';
-const PROOF_SLOTS=[
- {key:'shop',label:'Dükkân Önü',file:'01_Dukkan_Onu',multi:false},
- {key:'before',label:'Montaj Öncesi',file:'02_Montaj_Oncesi',multi:true},
- {key:'after',label:'Montaj Sonrası',file:'03_Montaj_Sonrasi',multi:true},
- {key:'serial',label:'Seri No / Model',file:'04_Seri_Model',multi:true},
- {key:'service',label:'Kaşeli Servis Fişi',file:'05_Servis_Fisi',multi:false}
-];
-let proofExpanded=new Set();
-let proofCounts=new Map();
-let proofObjectUrls=[];
-let proofCaptureBusy=false;
-const proofRemoteBlobCache=new Map();
-function proofKey(stopId,slot){return stopId+':'+slot}
-function proofRecordId(stopId,slot){return proofKey(stopId,slot)+':'+Date.now()+':'+Math.random().toString(36).slice(2,8)}
-function openProofDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(PROOF_DB,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(PROOF_STORE))db.createObjectStore(PROOF_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Fotoğraf deposu açılamadı.'))})}
-async function proofAll(){const db=await openProofDb();const rows=await new Promise((resolve,reject)=>{const req=db.transaction(PROOF_STORE).objectStore(PROOF_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close();return rows}
-async function proofGetAll(stopId,slot){const rows=await proofAll();return rows.filter(r=>r.stopId===stopId&&r.slot===slot).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0))}
-async function proofBlobFingerprint(blob){
- try{const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());return [...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,'0')).join('')}catch(_){return `${blob.size}:${blob.type}`}
-}
-async function proofPut(stopId,slot,blob,multi=false){
- const fingerprint=await proofBlobFingerprint(blob);
- const existing=await proofGetAll(stopId,slot);
- const duplicate=existing.find(r=>r.fingerprint===fingerprint);
- if(duplicate)return {id:duplicate.id,duplicate:true};
- const db=await openProofDb();const recordId=proofRecordId(stopId,slot);const removed=[];
- await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);
-  if(!multi){const req=store.getAll();req.onsuccess=()=>{for(const row of req.result||[])if(row.stopId===stopId&&row.slot===slot){removed.push(row.id);store.delete(row.id)}store.put({id:recordId,stopId,slot,blob,fingerprint,updatedAt:Date.now()})};req.onerror=()=>reject(req.error)}
-  else store.put({id:recordId,stopId,slot,blob,fingerprint,updatedAt:Date.now()});
-  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Fotoğraf cihaz hafızasına yazılamadı.'))});db.close();
- for(const oldId of removed)cloudDeletePhoto(oldId).catch(()=>{});
- await refreshProofCounts();
- if(cloudEnabled()&&navigator.onLine){
-  try{await cloudUploadPhoto(stopId,slot,blob,recordId,false);const rows=(cloudPhotoIndex.get(stopId)||[]).filter(x=>!removed.includes(x.id));if(!rows.some(x=>String(x.id)===String(recordId)))rows.push({id:recordId,distribution_id:stopId,photo_type:slot});cloudPhotoIndex.set(stopId,rows);proofRemoteBlobCache.set(recordId,blob);updateCloudStatus('Fotoğraf buluta kaydedildi · '+cloudTime())}
-  catch(e){updateCloudStatus('Fotoğraf cihazda korundu · bulut bekliyor')}
- }
- return {id:recordId,duplicate:false};
-}
-async function proofRemoteBlob(meta){if(proofRemoteBlobCache.has(meta.id))return proofRemoteBlobCache.get(meta.id);const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));const blob=await resp.blob();proofRemoteBlobCache.set(meta.id,blob);return blob}
-async function renderProofPanel(stopId){
- const panel=document.querySelector(`[data-proof-panel="${CSS.escape(String(stopId))}"]`);if(!panel)return;
- panel.innerHTML='<p class="proof-loading">Fotoğraflar hazırlanıyor…</p>';const chunks=[];
- for(const slot of PROOF_SLOTS){const local=await proofGetAll(stopId,slot.key);const ids=new Set(local.map(x=>String(x.id)));const remote=(cloudPhotoIndex.get(stopId)||[]).filter(x=>x.photo_type===slot.key&&!ids.has(String(x.id)));const rows=local.map(x=>({...x,source:'local'}));for(const meta of remote){try{rows.push({id:meta.id,blob:await proofRemoteBlob(meta),source:'cloud'})}catch(_){}}
-  const thumbs=rows.map((row,i)=>{const url=URL.createObjectURL(row.blob);proofObjectUrls.push(url);return `<figure class="proof-thumb"><img src="${url}" alt="${esc(slot.label)} ${i+1}"><figcaption><span>${i+1}${row.source==='cloud'?' · Bulut':''}</span><button type="button" data-dist="proof-delete" data-record="${esc(row.id)}">Sil</button></figcaption></figure>`}).join('');
-  chunks.push(`<div class="proof-slot"><div class="proof-slot-head"><div><b>${esc(slot.label)}</b><small>${rows.length} fotoğraf</small></div><button type="button" class="secondary-button" data-dist="capture-photo" data-id="${esc(stopId)}" data-slot="${esc(slot.key)}">📷 ${slot.multi||!rows.length?'Fotoğraf Ekle':'Tekrar Çek'}</button></div><div class="proof-thumbs">${thumbs||'<p class="proof-empty">Henüz fotoğraf yok.</p>'}</div></div>`)}
- panel.innerHTML=chunks.join('');updateProofCardMeta(stopId)
-}
-async function captureProofPhoto(stopId,slot){
- if(proofCaptureBusy)return;proofCaptureBusy=true;
- const input=document.createElement('input');input.type='file';input.accept='image/*';input.capture='environment';input.multiple=false;input.style.display='none';document.body.appendChild(input);
- const cleanup=()=>{input.remove();proofCaptureBusy=false};
- input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file){cleanup();return}try{const blob=await photoFileToJpeg(file);const def=PROOF_SLOTS.find(x=>x.key===slot);const result=await proofPut(stopId,slot,blob,!!def?.multi);updateProofCardMeta(stopId);await renderProofPanel(stopId);if(result.duplicate)updateCloudStatus('Aynı fotoğraf zaten kayıtlı')}catch(e){alert('Fotoğraf kaydedilemedi: '+e.message)}finally{cleanup()}},{once:true});
- input.click();setTimeout(()=>{if(document.body.contains(input)&&!input.files?.length)cleanup()},120000)
-}
-async function shareProofPhotos(stopId){const stop=data.find(x=>x.id===stopId);if(!stop)return;const files=[];let sequence=1;for(const slot of PROOF_SLOTS){let rows=await proofGetAll(stopId,slot.key);const localIds=new Set(rows.map(r=>r.id));const remote=(cloudPhotoIndex.get(stopId)||[]).filter(r=>r.photo_type===slot.key&&!localIds.has(r.id));for(const meta of remote){try{const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));rows.push({id:meta.id,blob:await resp.blob()})}catch(e){console.warn(e)}}if(!rows.length){alert(`${slot.label} fotoğrafı eksik.`);return}for(let i=0;i<rows.length;i++){const suffix=rows.length>1?'_'+String(i+1).padStart(2,'0'):'';files.push(new File([rows[i].blob],`${safeFileName(stop.customer)}_${slot.file}${suffix}.jpg`,{type:'image/jpeg'}));sequence++}}try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files}))){await navigator.share({files,title:stop.customer,text:`${stop.customer}
-${stop.address}`});return}}catch(e){if(e?.name==='AbortError')return;console.warn(e)}for(const file of files){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}alert(`Telefon çoklu paylaşımı desteklemedi. ${files.length} fotoğraf indirildi.`)}
-function safeFileName(v){return String(v||'Dukkan').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60)||'Dukkan'}
 function uid(){return 'd'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function distanceKm(lat1,lon1,lat2,lon2){
  const r=6371,toRad=v=>v*Math.PI/180;
@@ -281,31 +34,43 @@ function getPhoneLocation(){return new Promise((resolve,reject)=>{
   reject(new Error(msg));
  },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 })}
-async function geocodeStop(stop){
- if(Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lng)))return {lat:Number(stop.lat),lng:Number(stop.lng)};
- const query=[stop.address,stop.district,'Keçiören Ankara Türkiye'].filter(Boolean).join(', ');
- const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=tr&q='+encodeURIComponent(query);
- const res=await fetch(url,{headers:{'Accept':'application/json'}});
- if(!res.ok)throw new Error('Adres konuma çevrilemedi.');
- const arr=await res.json();if(!arr?.length)return null;
- stop.lat=Number(arr[0].lat);stop.lng=Number(arr[0].lon);return {lat:stop.lat,lng:stop.lng};
+function hasValidCoords(stop){
+ if(!stop||stop.lat===null||stop.lat===undefined||stop.lng===null||stop.lng===undefined||stop.lat===''||stop.lng==='')return false;
+ const lat=Number(stop.lat),lng=Number(stop.lng);
+ return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180&&!(lat===0&&lng===0);
 }
+const COORD_CACHE_KEY='ekzen-distribution-coordinate-cache-v2';
+function coordKey(stop){return foldTr([stop.address,stop.district,'Ankara'].filter(Boolean).join('|')).replace(/\s+/g,' ').trim()}
+function loadCoordCache(){try{return JSON.parse(localStorage.getItem(COORD_CACHE_KEY)||'{}')||{}}catch(e){return {}}}
+function saveCoordCache(cache){try{localStorage.setItem(COORD_CACHE_KEY,JSON.stringify(cache))}catch(e){}}
+const coordCache=loadCoordCache();
+const geocodePromises=new Map();
+function normalizeGeocodeAddress(stop){return [stop.address,stop.district,'Keçiören','Ankara','Türkiye'].filter(Boolean).join(', ').replace(/\bMH\.?\b/giu,'Mahallesi').replace(/\bMAH\.?\b/giu,'Mahallesi').replace(/\bCD\.?\b/giu,'Caddesi').replace(/\bCAD\.?\b/giu,'Caddesi').replace(/\bSK\.?\b/giu,'Sokak').replace(/\bSOK\.?\b/giu,'Sokak').replace(/\bNO\.?\s*/giu,'No ').replace(/\s+/g,' ').trim()}
+function applyCoordsToSameAddress(source){const key=coordKey(source);for(const same of data){if(coordKey(same)===key){same.lat=Number(source.lat);same.lng=Number(source.lng)}}}
+async function geocodeArcgis(query){
+ const params=new URLSearchParams({SingleLine:query,f:'json',maxLocations:'1',outSR:'4326',countryCode:'TUR',forStorage:'false',outFields:'Addr_type,Match_addr'});
+ const res=await fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?'+params.toString(),{headers:{Accept:'application/json'}});
+ if(!res.ok)return null;const json=await res.json(),candidate=json?.candidates?.[0],loc=candidate?.location;if(!loc||Number(candidate.score||0)<55)return null;
+ return {lat:Number(loc.y),lng:Number(loc.x),provider:'arcgis'};
+}
+async function geocodePhoton(query){
+ const params=new URLSearchParams({q:query,limit:'1',lang:'tr'});if(currentLocation){params.set('lat',String(currentLocation.lat));params.set('lon',String(currentLocation.lng))}
+ const res=await fetch('https://photon.komoot.io/api/?'+params.toString(),{headers:{Accept:'application/json'}});if(!res.ok)return null;
+ const json=await res.json(),coords=json?.features?.[0]?.geometry?.coordinates;if(!Array.isArray(coords)||coords.length<2)return null;
+ return {lat:Number(coords[1]),lng:Number(coords[0]),provider:'photon'};
+}
+async function geocodeStop(stop,{force=false}={}){
+ if(!force&&hasValidCoords(stop))return {lat:Number(stop.lat),lng:Number(stop.lng)};
+ const key=coordKey(stop),cached=coordCache[key];
+ if(!force&&cached&&Number.isFinite(Number(cached.lat))&&Number.isFinite(Number(cached.lng))){stop.lat=Number(cached.lat);stop.lng=Number(cached.lng);applyCoordsToSameAddress(stop);return {lat:stop.lat,lng:stop.lng}}
+ if(geocodePromises.has(key))return geocodePromises.get(key);
+ const promise=(async()=>{const query=normalizeGeocodeAddress(stop);let found=null;try{found=await geocodeArcgis(query)}catch(e){}if(!found){try{found=await geocodePhoton(query)}catch(e){}}if(!found){coordCache[key]={missing:true,checkedAt:Date.now()};saveCoordCache(coordCache);return null}stop.lat=Number(found.lat);stop.lng=Number(found.lng);if(!hasValidCoords(stop))return null;coordCache[key]={lat:stop.lat,lng:stop.lng,provider:found.provider,checkedAt:Date.now()};saveCoordCache(coordCache);applyCoordsToSameAddress(stop);save();return {lat:stop.lat,lng:stop.lng}})().finally(()=>geocodePromises.delete(key));
+ geocodePromises.set(key,promise);return promise;
+}
+function invalidateStopCoords(stop){const key=coordKey(stop);delete coordCache[key];saveCoordCache(coordCache);stop.lat=null;stop.lng=null}
 async function activateNearby(){
- if(nearbyBusy)return;nearbyBusy=true;nearbyMessage='Telefon konumu alınıyor…';render();
- try{
-  currentLocation=await getPhoneLocation();
-  const targets=data.filter(x=>x.status!=='delivered');let completed=0,missing=0;
-  for(const stop of targets){
-   if(!(Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lng)))){
-    nearbyMessage=`Adresler konuma çevriliyor: ${completed+1}/${targets.length}`;render();
-    try{const found=await geocodeStop(stop);if(!found)missing++;}catch(e){missing++;}
-    completed++;save();
-    await new Promise(r=>setTimeout(r,1050));
-   }
-  }
-  nearbyMode=true;filters.status='waiting';filters.group='';const now=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});nearbyMessage=missing?`${now}: ${missing} adres bulunamadı; bulunanlar güncel konumuna göre sıralandı.`:`${now}: Dükkânlar güncel konumuna göre yakından uzağa sıralandı.`;
- }catch(e){nearbyMessage=e.message;nearbyMode=false;}
- finally{nearbyBusy=false;save();render();}
+ if(nearbyBusy)return;nearbyBusy=true;nearbyMessage='Güncel konum alınıyor…';render();
+ try{currentLocation=await getPhoneLocation();const targets=data.filter(x=>x.status!=='delivered'),unique=[],seen=new Set();for(const stop of targets){if(hasValidCoords(stop))continue;const k=coordKey(stop);if(seen.has(k))continue;seen.add(k);unique.push(stop)}let completed=0,missing=0,nextIndex=0;const worker=async()=>{while(true){const i=nextIndex++;if(i>=unique.length)return;let found=null;try{found=await geocodeStop(unique[i])}catch(e){}if(!found)missing++;completed++;if(completed===unique.length||completed%10===0){nearbyMessage=`Yalnızca yeni adresler hazırlanıyor: ${completed}/${unique.length}`;render()}}};if(unique.length){nearbyMessage=`${unique.length} yeni adres hazırlanıyor…`;render();await Promise.all(Array.from({length:Math.min(3,unique.length)},worker))}for(const x of targets)x._distance=hasValidCoords(x)?distanceKm(currentLocation.lat,currentLocation.lng,Number(x.lat),Number(x.lng)):Infinity;nearbyMode=true;filters.status='waiting';filters.group='';const foundCount=targets.filter(hasValidCoords).length,now=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});nearbyMessage=missing?`${now}: ${foundCount} adres konumuna göre sıralandı; ${missing} adres bulunamadı.`:`${now}: ${foundCount} adres konumuna göre sıralandı.`}catch(e){nearbyMessage=e.message;nearbyMode=false}finally{nearbyBusy=false;save();render()}
 }
 function parseStored(raw){try{const x=JSON.parse(raw||'null');if(Array.isArray(x))return x;if(x&&Array.isArray(x.data))return x.data;return []}catch(e){return []}}
 function load(){
@@ -315,45 +80,13 @@ function load(){
   return best&&best.items.length?best.items:[];
  }catch(e){return []}
 }
-function saveLocalOnly(){
- try{const json=JSON.stringify(data);localStorage.setItem(KEY,json);localStorage.setItem(BACKUP_KEY,json);if(data.length)localStorage.setItem(SNAPSHOT_KEY,json)}catch(e){alert('Kayıt yapılamadı: '+e.message)}
-}
-let distSyncTimer=null;
-let distSyncBusy=false;
-let distDirty=false;
-async function pushDistributionState(){
- if(distSyncBusy||!navigator.onLine||!cloudEnabled())return false;
- distSyncBusy=true;
+function save(){
  try{
-  await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});
-  distDirty=false;
-  updateCloudStatus('Canlı senkronize · '+cloudTime());
-  return true;
- }catch(e){
-  distDirty=true;
-  updateCloudStatus('Bulut kaydı bekliyor · '+e.message);
-  return false;
- }finally{distSyncBusy=false}
-}
-function save(item=null){
- saveLocalOnly();
- distDirty=true;
- clearTimeout(distSyncTimer);
- distSyncTimer=setTimeout(pushDistributionState,350);
-}
-async function pullDistributionState(force=false){
- if(!navigator.onLine||!cloudEnabled()||distSyncBusy||inputIsActive()||(!force&&distDirty))return false;
- try{
-  const state=await cloudRequest('/api/state');
-  rebuildCloudPhotoIndex(state.photos||[]);
-  const incoming=Array.isArray(state.distributions)?mergeDuplicates(state.distributions.map(normalizeItem)).map(applyNeighborhood):[];
-  if(incoming.length){
-   const a=JSON.stringify(incoming),b=JSON.stringify(data);
-   if(a!==b){data=incoming;saveLocalOnly();await refreshProofCounts();render()}
-  }else if(data.length){await pushDistributionState()}
-  updateCloudStatus('Canlı senkronize · '+cloudTime());
-  return true;
- }catch(e){updateCloudStatus('Bulut bağlantı hatası · '+e.message);return false}
+  const json=JSON.stringify(data);
+  localStorage.setItem(KEY,json);
+  localStorage.setItem(BACKUP_KEY,json);
+  if(data.length)localStorage.setItem(SNAPSHOT_KEY,json);
+ }catch(e){alert('Kayıt yapılamadı: '+e.message)}
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function trTitle(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/(^|[\s-])([a-zçğıöşü])/g,(m,a,b)=>a+b.toLocaleUpperCase('tr-TR')).trim()}
@@ -427,21 +160,17 @@ function materialTotals(){
 }
 function render(){
  const root=document.querySelector('#distributionView'); if(!root)return;
- // Render yalnızca ekranı çizer. Buradan buluta kayıt başlatmak sonsuz
- // Firebase -> render -> save döngüsü oluşturur ve fotoğraf panelini titretir.
- data.forEach(syncStatus);
+ data.forEach(syncStatus);save();
  if(mode==='warehouse')mode='route';
  const total=data.length,delivered=data.filter(x=>x.status==='delivered').length;
  const groups=[...new Set(data.map(x=>x.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
  const mats=materialTotals();
  root.innerHTML=`<div class="dist-page v7-page">
- <div class="dist-head"><div><span class="section-kicker">V10.3 Stabil Bulut</span><h2>Malzeme Operasyon Sistemi</h2><p>Kayıtlar ve fotoğraflar otomatik buluta kaydedilir. Her cihazda aynı liste açılır; kullanıcı ayarı gerekmez.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
+ <div class="dist-head"><div><span class="section-kicker">V7 Operasyon Merkezi</span><h2>Malzeme Operasyon Sistemi</h2><p>PDF veya fotoğrafı oku → müşteri kartından malzemeleri kontrol et → eksiksiz teslim et.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
  <div class="dist-stats"><article><span>Toplam Müşteri</span><b>${total}</b></article><article><span>Toplam Malzeme</span><b>${mats.reduce((a,m)=>a+m.total,0)}</b></article><article><span>Teslim</span><b>${delivered}</b></article><article><span>Kalan</span><b>${total-delivered}</b></article></div>
- <div id="ekzenCloudStatus" class="cloud-status ${cloudStatus.includes('hatası')||cloudStatus.includes('başarısız')?'is-error':''}" ${cloudStatus?'':'hidden'}>${cloudStatus?'☁️ '+esc(cloudStatus):''}</div><div class="v7-tabs"><button class="${mode==='route'?'is-active':''}" data-dist="set-mode" data-mode="route">🚚 Dağıtım</button><button class="${mode==='summary'?'is-active':''}" data-dist="set-mode" data-mode="summary">📊 Operasyon Özeti</button></div>
+ <div class="v7-tabs"><button class="${mode==='route'?'is-active':''}" data-dist="set-mode" data-mode="route">🚚 Dağıtım</button><button class="${mode==='summary'?'is-active':''}" data-dist="set-mode" data-mode="summary">📊 Operasyon Özeti</button></div>
  ${mode==='summary'?summaryView(mats,total,delivered):routeView(groups)}
  </div>`;
- revokeProofUrls();
- setTimeout(()=>{for(const id of proofExpanded)renderProofPanel(id)},0);
 }
 function neighborhoodStats(groups){return groups.map(name=>{const stops=data.filter(x=>x.district===name);const delivered=stops.filter(x=>x.status==='delivered').length;return {name,total:stops.length,delivered,complete:Boolean(stops.length)&&delivered===stops.length}})}
 function routeView(groups){
@@ -462,10 +191,8 @@ function card(x){
  const groups=groupedMaterials(x),totalQty=groups.reduce((a,m)=>a+m.quantity,0),complete=x.materials.length&&x.materials.every(m=>m.delivered),expanded=expandedStops.has(x.id);
  const leds=groups.filter(g=>g.kind!=='plate'),plates=groups.filter(g=>g.kind==='plate');
  const materialHtml=groups.length?`${leds.length?`<div class="v7-material-section"><strong>LED MALZEMELERİ</strong>${leds.map(g=>materialCardRow(g,x)).join('')}</div>`:''}${plates.length?`<div class="v7-material-section"><strong>BASKI LEVHASI</strong>${plates.map(g=>materialCardRow(g,x)).join('')}</div>`:''}`:'<span>Malzeme girilmedi</span>';
- const proofInfo=proofSummary(x.id),proofCount=proofInfo.total,proofComplete=proofInfo.complete,proofOpen=proofExpanded.has(x.id);
- return `<article class="dist-card status-${x.status}">${manageMode?`<label class="dist-select"><input type="checkbox" data-dist="select-stop" data-id="${x.id}" ${selectedStops.has(x.id)?'checked':''}><span>Seç</span></label>`:''}<div class="dist-card-top"><div><small>${esc(x.district||'Grup belirtilmedi')}</small><h3>${esc(x.customer||'İsimsiz dükkân')}</h3><p>${esc(x.address||'Adres girilmedi')}</p></div><div class="dist-card-badges">${nearbyMode&&Number.isFinite(x._distance)?`<span class="distance-badge">📍 ${formatDistance(x._distance)}</span>`:''}<span class="dist-badge">${statusLabel(x.status)}</span></div></div><button class="v7-material-toggle" data-dist="toggle-materials" data-id="${x.id}">📦 Malzemeler (${totalQty} adet) ${expanded?'▲':'▼'}</button>${expanded?`<div class="v7-stop-materials">${materialHtml}</div>`:''}<button class="proof-toggle ${proofComplete?'is-complete':''}" data-dist="toggle-proof" data-id="${x.id}"><span>📷 Teslim Fotoğrafları</span><b>${proofCount} fotoğraf · ${proofInfo.sections}/5 ${proofComplete?'✓':''}</b></button>${proofOpen?`<section class="proof-panel" data-proof-panel="${x.id}"></section><button class="primary-button proof-share" data-dist="proof-share" data-id="${x.id}" ${proofComplete?'':'disabled'}>📤 Tüm Fotoğrafları WhatsApp’ta Paylaş</button>`:''}${x.note?`<p class="dist-note">Not: ${esc(x.note)}</p>`:''}<div class="dist-card-actions">${x.phone?`<a class="secondary-button" href="tel:${esc(x.phone)}">Ara</a>`:''}${map?`<a class="secondary-button" target="_blank" rel="noopener" href="${map}">Konuma Git</a>`:''}${complete?`<button class="secondary-button" data-dist="reset-waiting" data-id="${x.id}">↩ Beklemeye Al</button>`:''}<button class="secondary-button" data-dist="edit" data-id="${x.id}">Düzenle</button><button class="primary-button" data-dist="complete-stop" data-id="${x.id}" ${complete?'disabled':''}>${complete?'✓ Teslim Tamam':'Tümünü Teslim Et'}</button></div>${x.deliveredAt?`<small class="dist-time">Teslim: ${new Date(x.deliveredAt).toLocaleString('tr-TR')}</small>`:''}</article>`
+ return `<article class="dist-card status-${x.status}">${manageMode?`<label class="dist-select"><input type="checkbox" data-dist="select-stop" data-id="${x.id}" ${selectedStops.has(x.id)?'checked':''}><span>Seç</span></label>`:''}<div class="dist-card-top"><div><small>${esc(x.district||'Grup belirtilmedi')}</small><h3>${esc(x.customer||'İsimsiz dükkân')}</h3><p>${esc(x.address||'Adres girilmedi')}</p></div><div class="dist-card-badges">${nearbyMode&&Number.isFinite(x._distance)?`<span class="distance-badge">📍 ${formatDistance(x._distance)}</span>`:''}<span class="dist-badge">${statusLabel(x.status)}</span></div></div><button class="v7-material-toggle" data-dist="toggle-materials" data-id="${x.id}">📦 Malzemeler (${totalQty} adet) ${expanded?'▲':'▼'}</button>${expanded?`<div class="v7-stop-materials">${materialHtml}</div>`:''}${x.note?`<p class="dist-note">Not: ${esc(x.note)}</p>`:''}<div class="dist-card-actions">${x.phone?`<a class="secondary-button" href="tel:${esc(x.phone)}">Ara</a>`:''}${map?`<a class="secondary-button" target="_blank" rel="noopener" href="${map}">Konuma Git</a>`:''}${complete?`<button class="secondary-button" data-dist="reset-waiting" data-id="${x.id}">↩ Beklemeye Al</button>`:''}<button class="secondary-button" data-dist="edit" data-id="${x.id}">Düzenle</button><button class="primary-button" data-dist="complete-stop" data-id="${x.id}" ${complete?'disabled':''}>${complete?'✓ Teslim Tamam':'Tümünü Teslim Et'}</button></div>${x.deliveredAt?`<small class="dist-time">Teslim: ${new Date(x.deliveredAt).toLocaleString('tr-TR')}</small>`:''}</article>`
 }
-
 function openForm(item){item=item||normalizeItem();const d=document.querySelector('#distributionDialog');const f=d.querySelector('form');f.reset();f.elements.id.value=item.id;f.elements.customer.value=item.customer;f.elements.district.value=item.district;f.elements.address.value=item.address;f.elements.phone.value=item.phone;f.elements.materials.value=item.materials.map(m=>m.kind==='plate'?`BASKI LEVHASI | ${m.newDesign||m.cooler||''} | ${Math.max(1,Number(m.quantity)||1)}`:`LED | ${m.cooler||m.name||''} | ${Math.max(1,Number(m.quantity)||1)}`).join('\n');f.elements.note.value=item.note;f.elements.status.value=item.status;d.querySelector('[data-dist-delete]').hidden=!data.some(x=>x.id===item.id);d.showModal()}
 function importDialog(){document.querySelector('#distributionImportDialog').showModal()}
 function parseImport(text){
@@ -670,6 +397,8 @@ function saveDistributionForm(){
  if(!parsed.length){alert('En az bir malzeme gir.');f.elements.materials.focus();return;}
  const manualDistrict=String(f.elements.district.value||'').trim();
  const manualAddress=String(f.elements.address.value||'').trim();
+ const sameAddress=!!old&&foldTr(old.address)===foldTr(manualAddress)&&foldTr(old.district)===foldTr(manualDistrict);
+ if(old&&!sameAddress)invalidateStopCoords(old);
  const item=normalizeItem({
   id:id||(old?.id)||uid(),
   customer:String(f.elements.customer.value||'').trim(),
@@ -679,7 +408,9 @@ function saveDistributionForm(){
   materials:parsed,
   status:selectedStatus,
   note:String(f.elements.note.value||'').trim(),
-  deliveredAt:old?.deliveredAt||''
+  deliveredAt:old?.deliveredAt||'',
+  lat:sameAddress?old.lat:null,
+  lng:sameAddress?old.lng:null
  });
  // Kullanıcının elle yazdığı mahalleyi koru. Sadece alan boşsa adresten otomatik bul.
  item.district=manualDistrict||inferNeighborhood(manualAddress)||'';
@@ -690,7 +421,8 @@ function saveDistributionForm(){
  }
  const i=data.findIndex(x=>x.id===item.id);
  if(i>=0)data[i]=item;else data.push(item);
- save(item);
+ save();
+ if(selectedStatus!=='delivered'&&!hasValidCoords(item)){geocodeStop(item,{force:true}).then(found=>{if(found&&nearbyMode){item._distance=currentLocation?distanceKm(currentLocation.lat,currentLocation.lng,item.lat,item.lng):Infinity;render()}}).catch(()=>{})}
  // Kaydın gerçekten localStorage'a yazıldığını doğrula.
  try{
   const check=JSON.parse(localStorage.getItem(KEY)||'[]');
@@ -706,32 +438,25 @@ function saveDistributionForm(){
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if(!b)return;const a=b.dataset.dist,id=b.dataset.id;
  if(a==='set-mode'){mode=b.dataset.mode;render();return}
  if(a==='nearby'){activateNearby();return}
- if(a==='capture-photo'){captureProofPhoto(id,b.dataset.slot);return}
  if(a==='normal-order'){nearbyMode=false;currentLocation=null;nearbyMessage='';render();return}
- if(a==='toggle-proof'){proofExpanded.has(id)?proofExpanded.delete(id):proofExpanded.add(id);render();return}
- if(a==='proof-share'){shareProofPhotos(id);return}
- if(a==='proof-delete'){if(confirm('Bu fotoğraf silinsin mi?'))proofDeleteRecord(b.dataset.record).then(render);return}
  if(a==='toggle-materials'){expandedStops.has(id)?expandedStops.delete(id):expandedStops.add(id);render();return}
  if(a==='group-chip'){filters.group=b.dataset.group||'';render();return}
  if(a==='manage-toggle'){manageMode=!manageMode;if(!manageMode)selectedStops.clear();render();return}
  if(a==='select-stop'){return}
  if(a==='select-all'){const list=visible();const all=list.length&&list.every(x=>selectedStops.has(x.id));for(const x of list){if(all)selectedStops.delete(x.id);else selectedStops.add(x.id)}render();return}
- if(a==='delete-selected'){if(!selectedStops.size)return;if(confirm(selectedStops.size+' seçili dağıtım silinsin mi?')){const ids=[...selectedStops];data=data.filter(x=>!selectedStops.has(x.id));selectedStops.clear();ids.forEach(id=>{proofDeleteStop(id)});save();render()}return}
- if(a==='delete-all'){if(confirm('Bütün dağıtım listesi ve fotoğrafları silinsin mi? Bu işlem geri alınamaz.')){const ids=data.map(x=>x.id);data=[];selectedStops.clear();ids.forEach(id=>{proofDeleteStop(id)});save();render()}return}
+ if(a==='delete-selected'){if(!selectedStops.size)return;if(confirm(selectedStops.size+' seçili dağıtım silinsin mi?')){data=data.filter(x=>!selectedStops.has(x.id));selectedStops.clear();save();render()}return}
+ if(a==='delete-all'){if(confirm('Bütün dağıtım listesi silinsin mi? Bu işlem geri alınamaz.')){data=[];selectedStops.clear();save();render()}return}
  if(a==='bulk-material'){const name=b.dataset.name,stage=b.dataset.stage;for(const x of data)for(const m of x.materials)if(m.name===name){if(stage==='prepared')m.prepared=true;if(stage==='loaded'&&m.prepared)m.loaded=true}data.forEach(syncStatus);save();render();return}
  if(a==='load-all-prepared'){for(const x of data)for(const m of x.materials)if(m.prepared)m.loaded=true;data.forEach(syncStatus);save();render();return}
  if(a==='deliver-material'){return}
- if(a==='complete-stop'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' için '+groupedMaterials(x).reduce((a,m)=>a+m.quantity,0)+' adet malzemenin tamamı teslim edildi mi?')){x.materials.forEach(m=>m.delivered=true);syncStatus(x);save(x);render()}return}
- if(a==='reset-waiting'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' kaydı Bekliyor durumuna geri alınsın mı?')){x.materials.forEach(m=>m.delivered=false);x.status='waiting';x.deliveredAt='';save(x);filters.status=filters.status==='delivered'?'all':filters.status;render()}return}
- if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){const deletedId=document.querySelector('#distributionForm').elements.id.value;data=data.filter(x=>x.id!==deletedId);proofDeleteStop(deletedId);save();document.querySelector('#distributionDialog').close();render()}
+ if(a==='complete-stop'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' için '+groupedMaterials(x).reduce((a,m)=>a+m.quantity,0)+' adet malzemenin tamamı teslim edildi mi?')){x.materials.forEach(m=>m.delivered=true);syncStatus(x);save();render()}return}
+ if(a==='reset-waiting'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' kaydı Bekliyor durumuna geri alınsın mı?')){x.materials.forEach(m=>m.delivered=false);x.status='waiting';x.deliveredAt='';save();filters.status=filters.status==='delivered'?'all':filters.status;render()}return}
+ if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){data=data.filter(x=>x.id!==document.querySelector('#distributionForm').elements.id.value);save();document.querySelector('#distributionDialog').close();render()}
  if(a==='ai-open')aiDialog();if(a==='close-ai')document.querySelector('#distributionAiDialog').close();if(a==='ai-read')runAi();if(a==='ai-save')saveAiRows();if(a==='ai-remove-image'){aiImages.splice(Number(b.dataset.index),1);renderAiImages();setAiStatus(aiImages.length?aiImages.length+' sayfa hazır.':'Henüz PDF veya fotoğraf seçilmedi.')}if(a==='ai-remove-row'){aiRows.splice(Number(b.dataset.index),1);renderAiRows();document.querySelector('#distAiSaveButton').disabled=!aiRows.length}
 });
 document.addEventListener('input',e=>{if(e.target.id==='distSearch'){filters.q=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{render();const i=document.querySelector('#distSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},220);return}const field=e.target.dataset?.aiField;if(field&&aiRows[Number(e.target.dataset.index)]){const x=aiRows[Number(e.target.dataset.index)];x[field]=e.target.value;if(field==='address'){x.needsReview=false;x.addressConfidence=100}document.querySelector('#distAiSaveButton').disabled=!aiRows.length}});
-document.addEventListener('change',async e=>{if(e.target.matches('[data-dist="select-stop"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist="deliver-material"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save(x);render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
+document.addEventListener('change',e=>{if(e.target.matches('[data-dist=\"select-stop\"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist=\"deliver-material\"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save();render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
 document.addEventListener('submit',e=>{if(e.target.id==='distributionForm'){e.preventDefault();e.stopPropagation();saveDistributionForm();}},true);
 document.querySelector('#distributionImportForm')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,arr=parseImport(f.elements.text.value);if(!arr.length){alert('Okunabilir kayıt bulunamadı.');return}data=mergeDuplicates(f.elements.mode.value==='replace'?arr:data.concat(arr));save();document.querySelector('#distributionImportDialog').close();f.reset();render();alert(arr.length+' kayıt içe aktarıldı.')});
-data=mergeDuplicates(data).map(applyNeighborhood);saveLocalOnly();window.renderDistribution=render;
-window.addEventListener('online',()=>{updateCloudStatus('İnternet geldi · Senkronize ediliyor…');if(distDirty)pushDistributionState();else pullDistributionState(true);refreshCloudPhotosOnly()});
-window.addEventListener('offline',()=>updateCloudStatus('Çevrimdışı · Değişiklikler cihazda korunuyor'));
-refreshProofCounts().finally(()=>{render();pullDistributionState(true);refreshCloudPhotosOnly();setInterval(()=>{if(!inputIsActive()&&!proofCaptureBusy)pullDistributionState(false)},5000);});
+data=mergeDuplicates(data).map(applyNeighborhood);save();window.renderDistribution=render;render();
 })();
