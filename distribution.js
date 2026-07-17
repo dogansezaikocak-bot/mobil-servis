@@ -283,7 +283,7 @@ function render(){
  const groups=[...new Set(data.map(x=>x.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
  const mats=materialTotals();
  root.innerHTML=`<div class="dist-page v7-page">
- <div class="dist-head"><div><span class="section-kicker">V9.5 Ortak Senkronizasyon</span><h2>Dağıtım Listesi</h2><p>Mahalleni seç, dükkâna git ve onarım bitince işlemi tamamla.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
+ <div class="dist-head"><div><span class="section-kicker">V9.6 Firma ve Adres</span><h2>Dağıtım Listesi</h2><p>Mahalleni seç, dükkâna git ve onarım bitince işlemi tamamla.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
  <div class="dist-stats"><article><span>Bekleyen</span><b>${total-delivered}</b></article><article><span>Teslim Edilen</span><b>${delivered}</b></article></div>
  ${routeView(groups)}
  </div>`;
@@ -314,23 +314,13 @@ function importDialog(){document.querySelector('#distributionImportDialog').show
 function parseImport(text){
  text=String(text||'').trim();if(!text)return[];
  try{const j=JSON.parse(text);const arr=Array.isArray(j)?j:(j.items||j.distributions||[]);return arr.map(normalizeItem)}catch(e){}
- const looksLikeAddress=v=>/(?:MAHALLESİ|MAHALLESI|MAHALLE|MAH|MH)\.?\b|\b(?:CADDE|CADDESİ|CAD|CD|SOKAK|SOK|SK|BULVAR|NO)\.?\b/iu.test(String(v||''));
  return text.split(/\n+/).map(line=>{
-  const parts=line.split(/\t|\s*\|\s*|\s*;\s*/).map(v=>v.trim());
-  if(!parts[0])return null;
-  let customer=parts[0]||'',address='',district='',materials=[];
-  if(parts.length>=7 && looksLikeAddress(parts[1])){
-   address=parts[1]||'';
-   const led1=parts[2]||'',qty1=Math.max(0,Number.parseInt(parts[3]||'0',10)||0);
-   const led2=parts[4]||'',qty2=Math.max(0,Number.parseInt(parts[5]||'0',10)||0);
-   const plate=parts.slice(6).join(' | ').trim();
-   if(led1&&qty1)materials.push({kind:'led',cooler:led1,newDesign:'',quantity:qty1});
-   if(led2&&qty2)materials.push({kind:'led',cooler:led2,newDesign:'',quantity:qty2});
-   if(plate&&!/^(?:-|LEVHA YOK|YOK)$/iu.test(plate))materials.push({kind:'plate',cooler:'Baskı Levhası',newDesign:plate,quantity:Math.max(1,qty2||1)});
-  }else if(parts.length===2){address=parts[1]||'';}
-  else if(looksLikeAddress(parts[1])){address=parts[1]||'';materials=parts.slice(2).filter(Boolean);}
-  else{district=parts[1]||'';address=parts[2]||'';materials=parts.slice(3).filter(Boolean);}
-  return normalizeItem({customer,address,district,materials});
+  const divider=line.includes('\t')?/\t/:line.includes('|')?/\s*\|\s*/:/\s*;\s*/;
+  const parts=line.split(divider).map(v=>v.trim());
+  const customer=parts.shift()||'';
+  const address=parts.join(' | ').trim();
+  if(!customer||!address||/^(?:firma|firma ismi|d[üu]kk[aâ]n|m[üu]şteri)$/iu.test(customer))return null;
+  return normalizeItem({customer,address,materials:[]});
  }).filter(x=>x&&x.customer);
 }
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}

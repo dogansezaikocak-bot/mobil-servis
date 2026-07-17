@@ -654,10 +654,9 @@ BASKI LEVHASI | 1600 2D | 1"></textarea></label>
   <dialog id="distributionImportDialog" class="dialog small-dialog">
     <form method="dialog" class="dialog-shell" id="distributionImportForm">
       <header><h2>Dağıtım Listesi İçe Aktar</h2><button class="icon-button" type="button" data-dist="close-import">×</button></header>
-      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Liste<textarea name="text" rows="14" placeholder="Müşteri | Adres | LED 1 | LED 1 Adet | LED 2 | LED 2 Adet | Baskı Levhası
-Örnek: 06 Dayının Yeri Tekel | Karşıyaka Mahallesi, Kayı Caddesi No:31 | 140 cm | 4 | 52,5 cm | 2 | 1600 2D
-
-Müşteri | Adres biçimi ve JSON yedeği de desteklenir."></textarea></label><small class="wide">Her dolap ayrı satır olmalı. Sütunları | ile ayır. Aynı müşteri tekrar ederse LED ve levha adetleri otomatik toplanır.</small></div>
+      <div class="dialog-body dist-form-grid"><label class="wide">Aktarma şekli<select name="mode"><option value="append">Mevcut listeye ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label><label class="wide">Firma ve Adres Listesi<textarea name="text" rows="14" placeholder="Firma İsmi | Adres
+Örnek Market | Karşıyaka Mahallesi, Kayı Caddesi No:31
+Nokta Kuruyemiş | Etlik Mahallesi, Tevfik Sağlam Caddesi No:42"></textarea></label><small class="wide">Her firma ayrı satırda olmalı. Firma ismi ile adresi | işaretiyle ayır. Mahalle grubu adresteki Mahallesi, Mah. veya Mh. bilgisinden otomatik oluşturulur.</small></div>
       <footer><span></span><span></span><button class="secondary-button" type="button" data-dist="close-import">Vazgeç</button><button class="primary-button" type="submit">İçe Aktar</button></footer>
     </form>
   </dialog>
@@ -741,9 +740,9 @@ Etlik, İncirli = Grup 2"></textarea>
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=9.5.0-20260717"></script>
+  <script src="./app.js?v=9.6.0-20260717"></script>
   <script src="./heic2any.min.js?v=0.0.4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="./distribution.js?v=9.5.0-20260717"></script>
+  <script src="./distribution.js?v=9.6.0-20260717"></script>
 </body>
 </html>

@@ -1,4 +1,11 @@
-# Ekzen Servis Takip V9.5 — Ortak Senkronizasyon
+# Ekzen Servis Takip V9.6 — Firma ve Adres İçe Aktarma
+
+## V9.6 içe aktarma
+
+- Dağıtım içe aktarma şablonu yalnızca `Firma İsmi | Adres` biçimindedir.
+- Malzeme sütunları kaldırıldı.
+- Mahalle grupları adres metninden otomatik oluşturulur.
+- Mahalle ve arama filtreleri korunmuştur.
 
 ## V9.5 ortak sistem
 
