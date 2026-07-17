@@ -65,8 +65,6 @@ const views = {
 const filterForm = document.querySelector("#filterForm");
 const serviceForm = document.querySelector("#serviceForm");
 const serviceDialog = document.querySelector("#serviceDialog");
-const serviceImportDialog = document.querySelector("#serviceImportDialog");
-const serviceImportForm = document.querySelector("#serviceImportForm");
 const detailDialog = document.querySelector("#detailDialog");
 const detailBody = document.querySelector("#detailBody");
 const cashForm = document.querySelector("#cashForm");
@@ -163,6 +161,8 @@ function migrateState(oldState) {
     },
     cash: oldState.cash || [],
     services: oldState.services || [],
+    distributions: Array.isArray(oldState.distributions) ? oldState.distributions : [],
+    distributionSyncVersion: Number(oldState.distributionSyncVersion) || 0,
   };
 
   migrated.services = migrated.services.map((service, index) => ({
@@ -327,6 +327,17 @@ function saveState() {
   });
 }
 
+// Dagitim modulu de servislerle ayni Firebase state kaydini kullanir.
+window.getEkzenDistributions = function () {
+  return Array.isArray(state.distributions) ? JSON.parse(JSON.stringify(state.distributions)) : [];
+};
+
+window.saveEkzenDistributions = function (items) {
+  state.distributions = Array.isArray(items) ? JSON.parse(JSON.stringify(items)) : [];
+  state.distributionSyncVersion = 1;
+  saveState();
+};
+
 function initCloudSync() {
   if (!window.firebase?.database) return;
   try {
@@ -338,14 +349,24 @@ function initCloudSync() {
 
       if (data?.state) {
         const openDetailId = detailDialog.open ? activeDetailId : null;
+        const localDistributions = Array.isArray(state.distributions) ? state.distributions : [];
+        const migrateLocalDistributions = !Number(data.state.distributionSyncVersion) && localDistributions.length > 0;
         cloudApplyingState = true;
         state = migrateState(data.state);
+        if (migrateLocalDistributions) {
+          state.distributions = JSON.parse(JSON.stringify(localDistributions));
+          state.distributionSyncVersion = 1;
+        }
         activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
         activeDashboardStat = "";
         activeDashboardSource = "";
         saveLocalState();
         cloudApplyingState = false;
+        if (migrateLocalDistributions) saveState();
         render();
+        window.dispatchEvent(new CustomEvent("ekzen-distributions-updated", {
+          detail: Array.isArray(state.distributions) ? JSON.parse(JSON.stringify(state.distributions)) : [],
+        }));
       } else if (!cloudInitialHandled) {
         saveState();
       }
@@ -439,8 +460,6 @@ function bindEvents() {
     if (action === "dashboard-date-preset") applyDashboardDatePreset(button.dataset.range, true);
     if (action === "apply-dashboard-date-range") applyDashboardCustomDateRange();
     if (action === "toggle-nav") document.body.classList.toggle("nav-open");
-    if (action === "open-service-import") { serviceImportForm.reset(); serviceImportDialog.showModal(); }
-    if (action === "close-service-import") serviceImportDialog.close();
     if (action === "open-service-modal") {
       if (isMobileTechViewport() && isMobileTechClick) openMobileNewServiceWizard();
       else openServiceForm();
@@ -546,11 +565,6 @@ function bindEvents() {
   dashboardRangeStartPicker?.addEventListener("change", updateDashboardDateRangePreview);
   dashboardRangeEndPicker?.addEventListener("change", applyDashboardCustomDateRange);
   backupFileInput.addEventListener("change", importBackup);
-
-  serviceImportForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    importServicesFromText(new FormData(serviceImportForm));
-  });
 
   serviceForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -828,9 +842,13 @@ function renderSourceMetrics(services, cashItems) {
       <span>Toplam Hasılat</span>
       <b>${money(allSourceTotals.customerMoney)}</b>
     </article>
-    <article class="metric-card finance-card expense-card">
-      <span>Toplam Gider</span>
-      <b>${money(totals.commission + totals.material)}</b>
+    <article class="metric-card finance-card commission-card">
+      <span>Komisyon</span>
+      <b>${money(totals.commission)}</b>
+    </article>
+    <article class="metric-card finance-card material-card">
+      <span>Malzeme</span>
+      <b>${money(totals.material)}</b>
     </article>
     <article class="metric-card finance-card cash-status-card">
       <span>Kazanç</span>
@@ -1186,10 +1204,9 @@ function serviceRow(service) {
       </div>
       <div class="v420-card-body">
         <div class="v420-card-title-row">
-          <h3>${escapeHtml(service.customerName || "İsimsiz Müşteri")}</h3>
+          <h3>${escapeHtml(service.address || service.customerName || "Servis Kaydı")}</h3>
           <span>${escapeHtml(service.source || "Kendi İşim")}</span>
         </div>
-        <div class="v420-address">${escapeHtml(service.address || "Adres yok")}</div>
         <a class="v420-phone" href="${phoneHref}">${escapeHtml(service.phone || "Telefon yok")}</a>
         <p>${escapeHtml(detailLine || "Cihaz bilgisi yok")} ${detailLine ? "·" : ""} ${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
         ${paymentModeLabel ? `<small class="v420-payment-mode">${escapeHtml(paymentModeLabel)}</small>` : ""}
@@ -2320,114 +2337,6 @@ function renderSettingsLists() {
 function settingsItemsForList(key) {
   if (key === "cashCounters") return cashCounterList().map((counter) => ({ value: counter.key, label: counter.label }));
   return settingsList(key).map((value) => ({ value, label: value }));
-}
-
-function normalizeImportedServiceStatus(value) {
-  const raw = String(value || "").trim();
-  if (!raw || /^yeni$/i.test(raw)) return "Yeni Kayıt";
-  return raw;
-}
-
-function importServicesFromText(formData) {
-  const text = String(formData.get("importText") || "").trim();
-  if (!text) {
-    alert("İçe aktarılacak listeyi yapıştır.");
-    return;
-  }
-
-  const rows = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const imported = [];
-  const errors = [];
-
-  rows.forEach((line, index) => {
-    const parts = line.split("|").map((part) => part.trim());
-    if (parts.length < 2) {
-      errors.push(index + 1);
-      return;
-    }
-
-    let customerName = parts[0] || "";
-    let phone = "";
-    let address = "";
-    let device = "Soğutucu";
-    let fault = "LED montajı";
-    let source = "Dağıtım";
-    let status = "Yeni Kayıt";
-
-    if (parts.length >= 7) {
-      [customerName, phone, address, device, fault, source, status] = parts;
-    } else if (parts.length >= 3) {
-      customerName = parts[0];
-      phone = parts[1] || "";
-      address = parts[2] || "";
-      device = parts[3] || device;
-      fault = parts[4] || fault;
-      source = parts[5] || source;
-      status = parts[6] || status;
-    } else {
-      customerName = parts[0];
-      address = parts[1] || "";
-    }
-
-    if (!customerName || !address) {
-      errors.push(index + 1);
-      return;
-    }
-
-    const now = new Date().toISOString();
-    imported.push({
-      id: nextServiceId(),
-      customerName,
-      phone,
-      address,
-      availableDate: isoToday,
-      availableTime: "",
-      brand: "",
-      device: device || "Soğutucu",
-      model: "",
-      warrantyEnd: "",
-      fault: fault || "LED montajı",
-      source: source || "Dağıtım",
-      status: normalizeImportedServiceStatus(status),
-      operatorNote: "Liste içe aktarma ile eklendi",
-      createdAt: now,
-      price: 0,
-      sortOrder: -(state.services.length + imported.length + 1),
-      notes: [],
-      photos: [],
-      statusHistory: [{
-        id: uid(),
-        date: isoToday,
-        status: normalizeImportedServiceStatus(status),
-        description: "Liste içe aktarma ile servis kaydı oluşturuldu",
-        createdAt: now,
-      }],
-      history: [],
-    });
-  });
-
-  if (!imported.length) {
-    alert("Geçerli servis kaydı bulunamadı. Her satırda en az Müşteri | Adres olmalı.");
-    return;
-  }
-
-  const replaceExisting = formData.get("replaceExisting") === "on";
-  if (replaceExisting && !confirm("Mevcut servislerin tamamı silinip bu liste yüklensin mi?")) return;
-
-  const importedSources = [...new Set(imported.map((item) => item.source).filter(Boolean))];
-  const importedDevices = [...new Set(imported.map((item) => item.device).filter(Boolean))];
-  const importedStatuses = [...new Set(imported.map((item) => item.status).filter(Boolean))];
-  state.settings.sources = ensureValues(state.settings.sources || [], importedSources);
-  state.settings.devices = ensureValues(state.settings.devices || [], importedDevices);
-  state.settings.statuses = ensureValues(state.settings.statuses || [], importedStatuses);
-  state.services = replaceExisting ? imported : [...imported, ...state.services];
-
-  saveState();
-  serviceImportDialog.close();
-  serviceImportForm.reset();
-  render();
-  switchView("services");
-  alert(`${imported.length} servis kaydı içe aktarıldı.${errors.length ? ` Okunamayan satırlar: ${errors.join(", ")}` : ""}`);
 }
 
 function openServiceForm(service) {

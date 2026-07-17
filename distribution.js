@@ -1,13 +1,81 @@
-/* Ekzen V8.1 - Kalıcı Koordinat Sistemi */
 (function(){
 'use strict';
 const KEY='ekzen-distribution-v7';
 const LEGACY_KEY='ekzen-distribution-v6';
 const BACKUP_KEY='ekzen-distribution-backup-v8';
 const SNAPSHOT_KEY='ekzen-distribution-last-good-v8';
+const CLOUD_URL_KEY='ekzen-cloud-api-url-v9';
+const CLOUD_TOKEN_KEY='ekzen-cloud-api-token-v9';
+const CLOUD_LAST_OK_KEY='ekzen-cloud-last-ok-v9';
+let cloudBusy=false,cloudStatus='',cloudTimer=null,cloudPhotoIndex=new Map(),cloudQueue=Promise.resolve(),cloudPulling=false;
+function cloudConfig(){return {url:(localStorage.getItem(CLOUD_URL_KEY)||'').trim().replace(/\/+$/,''),token:(localStorage.getItem(CLOUD_TOKEN_KEY)||'').trim()}}
+function cloudEnabled(){return false}
+function cloudTime(){return new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}
+async function cloudRequest(path,options={},configOverride=null){
+ const c=configOverride||cloudConfig();
+ if(!c.url||!c.token)throw new Error('Bulut bağlantısı ayarlanmamış.');
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+ const headers=new Headers(options.headers||{});headers.set('X-Ekzen-Token',c.token);
+ if(options.body&&!(options.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+ try{
+  const r=await fetch(c.url+path,{...options,headers,signal:controller.signal,cache:'no-store'});
+  if(!r.ok){let m='Bulut hatası ('+r.status+')';try{const j=await r.json();m=j.error||m}catch(e){}throw new Error(m)}
+  const ct=r.headers.get('content-type')||'';return ct.includes('application/json')?r.json():r;
+ }catch(e){if(e?.name==='AbortError')throw new Error('Bulut bağlantısı zaman aşımına uğradı.');throw e}finally{clearTimeout(timeout)}
+}
+function rebuildCloudPhotoIndex(rows=[]){cloudPhotoIndex=new Map();for(const x of rows){const a=cloudPhotoIndex.get(x.distribution_id)||[];a.push(x);cloudPhotoIndex.set(x.distribution_id,a)}}
+async function cloudTest(configOverride=null){
+ const info=await cloudRequest('/api/health',{},configOverride);
+ if(!info?.ok){const missing=[];if(info?.bindings&&!info.bindings.DB)missing.push('DB');if(info?.bindings&&!info.bindings.PHOTOS)missing.push('PHOTOS');throw new Error(missing.length?missing.join(' ve ')+' bağlantısı eksik.':'Worker hazır değil.');}
+ localStorage.setItem(CLOUD_LAST_OK_KEY,new Date().toISOString());
+ return info;
+}
+async function migrateLocalPhotosToCloud(){
+ if(!cloudEnabled())return 0;
+ const rows=await proofAll();let uploaded=0;
+ const remoteIds=new Set([...cloudPhotoIndex.values()].flat().map(x=>x.id));
+ for(const row of rows){if(remoteIds.has(row.id))continue;await cloudUploadPhoto(row.stopId,row.slot,row.blob,row.id,false);uploaded++}
+ return uploaded;
+}
+async function cloudPull(){
+ if(!cloudEnabled()||cloudPulling)return false;cloudPulling=true;cloudBusy=true;cloudStatus='Bulut bağlantısı kontrol ediliyor…';render();
+ try{
+  const health=await cloudTest();
+  cloudStatus='Buluttan kayıtlar alınıyor…';render();
+  const state=await cloudRequest('/api/state');rebuildCloudPhotoIndex(state.photos||[]);
+  const remote=Array.isArray(state.distributions)?state.distributions:[];
+  if(remote.length){data=remote.map(normalizeItem);saveLocalOnly();const uploaded=await migrateLocalPhotosToCloud();cloudStatus='Bulut senkronize · '+cloudTime()+(uploaded?' · '+uploaded+' yerel fotoğraf yüklendi':'');return true}
+  if(data.length){await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});const uploaded=await migrateLocalPhotosToCloud();cloudStatus='Yerel liste buluta aktarıldı · '+cloudTime()+(uploaded?' · '+uploaded+' fotoğraf':'');return true}
+  cloudStatus='Bulut bağlı · Henüz kayıt yok · V'+(health.version||'9');return true;
+ }catch(e){cloudStatus='Bulut bağlantı hatası: '+e.message;return false}finally{cloudBusy=false;cloudPulling=false;await refreshProofCounts();render()}
+}
+async function cloudPush(immediate=false){
+ if(!cloudEnabled())return;if(!immediate){clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>cloudPush(true),800);return}
+ if(cloudBusy||cloudPulling)return;cloudBusy=true;cloudStatus='Buluta kaydediliyor…';render();
+ try{await cloudRequest('/api/sync',{method:'POST',body:JSON.stringify({distributions:data})});cloudStatus='Buluta kaydedildi · '+cloudTime()}
+ catch(e){cloudStatus='Bulut kaydı başarısız: '+e.message}finally{cloudBusy=false;render()}
+}
+async function openCloudSettings(){
+ const old=cloudConfig();const url=prompt('Cloudflare Worker bağlantı adresi:',old.url||'https://yellow-bar-4da3.dogansezaikocak.workers.dev');if(url===null)return;
+ const token=prompt('V9 uygulama erişim anahtarı:',old.token);if(token===null)return;
+ const next={url:url.trim().replace(/\/+$/,''),token:token.trim()};if(!next.url||!next.token){alert('Worker adresi ve uygulama anahtarı boş bırakılamaz.');return}
+ cloudStatus='Bağlantı test ediliyor…';render();
+ try{const info=await cloudTest(next);localStorage.setItem(CLOUD_URL_KEY,next.url);localStorage.setItem(CLOUD_TOKEN_KEY,next.token);alert('Bulut bağlantısı başarılı. Worker V'+(info.version||'9')+' · DB ve R2 hazır.');await cloudPull()}
+ catch(e){cloudStatus='Bulut bağlantı hatası: '+e.message;render();alert('Bağlantı kurulamadı: '+e.message)}
+}
+async function cloudUploadPhoto(stopId,slot,blob,recordId,refresh=true){
+ if(!cloudEnabled())return;const fd=new FormData();fd.append('file',blob,'photo.jpg');fd.append('id',recordId);
+ await cloudRequest('/api/photos/'+encodeURIComponent(stopId)+'/'+encodeURIComponent(slot),{method:'POST',body:fd});
+ if(refresh){const st=await cloudRequest('/api/state');rebuildCloudPhotoIndex(st.photos||[])}
+}
+async function cloudDeletePhoto(recordId){if(!cloudEnabled())return;await cloudRequest('/api/photos/'+encodeURIComponent(recordId),{method:'DELETE'});for(const [k,a] of cloudPhotoIndex)cloudPhotoIndex.set(k,a.filter(x=>x.id!==recordId))}
+async function cloudDeleteStopPhotos(stopId){if(!cloudEnabled())return;await cloudRequest('/api/photos/by-stop/'+encodeURIComponent(stopId),{method:'DELETE'});cloudPhotoIndex.delete(stopId)}
+async function cloudUpsertStop(stop){if(!cloudEnabled()||!stop)return;cloudQueue=cloudQueue.then(()=>cloudRequest('/api/distributions/'+encodeURIComponent(stop.id),{method:'PUT',body:JSON.stringify(stop)})).then(()=>{cloudStatus='Buluta kaydedildi · '+cloudTime();render()}).catch(e=>{cloudStatus='Bulut kayıt hatası: '+e.message;render()});return cloudQueue}
+async function cloudDeleteStop(stopId){if(!cloudEnabled())return;cloudQueue=cloudQueue.then(()=>cloudRequest('/api/distributions/'+encodeURIComponent(stopId),{method:'DELETE'})).then(()=>{cloudPhotoIndex.delete(stopId);cloudStatus='Kayıt ve fotoğraflar buluttan tamamen silindi';render()}).catch(e=>{cloudStatus='Buluttan silme hatası: '+e.message;render()});return cloudQueue}
+
 const AI_PROXY_KEY='ekzen-ai-proxy-url';
 let data=load();
-let filters={q:'',group:'',status:'all'};
+let filters={q:'',group:'',status:'waiting'};
 let mode='route';
 let aiImages=[];
 let searchTimer=null;
@@ -19,6 +87,54 @@ let nearbyMode=false;
 let currentLocation=null;
 let nearbyBusy=false;
 let nearbyMessage='';
+const PROOF_DB='ekzen-proof-photos-v1';
+const PROOF_STORE='photos';
+const PROOF_SLOTS=[
+ {key:'shop',label:'Dükkân Önü',file:'01_Dukkan_Onu',multi:false},
+ {key:'before',label:'Montaj Öncesi',file:'02_Montaj_Oncesi',multi:true},
+ {key:'after',label:'Montaj Sonrası',file:'03_Montaj_Sonrasi',multi:true},
+ {key:'serial',label:'Seri No / Model',file:'04_Seri_Model',multi:true},
+ {key:'service',label:'Kaşeli Servis Fişi',file:'05_Servis_Fisi',multi:false}
+];
+let proofExpanded=new Set();
+let proofCounts=new Map();
+let proofObjectUrls=[];
+function proofKey(stopId,slot){return stopId+':'+slot}
+function proofRecordId(stopId,slot){return proofKey(stopId,slot)+':'+Date.now()+':'+Math.random().toString(36).slice(2,8)}
+function openProofDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(PROOF_DB,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(PROOF_STORE))db.createObjectStore(PROOF_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Fotoğraf deposu açılamadı.'))})}
+async function proofAll(){const db=await openProofDb();const rows=await new Promise((resolve,reject)=>{const req=db.transaction(PROOF_STORE).objectStore(PROOF_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close();return rows}
+async function proofGetAll(stopId,slot){const rows=await proofAll();return rows.filter(r=>r.stopId===stopId&&r.slot===slot).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0))}
+async function proofPut(stopId,slot,blob,multi=false){const db=await openProofDb();const recordId=proofRecordId(stopId,slot);await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);if(!multi){const req=store.getAll();req.onsuccess=()=>{for(const row of req.result||[])if(row.stopId===stopId&&row.slot===slot)store.delete(row.id);store.put({id:recordId,stopId,slot,blob,updatedAt:Date.now()})};req.onerror=()=>reject(req.error)}else store.put({id:recordId,stopId,slot,blob,updatedAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();await refreshProofCounts();try{await cloudUploadPhoto(stopId,slot,blob,recordId)}catch(e){console.warn(e);cloudStatus='Fotoğraf buluta yüklenemedi: '+e.message}}
+async function proofDeleteRecord(recordId){const db=await openProofDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite');tx.objectStore(PROOF_STORE).delete(recordId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();await refreshProofCounts();try{await cloudDeletePhoto(recordId)}catch(e){console.warn(e)}}
+async function proofDeleteStop(stopId){const rows=await proofAll(),db=await openProofDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PROOF_STORE,'readwrite'),store=tx.objectStore(PROOF_STORE);for(const row of rows)if(row.stopId===stopId)store.delete(row.id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();proofCounts.delete(stopId);try{await cloudDeleteStopPhotos(stopId)}catch(e){console.warn(e)}}
+async function refreshProofCounts(){try{const rows=await proofAll();proofCounts=new Map();for(const row of rows){const s=proofCounts.get(row.stopId)||{total:0,slots:new Set()};s.total++;s.slots.add(row.slot);proofCounts.set(row.stopId,s)}for(const [stopId,cloudRows] of cloudPhotoIndex){const s=proofCounts.get(stopId)||{total:0,slots:new Set()};const ids=new Set(rows.filter(r=>r.stopId===stopId).map(r=>r.id));for(const r of cloudRows)if(!ids.has(r.id)){s.total++;s.slots.add(r.photo_type)}proofCounts.set(stopId,s)}}catch(e){console.warn(e)}}
+function proofSummary(stopId){const s=proofCounts.get(stopId)||{total:0,slots:new Set()};return {total:s.total||0,complete:(s.slots?.size||0)===PROOF_SLOTS.length,sections:s.slots?.size||0}}
+async function photoFileToJpeg(file){let source=file;if(isHeicFile(file))source=await heicToJpegBlob(file);const img=await loadImageFromBlob(source),max=1800,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('Fotoğraf hazırlanamadı.')),'image/jpeg',0.86))}
+function revokeProofUrls(){for(const u of proofObjectUrls)URL.revokeObjectURL(u);proofObjectUrls=[]}
+async function renderProofPanel(stopId){
+ const box=document.querySelector(`[data-proof-panel="${stopId}"]`);if(!box)return;
+ box.innerHTML='<p class="proof-loading">Fotoğraflar yükleniyor…</p>';
+ try{
+  const parts=[];
+  for(const slot of PROOF_SLOTS){
+   let photos=await proofGetAll(stopId,slot.key);
+   const cloudRows=(cloudPhotoIndex.get(stopId)||[]).filter(r=>r.photo_type===slot.key);
+   const localIds=new Set(photos.map(r=>r.id));
+   const remoteOnly=cloudRows.filter(r=>!localIds.has(r.id));
+   const thumbsLocal=photos.map((row,i)=>{const url=URL.createObjectURL(row.blob);proofObjectUrls.push(url);return `<div class="proof-thumb"><img src="${url}" alt="${esc(slot.label)} ${i+1}"><button type="button" class="proof-thumb-delete" data-dist="proof-delete" data-record="${esc(row.id)}" title="Sil">×</button></div>`}).join('');
+   const c=cloudConfig();const thumbsRemote=remoteOnly.map((row,i)=>`<div class="proof-thumb"><img src="${c.url}/api/photos/${encodeURIComponent(row.id)}?token=${encodeURIComponent(c.token)}" alt="${esc(slot.label)} bulut ${i+1}"><button type="button" class="proof-thumb-delete" data-dist="proof-delete" data-record="${esc(row.id)}" title="Sil">×</button></div>`).join('');const thumbs=thumbsLocal+thumbsRemote;const count=photos.length+remoteOnly.length;
+   const status=slot.multi?(count+' fotoğraf'):(count?'Fotoğraf hazır':'Fotoğraf eksik');
+   parts.push(`<div class="proof-slot ${count?'has-photo':''}"><div class="proof-slot-previews">${thumbs||'<div class="proof-slot-preview"><span>📷</span></div>'}</div><div class="proof-slot-main"><b>${esc(slot.label)}</b><small>${status}${slot.multi?' · Birden fazla eklenebilir':''}</small><div><label class="secondary-button proof-camera">${slot.multi?'Fotoğraf Ekle':(photos.length?'Tekrar Çek':'Fotoğraf Çek')}<input type="file" accept="image/*" capture="environment" ${slot.multi?'multiple':''} data-dist-photo="${slot.key}" data-id="${stopId}"></label></div></div></div>`);
+  }
+  box.innerHTML=parts.join('');
+ }catch(err){
+  console.error('Teslim fotoğrafları açılamadı:',err);
+  box.innerHTML=`<div class="dist-empty">Fotoğraf bölümü açılamadı. Sayfayı yenileyip tekrar dene.<br><small>${esc(err?.message||'Bilinmeyen hata')}</small></div>`;
+ }
+}
+async function shareProofPhotos(stopId){const stop=data.find(x=>x.id===stopId);if(!stop)return;const files=[];let sequence=1;for(const slot of PROOF_SLOTS){let rows=await proofGetAll(stopId,slot.key);const localIds=new Set(rows.map(r=>r.id));const remote=(cloudPhotoIndex.get(stopId)||[]).filter(r=>r.photo_type===slot.key&&!localIds.has(r.id));for(const meta of remote){try{const resp=await cloudRequest('/api/photos/'+encodeURIComponent(meta.id));rows.push({id:meta.id,blob:await resp.blob()})}catch(e){console.warn(e)}}if(!rows.length){alert(`${slot.label} fotoğrafı eksik.`);return}for(let i=0;i<rows.length;i++){const suffix=rows.length>1?'_'+String(i+1).padStart(2,'0'):'';files.push(new File([rows[i].blob],`${safeFileName(stop.customer)}_${slot.file}${suffix}.jpg`,{type:'image/jpeg'}));sequence++}}try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files}))){await navigator.share({files,title:stop.customer,text:`${stop.customer}
+${stop.address}`});return}}catch(e){if(e?.name==='AbortError')return;console.warn(e)}for(const file of files){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}alert(`Telefon çoklu paylaşımı desteklemedi. ${files.length} fotoğraf indirildi.`)}
+function safeFileName(v){return String(v||'Dukkan').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60)||'Dukkan'}
 function uid(){return 'd'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function distanceKm(lat1,lon1,lat2,lon2){
  const r=6371,toRad=v=>v*Math.PI/180;
@@ -34,59 +150,49 @@ function getPhoneLocation(){return new Promise((resolve,reject)=>{
   reject(new Error(msg));
  },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 })}
-function hasValidCoords(stop){
- if(!stop||stop.lat===null||stop.lat===undefined||stop.lng===null||stop.lng===undefined||stop.lat===''||stop.lng==='')return false;
- const lat=Number(stop.lat),lng=Number(stop.lng);
- return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180&&!(lat===0&&lng===0);
+async function geocodeStop(stop){
+ if(Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lng)))return {lat:Number(stop.lat),lng:Number(stop.lng)};
+ const query=[stop.address,stop.district,'Keçiören Ankara Türkiye'].filter(Boolean).join(', ');
+ const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=tr&q='+encodeURIComponent(query);
+ const res=await fetch(url,{headers:{'Accept':'application/json'}});
+ if(!res.ok)throw new Error('Adres konuma çevrilemedi.');
+ const arr=await res.json();if(!arr?.length)return null;
+ stop.lat=Number(arr[0].lat);stop.lng=Number(arr[0].lon);return {lat:stop.lat,lng:stop.lng};
 }
-const COORD_CACHE_KEY='ekzen-distribution-coordinate-cache-v2';
-function coordKey(stop){return foldTr([stop.address,stop.district,'Ankara'].filter(Boolean).join('|')).replace(/\s+/g,' ').trim()}
-function loadCoordCache(){try{return JSON.parse(localStorage.getItem(COORD_CACHE_KEY)||'{}')||{}}catch(e){return {}}}
-function saveCoordCache(cache){try{localStorage.setItem(COORD_CACHE_KEY,JSON.stringify(cache))}catch(e){}}
-const coordCache=loadCoordCache();
-const geocodePromises=new Map();
-function normalizeGeocodeAddress(stop){return [stop.address,stop.district,'Keçiören','Ankara','Türkiye'].filter(Boolean).join(', ').replace(/\bMH\.?\b/giu,'Mahallesi').replace(/\bMAH\.?\b/giu,'Mahallesi').replace(/\bCD\.?\b/giu,'Caddesi').replace(/\bCAD\.?\b/giu,'Caddesi').replace(/\bSK\.?\b/giu,'Sokak').replace(/\bSOK\.?\b/giu,'Sokak').replace(/\bNO\.?\s*/giu,'No ').replace(/\s+/g,' ').trim()}
-function applyCoordsToSameAddress(source){const key=coordKey(source);for(const same of data){if(coordKey(same)===key){same.lat=Number(source.lat);same.lng=Number(source.lng)}}}
-async function geocodeArcgis(query){
- const params=new URLSearchParams({SingleLine:query,f:'json',maxLocations:'1',outSR:'4326',countryCode:'TUR',forStorage:'false',outFields:'Addr_type,Match_addr'});
- const res=await fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?'+params.toString(),{headers:{Accept:'application/json'}});
- if(!res.ok)return null;const json=await res.json(),candidate=json?.candidates?.[0],loc=candidate?.location;if(!loc||Number(candidate.score||0)<55)return null;
- return {lat:Number(loc.y),lng:Number(loc.x),provider:'arcgis'};
-}
-async function geocodePhoton(query){
- const params=new URLSearchParams({q:query,limit:'1',lang:'tr'});if(currentLocation){params.set('lat',String(currentLocation.lat));params.set('lon',String(currentLocation.lng))}
- const res=await fetch('https://photon.komoot.io/api/?'+params.toString(),{headers:{Accept:'application/json'}});if(!res.ok)return null;
- const json=await res.json(),coords=json?.features?.[0]?.geometry?.coordinates;if(!Array.isArray(coords)||coords.length<2)return null;
- return {lat:Number(coords[1]),lng:Number(coords[0]),provider:'photon'};
-}
-async function geocodeStop(stop,{force=false}={}){
- if(!force&&hasValidCoords(stop))return {lat:Number(stop.lat),lng:Number(stop.lng)};
- const key=coordKey(stop),cached=coordCache[key];
- if(!force&&cached&&Number.isFinite(Number(cached.lat))&&Number.isFinite(Number(cached.lng))){stop.lat=Number(cached.lat);stop.lng=Number(cached.lng);applyCoordsToSameAddress(stop);return {lat:stop.lat,lng:stop.lng}}
- if(geocodePromises.has(key))return geocodePromises.get(key);
- const promise=(async()=>{const query=normalizeGeocodeAddress(stop);let found=null;try{found=await geocodeArcgis(query)}catch(e){}if(!found){try{found=await geocodePhoton(query)}catch(e){}}if(!found){coordCache[key]={missing:true,checkedAt:Date.now()};saveCoordCache(coordCache);return null}stop.lat=Number(found.lat);stop.lng=Number(found.lng);if(!hasValidCoords(stop))return null;coordCache[key]={lat:stop.lat,lng:stop.lng,provider:found.provider,checkedAt:Date.now()};saveCoordCache(coordCache);applyCoordsToSameAddress(stop);save();return {lat:stop.lat,lng:stop.lng}})().finally(()=>geocodePromises.delete(key));
- geocodePromises.set(key,promise);return promise;
-}
-function invalidateStopCoords(stop){const key=coordKey(stop);delete coordCache[key];saveCoordCache(coordCache);stop.lat=null;stop.lng=null}
 async function activateNearby(){
- if(nearbyBusy)return;nearbyBusy=true;nearbyMessage='Güncel konum alınıyor…';render();
- try{currentLocation=await getPhoneLocation();const targets=data.filter(x=>x.status!=='delivered'),unique=[],seen=new Set();for(const stop of targets){if(hasValidCoords(stop))continue;const k=coordKey(stop);if(seen.has(k))continue;seen.add(k);unique.push(stop)}let completed=0,missing=0,nextIndex=0;const worker=async()=>{while(true){const i=nextIndex++;if(i>=unique.length)return;let found=null;try{found=await geocodeStop(unique[i])}catch(e){}if(!found)missing++;completed++;if(completed===unique.length||completed%10===0){nearbyMessage=`Yalnızca yeni adresler hazırlanıyor: ${completed}/${unique.length}`;render()}}};if(unique.length){nearbyMessage=`${unique.length} yeni adres hazırlanıyor…`;render();await Promise.all(Array.from({length:Math.min(3,unique.length)},worker))}for(const x of targets)x._distance=hasValidCoords(x)?distanceKm(currentLocation.lat,currentLocation.lng,Number(x.lat),Number(x.lng)):Infinity;nearbyMode=true;filters.status='waiting';filters.group='';const foundCount=targets.filter(hasValidCoords).length,now=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});nearbyMessage=missing?`${now}: ${foundCount} adres konumuna göre sıralandı; ${missing} adres bulunamadı.`:`${now}: ${foundCount} adres konumuna göre sıralandı.`}catch(e){nearbyMessage=e.message;nearbyMode=false}finally{nearbyBusy=false;save();render()}
+ if(nearbyBusy)return;nearbyBusy=true;nearbyMessage='Telefon konumu alınıyor…';render();
+ try{
+  currentLocation=await getPhoneLocation();
+  const targets=data.filter(x=>x.status!=='delivered');let completed=0,missing=0;
+  for(const stop of targets){
+   if(!(Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lng)))){
+    nearbyMessage=`Adresler konuma çevriliyor: ${completed+1}/${targets.length}`;render();
+    try{const found=await geocodeStop(stop);if(!found)missing++;}catch(e){missing++;}
+    completed++;save();
+    await new Promise(r=>setTimeout(r,1050));
+   }
+  }
+  nearbyMode=true;filters.status='waiting';filters.group='';const now=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});nearbyMessage=missing?`${now}: ${missing} adres bulunamadı; bulunanlar güncel konumuna göre sıralandı.`:`${now}: Dükkânlar güncel konumuna göre yakından uzağa sıralandı.`;
+ }catch(e){nearbyMessage=e.message;nearbyMode=false;}
+ finally{nearbyBusy=false;save();render();}
 }
 function parseStored(raw){try{const x=JSON.parse(raw||'null');if(Array.isArray(x))return x;if(x&&Array.isArray(x.data))return x.data;return []}catch(e){return []}}
 function load(){
  try{
+  const shared=typeof window.getEkzenDistributions==='function'?window.getEkzenDistributions():[];
+  if(Array.isArray(shared)&&shared.length)return shared;
   const candidates=[KEY,BACKUP_KEY,SNAPSHOT_KEY,LEGACY_KEY].map(k=>({key:k,items:parseStored(localStorage.getItem(k))}));
   const best=candidates.sort((a,b)=>b.items.length-a.items.length)[0];
   return best&&best.items.length?best.items:[];
  }catch(e){return []}
 }
-function save(){
- try{
-  const json=JSON.stringify(data);
-  localStorage.setItem(KEY,json);
-  localStorage.setItem(BACKUP_KEY,json);
-  if(data.length)localStorage.setItem(SNAPSHOT_KEY,json);
- }catch(e){alert('Kayıt yapılamadı: '+e.message)}
+function saveLocalOnly(){
+ try{const json=JSON.stringify(data);localStorage.setItem(KEY,json);localStorage.setItem(BACKUP_KEY,json);if(data.length)localStorage.setItem(SNAPSHOT_KEY,json)}catch(e){alert('Kayıt yapılamadı: '+e.message)}
+}
+// V9.5: Servislerle ayni Firebase state kaydina otomatik yaz.
+function save(item=null){
+ saveLocalOnly();
+ if(typeof window.saveEkzenDistributions==='function')window.saveEkzenDistributions(data);
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function trTitle(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/(^|[\s-])([a-zçğıöşü])/g,(m,a,b)=>a+b.toLocaleUpperCase('tr-TR')).trim()}
@@ -143,7 +249,18 @@ function mergeDuplicates(list){
  }
  return [...map.values()];
 }
-function syncStatus(x){const ms=x.materials||[];x.status=ms.length&&ms.every(m=>m.delivered)?'delivered':'waiting';if(x.status==='delivered'&&!x.deliveredAt)x.deliveredAt=new Date().toISOString();if(x.status!=='delivered')x.deliveredAt='';}
+function syncStatus(x){
+ const ms=x.materials||[];
+ // Dukkan "Islem Tamam" ile kapatildiysa malzeme olmasa bile teslim durumunu koru.
+ if(x.status==='delivered'){
+  ms.forEach(m=>m.delivered=true);
+  if(!x.deliveredAt)x.deliveredAt=new Date().toISOString();
+  return;
+ }
+ x.status=ms.length&&ms.every(m=>m.delivered)?'delivered':'waiting';
+ if(x.status==='delivered'&&!x.deliveredAt)x.deliveredAt=new Date().toISOString();
+ if(x.status!=='delivered')x.deliveredAt='';
+}
 data=mergeDuplicates(data);
 function visible(){
  const list=data.filter(x=>{const h=(x.customer+' '+x.address+' '+x.district+' '+x.materials.map(m=>m.name).join(' ')+' '+x.note).toLocaleLowerCase('tr');return (!filters.q||h.includes(filters.q.toLocaleLowerCase('tr'))) && (!filters.group||x.district===filters.group) && (filters.status==='all'||x.status===filters.status)});
@@ -160,23 +277,23 @@ function materialTotals(){
 }
 function render(){
  const root=document.querySelector('#distributionView'); if(!root)return;
- data.forEach(syncStatus);save();
+ data.forEach(syncStatus);saveLocalOnly();
  if(mode==='warehouse')mode='route';
  const total=data.length,delivered=data.filter(x=>x.status==='delivered').length;
  const groups=[...new Set(data.map(x=>x.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
  const mats=materialTotals();
  root.innerHTML=`<div class="dist-page v7-page">
- <div class="dist-head"><div><span class="section-kicker">V7 Operasyon Merkezi</span><h2>Malzeme Operasyon Sistemi</h2><p>PDF veya fotoğrafı oku → müşteri kartından malzemeleri kontrol et → eksiksiz teslim et.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
- <div class="dist-stats"><article><span>Toplam Müşteri</span><b>${total}</b></article><article><span>Toplam Malzeme</span><b>${mats.reduce((a,m)=>a+m.total,0)}</b></article><article><span>Teslim</span><b>${delivered}</b></article><article><span>Kalan</span><b>${total-delivered}</b></article></div>
- <div class="v7-tabs"><button class="${mode==='route'?'is-active':''}" data-dist="set-mode" data-mode="route">🚚 Dağıtım</button><button class="${mode==='summary'?'is-active':''}" data-dist="set-mode" data-mode="summary">📊 Operasyon Özeti</button></div>
- ${mode==='summary'?summaryView(mats,total,delivered):routeView(groups)}
+ <div class="dist-head"><div><span class="section-kicker">V9.5 Ortak Senkronizasyon</span><h2>Dağıtım Listesi</h2><p>Mahalleni seç, dükkâna git ve onarım bitince işlemi tamamla.</p></div><div class="dist-head-actions"><button class="secondary-button dist-ai-main-button" data-dist="ai-open">📄 AI Listeyi Oku</button><button class="secondary-button" data-dist="import">Liste İçe Aktar</button><button class="primary-button" data-dist="add">+ Yeni Durak</button></div></div>
+ <div class="dist-stats"><article><span>Bekleyen</span><b>${total-delivered}</b></article><article><span>Teslim Edilen</span><b>${delivered}</b></article></div>
+ ${routeView(groups)}
  </div>`;
+ revokeProofUrls();
 }
 function neighborhoodStats(groups){return groups.map(name=>{const stops=data.filter(x=>x.district===name);const delivered=stops.filter(x=>x.status==='delivered').length;return {name,total:stops.length,delivered,complete:Boolean(stops.length)&&delivered===stops.length}})}
 function routeView(groups){
  const list=visible(),stats=neighborhoodStats(groups);
  const neighborhoodBar=`<section class="dist-neighborhoods"><div class="dist-neighborhoods-head"><b>📍 Mahalleler</b><span>Mahalleye dokunarak o bölgedeki dükkânları göster.</span></div><div class="dist-neighborhood-chips"><button class="dist-neighborhood-chip all ${!filters.group?'is-active':''}" data-dist="group-chip" data-group=""><span>Tümü</span><b>${data.length}</b></button>${stats.map(g=>`<button class="dist-neighborhood-chip ${g.complete?'is-complete':''} ${filters.group===g.name?'is-active':''}" data-dist="group-chip" data-group="${esc(g.name)}"><span>${esc(g.name)}</span><b>${g.total}</b>${g.complete?'<em>✓</em>':`<small>${g.total-g.delivered} kaldı</small>`}</button>`).join('')}</div></section>`;
- return `${neighborhoodBar}<div class="dist-toolbar"><input id="distSearch" type="search" autocomplete="off" placeholder="Dükkân, adres, LED veya baskı levhası ara" value="${esc(filters.q)}"><select id="distGroup"><option value="">Tüm Mahalleler (${data.length})</option>${stats.map(g=>`<option value="${esc(g.name)}" ${g.name===filters.group?'selected':''}>${esc(g.name)} (${g.total})${g.complete?' ✓':''}</option>`).join('')}</select><select id="distStatus"><option value="all">Tüm Durumlar</option>${['waiting','delivered'].map(st=>`<option value="${st}" ${st===filters.status?'selected':''}>${statusLabel(st)}</option>`).join('')}</select><button class="primary-button nearby-button ${nearbyMode?'is-active':''}" data-dist="nearby" ${nearbyBusy?'disabled':''}>${nearbyBusy?'📍 Konum yenileniyor…':nearbyMode?'📍 Konumumu Yenile':'📍 Yakınımdaki Dükkânlar'}</button>${nearbyMode?'<button class="secondary-button" data-dist="normal-order">↩ Normal Sıra</button>':''}<button class="secondary-button" data-dist="manage-toggle">${manageMode?'Bitti':'☑ Seç'}</button><button class="secondary-button" data-dist="export">Yedek Al</button><button class="danger-button" data-dist="clear-delivered">Teslimleri Temizle</button></div>${nearbyMessage?`<div class="nearby-status ${nearbyMode?'success':''}">${esc(nearbyMessage)}</div>`:''}${filters.group?`<div class="dist-active-neighborhood ${stats.find(g=>g.name===filters.group)?.complete?'is-complete':''}"><span>📍 ${esc(filters.group)}</span><b>${stats.find(g=>g.name===filters.group)?.total||0} müşteri</b>${stats.find(g=>g.name===filters.group)?.complete?'<em>✓ Tamamlandı</em>':''}</div>`:''}${manageMode?`<div class="dist-bulkbar"><button class="secondary-button" data-dist="select-all">Tümünü Seç</button><span>${selectedStops.size} seçili</span><button class="danger-button" data-dist="delete-selected" ${selectedStops.size?'':'disabled'}>Seçilenleri Sil</button><button class="danger-button" data-dist="delete-all">Tüm Dağıtımı Sil</button></div>`:''}<div class="dist-list">${list.length?list.map(card).join(''):'<div class="dist-empty">Bu filtrede kayıt yok.</div>'}</div>`
+ return `${neighborhoodBar}<div class="v93-status-switch"><button class="${filters.status==='waiting'?'is-active':''}" data-dist="show-waiting">Bekleyen İşler (${data.filter(x=>x.status!=='delivered').length})</button><button class="${filters.status==='delivered'?'is-active':''}" data-dist="show-delivered">Teslim Edilenler (${data.filter(x=>x.status==='delivered').length})</button></div><div class="dist-toolbar"><input id="distSearch" type="search" autocomplete="off" placeholder="Dükkân veya adres ara" value="${esc(filters.q)}"><select id="distGroup"><option value="">Tüm Mahalleler (${data.length})</option>${stats.map(g=>`<option value="${esc(g.name)}" ${g.name===filters.group?'selected':''}>${esc(g.name)} (${g.total})${g.complete?' ✓':''}</option>`).join('')}</select><button class="secondary-button" data-dist="manage-toggle">${manageMode?'Bitti':'☑ Seç'}</button><button class="secondary-button" data-dist="export">Yedek Al</button>${filters.status==='delivered'?'<button class="danger-button" data-dist="clear-delivered">Teslimleri Temizle</button>':''}</div>${filters.group?`<div class="dist-active-neighborhood ${stats.find(g=>g.name===filters.group)?.complete?'is-complete':''}"><span>📍 ${esc(filters.group)}</span><b>${stats.find(g=>g.name===filters.group)?.total||0} müşteri</b>${stats.find(g=>g.name===filters.group)?.complete?'<em>✓ Tamamlandı</em>':''}</div>`:''}${manageMode?`<div class="dist-bulkbar"><button class="secondary-button" data-dist="select-all">Tümünü Seç</button><span>${selectedStops.size} seçili</span><button class="danger-button" data-dist="delete-selected" ${selectedStops.size?'':'disabled'}>Seçilenleri Sil</button><button class="danger-button" data-dist="delete-all">Tüm Dağıtımı Sil</button></div>`:''}<div class="dist-list">${list.length?list.map(card).join(''):`<div class="dist-empty">${filters.status==='delivered'?'Henüz teslim edilen kayıt yok.':'Bu mahallede bekleyen iş yok.'}</div>`}</div>`
 }
 function summaryView(mats,total,delivered){const remaining=mats.filter(m=>m.total>m.delivered);return `<section class="v7-summary"><div class="v7-summary-hero"><b>${delivered}/${total}</b><span>müşteri tamamlandı</span><div class="dist-progress"><span style="width:${total?Math.round(delivered/total*100):0}%"></span></div></div><div class="v7-summary-grid"><article><h3>Teslim Edilecek Malzemeler</h3>${remaining.length?remaining.map(m=>`<p><span>${esc(m.name)}</span><b>${m.total-m.delivered} adet</b></p>`).join(''):'<p>Tüm malzemeler teslim edildi.</p>'}</article><article><h3>Teslim Edilemeyen Duraklar</h3>${data.filter(x=>x.status!=='delivered').slice(0,30).map(x=>`<p><span>${esc(x.customer)}</span><b>${groupedMaterials(x).reduce((a,m)=>a+(m.quantity-m.deliveredQuantity),0)} adet</b></p>`).join('')||'<p>Kalan durak yok.</p>'}</article></div></section>`}
 function materialCardRow(g,x){
@@ -188,11 +305,10 @@ function materialCardRow(g,x){
 }
 function card(x){
  const map=x.address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.address)}`:'';
- const groups=groupedMaterials(x),totalQty=groups.reduce((a,m)=>a+m.quantity,0),complete=x.materials.length&&x.materials.every(m=>m.delivered),expanded=expandedStops.has(x.id);
- const leds=groups.filter(g=>g.kind!=='plate'),plates=groups.filter(g=>g.kind==='plate');
- const materialHtml=groups.length?`${leds.length?`<div class="v7-material-section"><strong>LED MALZEMELERİ</strong>${leds.map(g=>materialCardRow(g,x)).join('')}</div>`:''}${plates.length?`<div class="v7-material-section"><strong>BASKI LEVHASI</strong>${plates.map(g=>materialCardRow(g,x)).join('')}</div>`:''}`:'<span>Malzeme girilmedi</span>';
- return `<article class="dist-card status-${x.status}">${manageMode?`<label class="dist-select"><input type="checkbox" data-dist="select-stop" data-id="${x.id}" ${selectedStops.has(x.id)?'checked':''}><span>Seç</span></label>`:''}<div class="dist-card-top"><div><small>${esc(x.district||'Grup belirtilmedi')}</small><h3>${esc(x.customer||'İsimsiz dükkân')}</h3><p>${esc(x.address||'Adres girilmedi')}</p></div><div class="dist-card-badges">${nearbyMode&&Number.isFinite(x._distance)?`<span class="distance-badge">📍 ${formatDistance(x._distance)}</span>`:''}<span class="dist-badge">${statusLabel(x.status)}</span></div></div><button class="v7-material-toggle" data-dist="toggle-materials" data-id="${x.id}">📦 Malzemeler (${totalQty} adet) ${expanded?'▲':'▼'}</button>${expanded?`<div class="v7-stop-materials">${materialHtml}</div>`:''}${x.note?`<p class="dist-note">Not: ${esc(x.note)}</p>`:''}<div class="dist-card-actions">${x.phone?`<a class="secondary-button" href="tel:${esc(x.phone)}">Ara</a>`:''}${map?`<a class="secondary-button" target="_blank" rel="noopener" href="${map}">Konuma Git</a>`:''}${complete?`<button class="secondary-button" data-dist="reset-waiting" data-id="${x.id}">↩ Beklemeye Al</button>`:''}<button class="secondary-button" data-dist="edit" data-id="${x.id}">Düzenle</button><button class="primary-button" data-dist="complete-stop" data-id="${x.id}" ${complete?'disabled':''}>${complete?'✓ Teslim Tamam':'Tümünü Teslim Et'}</button></div>${x.deliveredAt?`<small class="dist-time">Teslim: ${new Date(x.deliveredAt).toLocaleString('tr-TR')}</small>`:''}</article>`
+ const complete=x.status==='delivered';
+ return `<article class="dist-card v93-simple-card status-${x.status}">${manageMode?`<label class="dist-select"><input type="checkbox" data-dist="select-stop" data-id="${x.id}" ${selectedStops.has(x.id)?'checked':''}><span>Seç</span></label>`:''}<div class="dist-card-top"><div><h3>${esc(x.customer||'İsimsiz dükkân')}</h3><p>${esc(x.address||'Adres girilmedi')}</p></div></div><div class="dist-card-actions">${map?`<a class="secondary-button" target="_blank" rel="noopener" href="${map}">Konuma Git</a>`:''}<button class="secondary-button" data-dist="edit" data-id="${x.id}">Düzenle</button>${complete?`<button class="secondary-button" data-dist="reset-waiting" data-id="${x.id}">↩ Geri Al</button>`:`<button class="primary-button v93-complete-button" data-dist="complete-stop" data-id="${x.id}">✓ İşlem Tamam</button>`}</div>${x.deliveredAt?`<small class="dist-time">Tamamlandı: ${new Date(x.deliveredAt).toLocaleString('tr-TR')}</small>`:''}</article>`
 }
+
 function openForm(item){item=item||normalizeItem();const d=document.querySelector('#distributionDialog');const f=d.querySelector('form');f.reset();f.elements.id.value=item.id;f.elements.customer.value=item.customer;f.elements.district.value=item.district;f.elements.address.value=item.address;f.elements.phone.value=item.phone;f.elements.materials.value=item.materials.map(m=>m.kind==='plate'?`BASKI LEVHASI | ${m.newDesign||m.cooler||''} | ${Math.max(1,Number(m.quantity)||1)}`:`LED | ${m.cooler||m.name||''} | ${Math.max(1,Number(m.quantity)||1)}`).join('\n');f.elements.note.value=item.note;f.elements.status.value=item.status;d.querySelector('[data-dist-delete]').hidden=!data.some(x=>x.id===item.id);d.showModal()}
 function importDialog(){document.querySelector('#distributionImportDialog').showModal()}
 function parseImport(text){
@@ -397,8 +513,6 @@ function saveDistributionForm(){
  if(!parsed.length){alert('En az bir malzeme gir.');f.elements.materials.focus();return;}
  const manualDistrict=String(f.elements.district.value||'').trim();
  const manualAddress=String(f.elements.address.value||'').trim();
- const sameAddress=!!old&&foldTr(old.address)===foldTr(manualAddress)&&foldTr(old.district)===foldTr(manualDistrict);
- if(old&&!sameAddress)invalidateStopCoords(old);
  const item=normalizeItem({
   id:id||(old?.id)||uid(),
   customer:String(f.elements.customer.value||'').trim(),
@@ -408,9 +522,7 @@ function saveDistributionForm(){
   materials:parsed,
   status:selectedStatus,
   note:String(f.elements.note.value||'').trim(),
-  deliveredAt:old?.deliveredAt||'',
-  lat:sameAddress?old.lat:null,
-  lng:sameAddress?old.lng:null
+  deliveredAt:old?.deliveredAt||''
  });
  // Kullanıcının elle yazdığı mahalleyi koru. Sadece alan boşsa adresten otomatik bul.
  item.district=manualDistrict||inferNeighborhood(manualAddress)||'';
@@ -421,8 +533,7 @@ function saveDistributionForm(){
  }
  const i=data.findIndex(x=>x.id===item.id);
  if(i>=0)data[i]=item;else data.push(item);
- save();
- if(selectedStatus!=='delivered'&&!hasValidCoords(item)){geocodeStop(item,{force:true}).then(found=>{if(found&&nearbyMode){item._distance=currentLocation?distanceKm(currentLocation.lat,currentLocation.lng,item.lat,item.lng):Infinity;render()}}).catch(()=>{})}
+ save(item);
  // Kaydın gerçekten localStorage'a yazıldığını doğrula.
  try{
   const check=JSON.parse(localStorage.getItem(KEY)||'[]');
@@ -437,26 +548,39 @@ function saveDistributionForm(){
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dist]');if(!b)return;const a=b.dataset.dist,id=b.dataset.id;
  if(a==='set-mode'){mode=b.dataset.mode;render();return}
+ if(a==='show-waiting'){filters.status='waiting';render();return}
+ if(a==='show-delivered'){filters.status='delivered';render();return}
  if(a==='nearby'){activateNearby();return}
  if(a==='normal-order'){nearbyMode=false;currentLocation=null;nearbyMessage='';render();return}
+ if(a==='toggle-proof'){proofExpanded.has(id)?proofExpanded.delete(id):proofExpanded.add(id);render();return}
+ if(a==='proof-share'){shareProofPhotos(id);return}
+ if(a==='proof-delete'){if(confirm('Bu fotoğraf silinsin mi?'))proofDeleteRecord(b.dataset.record).then(render);return}
  if(a==='toggle-materials'){expandedStops.has(id)?expandedStops.delete(id):expandedStops.add(id);render();return}
  if(a==='group-chip'){filters.group=b.dataset.group||'';render();return}
  if(a==='manage-toggle'){manageMode=!manageMode;if(!manageMode)selectedStops.clear();render();return}
  if(a==='select-stop'){return}
  if(a==='select-all'){const list=visible();const all=list.length&&list.every(x=>selectedStops.has(x.id));for(const x of list){if(all)selectedStops.delete(x.id);else selectedStops.add(x.id)}render();return}
- if(a==='delete-selected'){if(!selectedStops.size)return;if(confirm(selectedStops.size+' seçili dağıtım silinsin mi?')){data=data.filter(x=>!selectedStops.has(x.id));selectedStops.clear();save();render()}return}
- if(a==='delete-all'){if(confirm('Bütün dağıtım listesi silinsin mi? Bu işlem geri alınamaz.')){data=[];selectedStops.clear();save();render()}return}
+ if(a==='delete-selected'){if(!selectedStops.size)return;if(confirm(selectedStops.size+' seçili dağıtım silinsin mi?')){const ids=[...selectedStops];data=data.filter(x=>!selectedStops.has(x.id));selectedStops.clear();ids.forEach(id=>proofDeleteStop(id));save();render()}return}
+ if(a==='delete-all'){if(confirm('Bütün dağıtım listesi ve fotoğrafları silinsin mi? Bu işlem geri alınamaz.')){const ids=data.map(x=>x.id);data=[];selectedStops.clear();ids.forEach(id=>proofDeleteStop(id));save();render()}return}
  if(a==='bulk-material'){const name=b.dataset.name,stage=b.dataset.stage;for(const x of data)for(const m of x.materials)if(m.name===name){if(stage==='prepared')m.prepared=true;if(stage==='loaded'&&m.prepared)m.loaded=true}data.forEach(syncStatus);save();render();return}
  if(a==='load-all-prepared'){for(const x of data)for(const m of x.materials)if(m.prepared)m.loaded=true;data.forEach(syncStatus);save();render();return}
  if(a==='deliver-material'){return}
- if(a==='complete-stop'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' için '+groupedMaterials(x).reduce((a,m)=>a+m.quantity,0)+' adet malzemenin tamamı teslim edildi mi?')){x.materials.forEach(m=>m.delivered=true);syncStatus(x);save();render()}return}
- if(a==='reset-waiting'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' kaydı Bekliyor durumuna geri alınsın mı?')){x.materials.forEach(m=>m.delivered=false);x.status='waiting';x.deliveredAt='';save();filters.status=filters.status==='delivered'?'all':filters.status;render()}return}
- if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){data=data.filter(x=>x.id!==document.querySelector('#distributionForm').elements.id.value);save();document.querySelector('#distributionDialog').close();render()}
+ if(a==='complete-stop'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' için işlem tamamlandı mı?')){x.materials.forEach(m=>m.delivered=true);x.status='delivered';x.deliveredAt=new Date().toISOString();save(x);render()}return}
+ if(a==='reset-waiting'){const x=data.find(v=>v.id===id);if(!x)return;if(confirm(x.customer+' kaydı Bekliyor durumuna geri alınsın mı?')){x.materials.forEach(m=>m.delivered=false);x.status='waiting';x.deliveredAt='';save(x);filters.status=filters.status==='delivered'?'all':filters.status;render()}return}
+ if(a==='save-form'){saveDistributionForm();return} if(a==='add')openForm(); if(a==='edit')openForm(data.find(x=>x.id===id)); if(a==='advance'){const x=data.find(x=>x.id===id);x.status=nextStatus(x.status);x.deliveredAt=x.status==='delivered'?new Date().toISOString():'';save();render()} if(a==='import')importDialog(); if(a==='export')download('ekzen-dagitim-yedek.json',JSON.stringify(data,null,2),'application/json'); if(a==='clear-delivered'&&confirm('Teslim edilen kayıtlar silinsin mi?')){data=data.filter(x=>x.status!=='delivered');save();render()} if(a==='close-form')document.querySelector('#distributionDialog').close();if(a==='close-import')document.querySelector('#distributionImportDialog').close();if(a==='delete'){const deletedId=document.querySelector('#distributionForm').elements.id.value;data=data.filter(x=>x.id!==deletedId);proofDeleteStop(deletedId);save();document.querySelector('#distributionDialog').close();render()}
  if(a==='ai-open')aiDialog();if(a==='close-ai')document.querySelector('#distributionAiDialog').close();if(a==='ai-read')runAi();if(a==='ai-save')saveAiRows();if(a==='ai-remove-image'){aiImages.splice(Number(b.dataset.index),1);renderAiImages();setAiStatus(aiImages.length?aiImages.length+' sayfa hazır.':'Henüz PDF veya fotoğraf seçilmedi.')}if(a==='ai-remove-row'){aiRows.splice(Number(b.dataset.index),1);renderAiRows();document.querySelector('#distAiSaveButton').disabled=!aiRows.length}
 });
 document.addEventListener('input',e=>{if(e.target.id==='distSearch'){filters.q=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{render();const i=document.querySelector('#distSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},220);return}const field=e.target.dataset?.aiField;if(field&&aiRows[Number(e.target.dataset.index)]){const x=aiRows[Number(e.target.dataset.index)];x[field]=e.target.value;if(field==='address'){x.needsReview=false;x.addressConfidence=100}document.querySelector('#distAiSaveButton').disabled=!aiRows.length}});
-document.addEventListener('change',e=>{if(e.target.matches('[data-dist=\"select-stop\"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist=\"deliver-material\"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save();render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
+document.addEventListener('change',async e=>{if(e.target.matches('[data-dist-photo]')){const files=[...(e.target.files||[])];if(!files.length)return;const id=e.target.dataset.id,slot=e.target.dataset.distPhoto,slotDef=PROOF_SLOTS.find(x=>x.key===slot);try{for(const file of files){const blob=await photoFileToJpeg(file);await proofPut(id,slot,blob,!!slotDef?.multi)}render()}catch(err){alert('Fotoğraf kaydedilemedi: '+err.message)}e.target.value='';return}if(e.target.matches('[data-dist=\"select-stop\"]')){const id=e.target.dataset.id;if(e.target.checked)selectedStops.add(id);else selectedStops.delete(id);render();return}if(e.target.matches('[data-dist=\"deliver-material\"]')){const x=data.find(v=>v.id===e.target.dataset.id);const m=x?.materials.find(v=>v.id===e.target.dataset.mid);if(m){m.delivered=e.target.checked;syncStatus(x);save(x);render()}return}if(e.target.id==='distGroup'){filters.group=e.target.value;render()}if(e.target.id==='distStatus'){filters.status=e.target.value;render()}if(e.target.id==='distAiFiles'||e.target.id==='distAiCamera')handleAiFiles(e.target.files)});
 document.addEventListener('submit',e=>{if(e.target.id==='distributionForm'){e.preventDefault();e.stopPropagation();saveDistributionForm();}},true);
 document.querySelector('#distributionImportForm')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,arr=parseImport(f.elements.text.value);if(!arr.length){alert('Okunabilir kayıt bulunamadı.');return}data=mergeDuplicates(f.elements.mode.value==='replace'?arr:data.concat(arr));save();document.querySelector('#distributionImportDialog').close();f.reset();render();alert(arr.length+' kayıt içe aktarıldı.')});
-data=mergeDuplicates(data).map(applyNeighborhood);save();window.renderDistribution=render;render();
+window.addEventListener('ekzen-distributions-updated',e=>{
+ const incoming=Array.isArray(e.detail)?e.detail:[];
+ data=mergeDuplicates(incoming).map(applyNeighborhood);
+ saveLocalOnly();
+ render();
+});
+data=mergeDuplicates(data).map(applyNeighborhood);saveLocalOnly();
+if(typeof window.getEkzenDistributions==='function'&&!window.getEkzenDistributions().length&&data.length){window.saveEkzenDistributions(data)}
+window.renderDistribution=render;refreshProofCounts().finally(()=>{render();});
 })();

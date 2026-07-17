@@ -7987,25 +7987,51 @@ body.photo-viewer-open {
  .distance-badge{font-size:13px;padding:7px 10px}
 }
 
-/* V8.1.2: Servis kartında müşteri adı ve adresi ayrı gösterilir. */
-.v420-address {
-  margin-top: 4px;
-  font-size: 0.92rem;
-  line-height: 1.35;
-  opacity: 0.82;
-}
+/* V8.2 Teslim Kanıtı */
 
-/* V8.1.3: Mobil ana sayfadaki tarih/kaynak filtre satırı gizlendi. */
-@media (max-width: 768px) {
-  #mobileTechApp .mobile-list-head-v3313 {
-    display: none !important;
-  }
-}
+/* V9.3 Sade Dagitim */
+.v93-status-switch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.v93-status-switch button{border:1px solid var(--line,#d9e0e8);background:var(--panel,#fff);color:inherit;border-radius:14px;padding:13px 12px;font:inherit;font-weight:800;cursor:pointer}
+.v93-status-switch button.is-active{background:#173f74;color:#fff;border-color:#173f74;box-shadow:0 7px 18px rgba(23,63,116,.2)}
+.v93-simple-card .dist-card-top{margin-bottom:14px}
+.v93-simple-card .dist-card-top h3{margin-top:0}
+.v93-simple-card .dist-card-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.v93-simple-card .dist-card-actions>*{width:100%;justify-content:center;text-align:center}
+.v93-complete-button{background:#16834b!important;border-color:#16834b!important}
+@media(max-width:640px){.v93-simple-card .dist-card-actions{grid-template-columns:1fr 1fr}.v93-complete-button{grid-column:1/-1}.v93-status-switch{grid-template-columns:1fr}}
+.proof-toggle{width:100%;margin-top:10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#334155;cursor:pointer}
+.proof-toggle.is-complete{background:#ecfdf5;border-color:#86efac;color:#166534}
+.proof-panel{margin-top:8px;display:grid;gap:8px}
+.proof-slot{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:center;padding:9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.proof-slot.has-photo{border-color:#86efac;background:#f0fdf4}
+.proof-slot-preview{width:74px;height:62px;border-radius:9px;background:#e2e8f0;display:grid;place-items:center;overflow:hidden;font-size:24px}
+.proof-slot-preview img{width:100%;height:100%;object-fit:cover}
+.proof-slot-main b,.proof-slot-main small{display:block}.proof-slot-main small{margin:2px 0 7px;color:#64748b}
+.proof-slot-main>div{display:flex;gap:7px;flex-wrap:wrap}
+.proof-camera{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.proof-camera input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.proof-delete{padding:8px 11px}.proof-share{width:100%;margin:8px 0}.proof-loading{padding:12px;text-align:center;color:#64748b}
+@media(max-width:640px){.proof-slot{grid-template-columns:64px 1fr}.proof-slot-preview{width:64px;height:58px}.proof-slot-main>div .secondary-button,.proof-slot-main>div .danger-button{min-height:42px}.proof-share{min-height:48px}}
 
-
-/* V8.1.4: Mobil Servisler ekranındaki ilk filtre paneli gizlendi. */
-@media (max-width: 768px) {
-  #servicesView .v420-filter-card {
-    display: none !important;
-  }
-}
+/* V8.2 Teslim Kanıtı */
+.proof-toggle{width:100%;margin-top:10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#334155;cursor:pointer}
+.proof-toggle.is-complete{background:#ecfdf5;border-color:#86efac;color:#166534}
+.proof-panel{margin-top:8px;display:grid;gap:8px}
+.proof-slot{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:center;padding:9px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.proof-slot.has-photo{border-color:#86efac;background:#f0fdf4}
+.proof-slot-preview{width:74px;height:62px;border-radius:9px;background:#e2e8f0;display:grid;place-items:center;overflow:hidden;font-size:24px}
+.proof-slot-preview img{width:100%;height:100%;object-fit:cover}
+.proof-slot-main b,.proof-slot-main small{display:block}.proof-slot-main small{margin:2px 0 7px;color:#64748b}
+.proof-slot-main>div{display:flex;gap:7px;flex-wrap:wrap}
+.proof-camera{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.proof-camera input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.proof-delete{padding:8px 11px}.proof-share{width:100%;margin:8px 0}.proof-loading{padding:12px;text-align:center;color:#64748b}
+@media(max-width:640px){.proof-slot{grid-template-columns:64px 1fr}.proof-slot-preview{width:64px;height:58px}.proof-slot-main>div .secondary-button,.proof-slot-main>div .danger-button{min-height:42px}.proof-share{min-height:48px}}
+/* V8.2.1 çoklu teslim fotoğrafları */
+.proof-slot-previews{display:flex;gap:7px;flex-wrap:wrap;align-items:center;min-width:74px}
+.proof-thumb{position:relative;width:74px;height:62px;border-radius:9px;overflow:hidden;background:#e2e8f0;border:1px solid #cbd5e1}
+.proof-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.proof-thumb-delete{position:absolute;right:3px;top:3px;width:24px;height:24px;border:0;border-radius:999px;background:rgba(185,28,28,.92);color:#fff;font-size:17px;line-height:20px;cursor:pointer;padding:0}
+.proof-slot{grid-template-columns:minmax(74px,auto) 1fr}
+@media(max-width:640px){.proof-slot{grid-template-columns:1fr}.proof-slot-previews{min-width:0}.proof-thumb{width:72px;height:62px}}
+.cloud-status{margin:12px 0;padding:11px 14px;border:1px solid #b7e4da;background:#effcf8;border-radius:12px;color:#17695b;font-weight:700}.cloud-status.is-error{border-color:#f3b4b4;background:#fff1f1;color:#a12b2b}.cloud-button{border-color:#8bd8c8!important}
