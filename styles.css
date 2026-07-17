@@ -7986,3 +7986,11 @@ body.photo-viewer-open {
  .dist-card-badges{align-items:flex-end}
  .distance-badge{font-size:13px;padding:7px 10px}
 }
+
+/* V8.1.2: Servis kartında müşteri adı ve adresi ayrı gösterilir. */
+.v420-address {
+  margin-top: 4px;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  opacity: 0.82;
+}

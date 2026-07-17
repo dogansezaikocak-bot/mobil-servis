@@ -1190,9 +1190,10 @@ function serviceRow(service) {
       </div>
       <div class="v420-card-body">
         <div class="v420-card-title-row">
-          <h3>${escapeHtml(service.address || service.customerName || "Servis Kaydı")}</h3>
+          <h3>${escapeHtml(service.customerName || "İsimsiz Müşteri")}</h3>
           <span>${escapeHtml(service.source || "Kendi İşim")}</span>
         </div>
+        <div class="v420-address">${escapeHtml(service.address || "Adres yok")}</div>
         <a class="v420-phone" href="${phoneHref}">${escapeHtml(service.phone || "Telefon yok")}</a>
         <p>${escapeHtml(detailLine || "Cihaz bilgisi yok")} ${detailLine ? "·" : ""} ${escapeHtml(service.fault || "Şikayet yazılmadı")}</p>
         ${paymentModeLabel ? `<small class="v420-payment-mode">${escapeHtml(paymentModeLabel)}</small>` : ""}
