@@ -117,6 +117,7 @@
                 <p>Liste kartına tıklayınca fiş detayı açılır.</p>
               </div>
               <div class="v420-toolbar-actions">
+                <button class="secondary-button" type="button" data-action="open-service-import">Liste İçe Aktar</button>
                 <button class="secondary-button" type="button" data-action="print-list">Yazdır / PDF</button>
                 <button class="primary-button" type="button" data-action="open-service-modal">+ Yeni Servis</button>
               </div>
@@ -366,6 +367,27 @@
         </div>
       </div>
     </div>
+  </dialog>
+
+
+  <dialog id="serviceImportDialog" class="dialog">
+    <form method="dialog" class="dialog-shell" id="serviceImportForm">
+      <header>
+        <h2>Servis Listesi İçe Aktar</h2>
+        <button class="icon-button" type="button" data-action="close-service-import" title="Kapat">×</button>
+      </header>
+      <div class="dialog-body">
+        <p class="muted-text">Her servisi ayrı satıra yaz. Sütunları <b>|</b> işaretiyle ayır.</p>
+        <p class="muted-text"><b>Müşteri | Telefon | Adres | Cihaz | Şikâyet/İşlem | İş Kaynağı | Durum</b></p>
+        <textarea name="importText" rows="14" style="width:100%;resize:vertical" placeholder="06 DAYININ YERİ TEKEL | | Karşıyaka Mahallesi, Kayı Caddesi No:31 | Soğutucu | LED montajı | Dağıtım | Yeni Kayıt"></textarea>
+        <label style="display:flex;gap:10px;align-items:center;margin-top:12px"><input name="replaceExisting" type="checkbox"> Mevcut servisleri silip bu listeyle değiştir</label>
+      </div>
+      <footer>
+        <span></span><span></span>
+        <button class="secondary-button" type="button" data-action="close-service-import">Vazgeç</button>
+        <button class="primary-button" type="submit">İçe Aktar</button>
+      </footer>
+    </form>
   </dialog>
 
   <dialog id="serviceDialog" class="dialog">
