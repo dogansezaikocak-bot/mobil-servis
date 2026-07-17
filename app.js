@@ -828,13 +828,9 @@ function renderSourceMetrics(services, cashItems) {
       <span>Toplam Hasılat</span>
       <b>${money(allSourceTotals.customerMoney)}</b>
     </article>
-    <article class="metric-card finance-card commission-card">
-      <span>Komisyon</span>
-      <b>${money(totals.commission)}</b>
-    </article>
-    <article class="metric-card finance-card material-card">
-      <span>Malzeme</span>
-      <b>${money(totals.material)}</b>
+    <article class="metric-card finance-card expense-card">
+      <span>Toplam Gider</span>
+      <b>${money(totals.commission + totals.material)}</b>
     </article>
     <article class="metric-card finance-card cash-status-card">
       <span>Kazanç</span>

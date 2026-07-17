@@ -8001,3 +8001,11 @@ body.photo-viewer-open {
     display: none !important;
   }
 }
+
+
+/* V8.1.4: Mobil Servisler ekranındaki ilk filtre paneli gizlendi. */
+@media (max-width: 768px) {
+  #servicesView .v420-filter-card {
+    display: none !important;
+  }
+}
