@@ -7927,3 +7927,404 @@ body.photo-viewer-open {
     .mobile-native-page-backdrop { transition-duration: 1ms !important; }
   }
 }
+
+
+/* V5.3.1 - Mobil servis detayında sabit geri dönüş */
+@media (max-width: 820px) {
+  .mobile-detail-nav {
+    position: sticky !important;
+    top: -10px !important;
+    z-index: 30 !important;
+    min-height: 56px !important;
+    margin: -10px -12px 8px !important;
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px !important;
+    display: grid !important;
+    grid-template-columns: minmax(82px, 1fr) auto minmax(82px, 1fr) !important;
+    align-items: end !important;
+    background: rgba(255,255,255,.96) !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+  .mobile-detail-nav > strong {
+    color: #0f172a !important;
+    font-size: 16px !important;
+    line-height: 40px !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+  .mobile-detail-back {
+    justify-self: start !important;
+    min-width: 76px !important;
+    min-height: 40px !important;
+    padding: 0 8px !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: #0f766e !important;
+    font: inherit !important;
+    font-size: 32px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  .mobile-detail-back span {
+    font-size: 16px !important;
+    font-weight: 850 !important;
+  }
+  .mobile-detail-nav-spacer { min-width: 76px !important; }
+  .mobile-detail-sheet:not([hidden]) { overscroll-behavior: contain !important; }
+}
+
+/* V5.3.2 - Servis detayı native-navigation katmanının daima önünde */
+@media (max-width: 820px) {
+  #mobileDetailSheet.mobile-detail-sheet:not([hidden]) {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 10050 !important;
+  }
+  body.mobile-detail-open {
+    overflow: hidden !important;
+  }
+}
+
+
+/* V5.3.3 - Mobil servis listesi: sade, belirgin ve ekran içine oturan görünüm */
+@media (max-width: 820px) {
+  .mobile-services-shell,
+  .mobile-services-list,
+  #mobileServicesList {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #mobileServicesList {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    overflow-x: hidden !important;
+  }
+
+  #mobileServicesList .mobile-service-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 12px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 22px !important;
+    background: #ffffff !important;
+    box-shadow: 0 5px 18px rgba(15, 23, 42, .07) !important;
+  }
+
+  #mobileServicesList .mobile-service-main {
+    padding: 16px 16px 12px !important;
+    min-width: 0 !important;
+  }
+
+  #mobileServicesList .mobile-service-card h3,
+  #mobileServicesList .mobile-service-card p,
+  #mobileServicesList .mobile-service-card div,
+  #mobileServicesList .mobile-service-card span {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #mobileServicesList .mobile-service-card h3 {
+    font-size: 22px !important;
+    line-height: 1.18 !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  #mobileServicesList .mobile-service-date {
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+    font-weight: 900 !important;
+  }
+
+  #mobileServicesList .mobile-service-address,
+  #mobileServicesList .mobile-service-note,
+  #mobileServicesList .mobile-service-meta {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  #mobileServicesList .mobile-service-note {
+    margin-top: 12px !important;
+    padding: 11px 13px !important;
+    border-radius: 14px !important;
+    background: #f6f8f8 !important;
+  }
+
+  #mobileServicesList .mobile-service-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    border-top: 1px solid #e5e7eb !important;
+  }
+
+  #mobileServicesList .mobile-service-actions > * {
+    min-width: 0 !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    text-align: center !important;
+  }
+
+  #mobileServicesList .mobile-service-card [data-mobile-action="open-detail"] {
+    right: 10px !important;
+  }
+}
+
+
+/* V5.3.4 - GERÇEK mobil servis listesi düzeltmesi
+   Not: gerçek kapsayıcı #mobileServiceList'tir. */
+@media (max-width: 820px) {
+  #mobileServiceList.mobile-service-list {
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 14px 14px 120px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: clip !important;
+  }
+
+  #mobileServiceList .mobile-service-card {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 14px !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    border: 1px solid #dfe6e8 !important;
+    border-radius: 18px !important;
+    background: #fff !important;
+    box-shadow: 0 4px 12px rgba(15,23,42,.06) !important;
+  }
+
+  #mobileServiceList .mobile-card-top,
+  #mobileServiceList .mobile-service-card > div:nth-child(2) {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+
+  #mobileServiceList .mobile-card-top {
+    padding-top: 14px !important;
+  }
+
+  #mobileServiceList .mobile-date b {
+    font-size: 18px !important;
+    line-height: 1.15 !important;
+  }
+
+  #mobileServiceList .mobile-date span {
+    font-size: 13px !important;
+  }
+
+  #mobileServiceList .mobile-device {
+    margin: 12px 0 7px !important;
+    font-size: 21px !important;
+    line-height: 1.18 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #mobileServiceList .mobile-customer,
+  #mobileServiceList .mobile-address {
+    font-size: 16px !important;
+    line-height: 1.3 !important;
+  }
+
+  #mobileServiceList .mobile-address {
+    display: block !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #mobileServiceList .mobile-fault {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 12px 0 14px !important;
+    padding: 10px 12px !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
+    background: #f5f7f7 !important;
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-shadow: none !important;
+  }
+
+  #mobileServiceList .mobile-card-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-sizing: border-box !important;
+  }
+
+  #mobileServiceList .mobile-card-actions a {
+    min-width: 0 !important;
+    padding: 13px 3px !important;
+    font-size: 15px !important;
+    text-align: center !important;
+  }
+
+  #mobileServiceList .mobile-status-pill {
+    max-width: 44% !important;
+    font-size: 12px !important;
+  }
+}
+
+/* V5.3.5 - Mobil kasa işlemleri */
+@media (max-width: 820px) {
+  .mobile-daily-cash-page {
+    padding-bottom: 110px !important;
+  }
+  .mobile-cash-transactions {
+    margin: 16px 14px 0 !important;
+    padding: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 20px !important;
+    background: #fff !important;
+    box-shadow: 0 5px 16px rgba(15,23,42,.06) !important;
+  }
+  .mobile-cash-transactions-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    align-items: center !important;
+    margin-bottom: 12px !important;
+  }
+  .mobile-cash-transactions-head div {
+    display: grid !important;
+    gap: 2px !important;
+  }
+  .mobile-cash-transactions-head span {
+    color: #64748b !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .04em !important;
+  }
+  .mobile-cash-transactions-head strong {
+    color: #0f172a !important;
+    font-size: 20px !important;
+  }
+  #mobileDailyCashMovementCount {
+    flex: 0 0 auto !important;
+    padding: 7px 10px !important;
+    border-radius: 999px !important;
+    background: #eef7f5 !important;
+    color: #0f766e !important;
+    font-size: 12px !important;
+  }
+  .mobile-cash-movement-list {
+    display: grid !important;
+    gap: 8px !important;
+  }
+  .mobile-cash-movement {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+    padding: 12px 0 !important;
+    border-top: 1px solid #edf0f2 !important;
+  }
+  .mobile-cash-movement-copy {
+    display: grid !important;
+    gap: 3px !important;
+    min-width: 0 !important;
+  }
+  .mobile-cash-movement-copy strong {
+    color: #0f172a !important;
+    font-size: 15px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .mobile-cash-movement-copy span {
+    color: #64748b !important;
+    font-size: 12px !important;
+  }
+  .mobile-cash-movement > b {
+    flex: 0 0 auto !important;
+    font-size: 16px !important;
+    color: #047857 !important;
+  }
+  .mobile-cash-movement.out > b {
+    color: #b45309 !important;
+  }
+  .mobile-cash-empty {
+    padding: 18px 0 6px !important;
+    color: #64748b !important;
+    text-align: center !important;
+    font-size: 14px !important;
+  }
+}
+
+/* V5.3.6 - Tam mobil kasa */
+@media (max-width:820px){
+ .mobile-welcome-cash-entry{width:100%;margin:14px 0 12px;padding:16px;border:1px solid #dbe5e3;border-radius:20px;background:#fff;display:grid;grid-template-columns:1fr auto 18px;gap:12px;align-items:center;text-align:left;box-shadow:0 5px 16px rgba(15,23,42,.06)}
+ .mobile-welcome-cash-entry>div:first-child{display:grid;gap:2px}.mobile-welcome-cash-entry>div:first-child span{font-size:12px;font-weight:900;color:#0f766e;text-transform:uppercase}.mobile-welcome-cash-entry>div:first-child strong{font-size:20px;color:#0f172a}.mobile-welcome-cash-entry small{font-size:12px;color:#64748b}
+ .mobile-welcome-cash-mini{display:grid;gap:5px;text-align:right}.mobile-welcome-cash-mini span{font-size:11px;color:#64748b}.mobile-welcome-cash-mini b{display:block;font-size:14px;color:#0f172a}.mobile-welcome-cash-entry i{font-size:28px;color:#0f766e;font-style:normal}
+ .mobile-cash-filter-panel{margin:14px;padding:14px;border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 4px 14px rgba(15,23,42,.05)}
+ .mobile-cash-quick-ranges{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}.mobile-cash-quick-ranges button{border:0;border-radius:10px;padding:9px 3px;background:#f1f5f4;color:#475569;font-size:12px;font-weight:800}.mobile-cash-quick-ranges button.is-active{background:#0f766e;color:#fff}
+ .mobile-cash-date-range{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mobile-cash-date-range label,.mobile-cash-source-filter{display:grid;gap:5px;font-size:11px;font-weight:800;color:#64748b}.mobile-cash-date-range input,.mobile-cash-source-filter select{width:100%;box-sizing:border-box;border:1px solid #dbe2e8;border-radius:11px;padding:10px;background:#fff;color:#0f172a;font-size:13px}
+ .mobile-cash-source-filter{margin-top:8px}.mobile-cash-apply{width:100%;margin-top:10px;border:0;border-radius:12px;padding:11px;background:#0f172a;color:#fff;font-weight:900}
+}
+
+/* V5.3.7 - Kasa ekranında servis filtreleri görünmez */
+@media (max-width:820px){
+  #mobileTechApp.is-cash-mode .mobile-tech-header,
+  #mobileTechApp.is-cash-mode .mobile-list-head,
+  #mobileTechApp.is-cash-mode #mobileServiceList,
+  #mobileTechApp.is-cash-mode .mobile-new-service-bar {
+    display:none !important;
+  }
+  #mobileTechApp.is-cash-mode #mobileDailyCashPage {
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+  }
+  #mobileTechApp.is-cash-mode .mobile-daily-page-head {
+    position:sticky !important;
+    top:0 !important;
+    z-index:20 !important;
+    background:rgba(255,255,255,.96) !important;
+    backdrop-filter:blur(12px) !important;
+    -webkit-backdrop-filter:blur(12px) !important;
+    border-bottom:1px solid #e5e7eb !important;
+  }
+}
+
+/* V5.3.8 - Mobil kasa gelir/gider menüsü */
+@media(max-width:820px){
+ .mobile-cash-entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px}
+ .mobile-cash-add{min-width:0;padding:14px 12px;border:1px solid #dfe7e5;border-radius:17px;background:#fff;display:flex;align-items:center;gap:9px;text-align:left;box-shadow:0 4px 12px rgba(15,23,42,.05)}
+ .mobile-cash-add>span{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:23px;font-weight:500}
+ .mobile-cash-add>div{display:grid;gap:2px;min-width:0}.mobile-cash-add strong{font-size:15px;color:#0f172a}.mobile-cash-add small{font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .mobile-cash-add.income>span{background:#e8f6f1;color:#047857}.mobile-cash-add.expense>span{background:#fff3e8;color:#b45309}
+ #cashDialog[open]{z-index:20000}
+ #cashDialog[open]::backdrop{background:rgba(15,23,42,.38)}
+ #cashDialog[open] .dialog-shell{max-height:88dvh;overflow:auto}
+}

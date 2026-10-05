@@ -3645,23 +3645,91 @@ function mobileRenderTechPanel() {
 }
 
 
+let mobileCashRangeStart = "";
+let mobileCashRangeEnd = "";
+let mobileCashSource = "";
+let mobileCashRangeMode = "today";
+let mobileCashRangeInitialized = false;
+
+function mobileCashDefaultToday() {
+  mobileCashRangeStart = mobileSelectedDate || isoToday;
+  mobileCashRangeEnd = mobileSelectedDate || isoToday;
+  mobileCashRangeMode = "today";
+  mobileCashRangeInitialized = true;
+}
+
+function mobileCashPopulateSources() {
+  const select = document.querySelector("#mobileCashSourcePicker");
+  if (!select) return;
+  const current = mobileCashSource || "";
+  const values = [...new Set([
+    ...settingsList("sources"),
+    ...(state.services || []).map((item) => item.source),
+    ...(state.cash || []).map((item) => cashItemSource(item))
+  ].filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b), "tr"));
+  select.innerHTML = `<option value="">Tüm Kaynaklar</option>` + values.map((v) =>
+    `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join("");
+  select.value = current;
+}
+
 function mobileRenderDailyCash() {
-  const date = mobileSelectedDate || isoToday;
-  const items = (state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (item.date || "") === date);
+  if (!mobileCashRangeInitialized) mobileCashDefaultToday();
+  const startDate = mobileCashRangeStart || "";
+  const endDate = mobileCashRangeEnd || "";
+  const items = (state.cash || []).filter((item) => {
+    if (!cashIsPosted(item) || !matchesPortalSource(cashItemSource(item))) return false;
+    const d = String(item.date || "").slice(0,10);
+    if (startDate && d < startDate) return false;
+    if (endDate && d > endDate) return false;
+    if (mobileCashSource && !sourceMatches(cashItemSource(item), mobileCashSource)) return false;
+    return true;
+  });
   const totals = cashBreakdown(items);
   const serviceTotals = serviceOnlyCashBreakdown(items);
-  const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material;
+  const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material - Number(totals.manualExpense || 0);
   const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
   setText("#mobileDailyPageIncome", money(totals.income));
   setText("#mobileDailyPageCommission", money(totals.commission));
   setText("#mobileDailyPageMaterial", money(totals.material));
   setText("#mobileDailyPageExpense", money(totals.manualExpense));
   setText("#mobileDailyPageProfit", money(profit));
-  const dateLabel = date === isoToday ? `Bugün · ${formatDisplayDate(date)}` : formatDisplayDate(date);
-  setText("#mobileDailyCashPageDate", dateLabel);
-}
 
+  const label = startDate && endDate && startDate === endDate
+    ? (startDate === isoToday ? `Bugün · ${formatDisplayDate(startDate)}` : formatDisplayDate(startDate))
+    : `${startDate ? formatDisplayDate(startDate) : "Başlangıç"} – ${endDate ? formatDisplayDate(endDate) : "Bugün"}`;
+  setText("#mobileDailyCashPageDate", label);
+
+  const startInput = document.querySelector("#mobileCashStartDate");
+  const endInput = document.querySelector("#mobileCashEndDate");
+  if (startInput) startInput.value = startDate;
+  if (endInput) endInput.value = endDate;
+  mobileCashPopulateSources();
+
+  const movementList = document.querySelector("#mobileDailyCashMovementList");
+  const movementCount = document.querySelector("#mobileDailyCashMovementCount");
+  if (movementCount) movementCount.textContent = `${items.length} işlem`;
+  if (movementList) {
+    const rows = [...items].sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    movementList.innerHTML = rows.length ? rows.map((item) => {
+      const amount = Number(item.amount || item.total || item.value || 0);
+      const type = norm(item.type || item.kind || item.category || "");
+      const isOut = type.includes("gider") || type.includes("komisyon") || type.includes("malzeme") || amount < 0;
+      const title = item.description || item.note || item.title || item.category || item.type || (isOut ? "Gider" : "Tahsilat");
+      const source = cashItemSource(item) || "Kasa";
+      const d = String(item.date || "").slice(0,10);
+      return `<article class="mobile-cash-movement ${isOut ? "out" : "in"}">
+        <div class="mobile-cash-movement-copy">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(d ? formatDisplayDate(d) : "")} · ${escapeHtml(source)}</span>
+        </div>
+        <b>${isOut ? "−" : "+"}${escapeHtml(money(Math.abs(amount)))}</b>
+      </article>`;
+    }).join("") : `<div class="mobile-cash-empty">Seçilen dönemde kasa hareketi yok.</div>`;
+  }
+}
 function mobileOpenDailyCashPage() {
+  mobileCashDefaultToday();
+  mobileCashSource = "";
   mobileRenderDailyCash();
   mobileSetCashMode(true);
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3709,13 +3777,53 @@ function mobileServiceCard(service) {
 function mobileOpenDetail(serviceId) {
   mobileActiveServiceId = serviceId;
   mobileRenderDetail(serviceId);
-  document.querySelector("#mobileDetailSheet")?.removeAttribute("hidden");
+
+  const sheet = document.querySelector("#mobileDetailSheet");
+  if (!sheet) return;
+
+  // Detayı her durumda aktif görünümün önüne getir.
+  sheet.removeAttribute("hidden");
+  sheet.style.display = "flex";
+  sheet.style.visibility = "visible";
+  sheet.style.opacity = "1";
+  sheet.style.pointerEvents = "auto";
+  sheet.style.zIndex = "10050";
+
+  // Native-navigation katmanlarından bağımsız olarak servis detayı önde kalsın.
+  document.body.classList.add("mobile-detail-open");
+
+  // Mobilde tarayıcının geri hareketi/tuşu önce servis detayını kapatsın.
+  if (!history.state?.ekzenMobileDetail) {
+    history.pushState({ ...(history.state || {}), ekzenMobileDetail: true, serviceId }, "");
+  }
+}
+
+function mobileHideDetailSheet() {
+  mobileActiveServiceId = "";
+  const sheet = document.querySelector("#mobileDetailSheet");
+  if (sheet) {
+    sheet.setAttribute("hidden", "");
+    sheet.style.removeProperty("display");
+    sheet.style.removeProperty("visibility");
+    sheet.style.removeProperty("opacity");
+    sheet.style.removeProperty("pointer-events");
+    sheet.style.removeProperty("z-index");
+  }
+  document.body.classList.remove("mobile-detail-open");
 }
 
 function mobileCloseDetail() {
-  mobileActiveServiceId = "";
-  document.querySelector("#mobileDetailSheet")?.setAttribute("hidden", "");
+  if (history.state?.ekzenMobileDetail) {
+    history.back();
+    return;
+  }
+  mobileHideDetailSheet();
 }
+
+window.addEventListener("popstate", () => {
+  const sheet = document.querySelector("#mobileDetailSheet");
+  if (sheet && !sheet.hasAttribute("hidden")) mobileHideDetailSheet();
+});
 
 function mobileRenderDetail(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
@@ -5065,3 +5173,94 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   window.addEventListener("load", () => showHome(true));
   setTimeout(() => showHome(true), 220);
 })();
+
+/* V5.3.6 mobile cash filters */
+document.addEventListener("click", (event) => {
+  const rangeButton = event.target.closest("[data-mobile-cash-range]");
+  if (rangeButton) {
+    event.preventDefault();
+    const mode = rangeButton.dataset.mobileCashRange;
+    const today = new Date(`${isoToday}T12:00:00`);
+    const iso = (d) => {
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${day}`;
+    };
+    mobileCashRangeInitialized = true;
+    mobileCashRangeMode = mode;
+    if (mode === "today") mobileCashRangeStart = mobileCashRangeEnd = isoToday;
+    if (mode === "week") {
+      const d = new Date(today); const diff=(d.getDay()+6)%7; d.setDate(d.getDate()-diff);
+      mobileCashRangeStart=iso(d); mobileCashRangeEnd=isoToday;
+    }
+    if (mode === "month") {
+      mobileCashRangeStart=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-01`;
+      mobileCashRangeEnd=isoToday;
+    }
+    if (mode === "all") { mobileCashRangeStart=""; mobileCashRangeEnd=""; }
+    document.querySelectorAll("[data-mobile-cash-range]").forEach(b=>b.classList.toggle("is-active", b===rangeButton));
+    mobileRenderDailyCash();
+    return;
+  }
+  if (event.target.closest("#mobileCashApplyFilter")) {
+    event.preventDefault();
+    mobileCashRangeStart=document.querySelector("#mobileCashStartDate")?.value || "";
+    mobileCashRangeEnd=document.querySelector("#mobileCashEndDate")?.value || "";
+    mobileCashSource=document.querySelector("#mobileCashSourcePicker")?.value || "";
+    mobileCashRangeInitialized = true;
+    mobileCashRangeMode = "custom";
+    document.querySelectorAll("[data-mobile-cash-range]").forEach(b=>b.classList.remove("is-active"));
+    mobileRenderDailyCash();
+  }
+});
+
+/* V5.3.7 - Mobil kasa filtrelerini servis filtrelerinden tamamen ayır */
+document.addEventListener("change", (event) => {
+  if (!event.target.closest("#mobileDailyCashPage")) return;
+
+  if (event.target.matches("#mobileCashSourcePicker")) {
+    event.stopImmediatePropagation();
+    mobileCashSource = event.target.value || "";
+    mobileCashRangeInitialized = true;
+    mobileRenderDailyCash();
+    return;
+  }
+
+  if (event.target.matches("#mobileCashStartDate, #mobileCashEndDate")) {
+    event.stopImmediatePropagation();
+    mobileCashRangeStart = document.querySelector("#mobileCashStartDate")?.value || "";
+    mobileCashRangeEnd = document.querySelector("#mobileCashEndDate")?.value || "";
+    mobileCashRangeMode = "custom";
+    mobileCashRangeInitialized = true;
+    document.querySelectorAll("[data-mobile-cash-range]").forEach((b) => b.classList.remove("is-active"));
+    mobileRenderDailyCash();
+  }
+}, true);
+
+/* V5.3.8 - Mobil kasadan gelir / gider ekleme */
+document.addEventListener("click", (event) => {
+  const addButton = event.target.closest("[data-mobile-cash-add]");
+  if (!addButton) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  const type = addButton.dataset.mobileCashAdd === "expense" ? "expense" : "income";
+  openCashForm();
+
+  if (cashForm?.elements?.type) cashForm.elements.type.value = type;
+  if (cashForm?.elements?.date) cashForm.elements.date.value = mobileCashRangeEnd || mobileSelectedDate || isoToday;
+  if (cashForm?.elements?.source) cashForm.elements.source.value = mobileCashSource || "";
+  const title = document.querySelector("#cashDialogTitle");
+  if (title) title.textContent = type === "expense" ? "Gider Ekle" : "Gelir Ekle";
+}, true);
+
+/* Kasa kaydı yapıldıktan sonra mobil kasa açıksa sayaçları/hareketleri yenile. */
+const ekzenV538CashForm = document.querySelector("#cashForm");
+if (ekzenV538CashForm) {
+  ekzenV538CashForm.addEventListener("submit", () => {
+    setTimeout(() => {
+      if (document.querySelector("#mobileTechApp")?.classList.contains("is-cash-mode")) {
+        mobileRenderDailyCash();
+      }
+    }, 80);
+  });
+}

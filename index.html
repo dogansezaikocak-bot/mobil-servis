@@ -273,18 +273,18 @@
         </button>
       </div>
 
-      <div class="mobile-welcome-finance-grid" aria-label="Günlük kasa özeti">
-        <button type="button" class="mobile-welcome-finance-card income" data-welcome-action="cash">
-          <span>Toplam Hasılat</span>
-          <strong id="mobileWelcomeIncome">₺0</strong>
-          <small>Kasa sayfasını aç</small>
-        </button>
-        <button type="button" class="mobile-welcome-finance-card earning" data-welcome-action="cash">
-          <span>Hakediş</span>
-          <strong id="mobileWelcomeEarning">₺0</strong>
-          <small>Hasılat − komisyon − malzeme</small>
-        </button>
-      </div>
+      <button type="button" class="mobile-welcome-cash-entry" data-welcome-action="cash" aria-label="Kasa işlemlerini aç">
+        <div>
+          <span>Kasa</span>
+          <strong>Para Hareketleri</strong>
+          <small>Geçmiş tahsilat ve giderleri görüntüle</small>
+        </div>
+        <div class="mobile-welcome-cash-mini">
+          <span>Hasılat <b id="mobileWelcomeIncome">₺0</b></span>
+          <span>Hakediş <b id="mobileWelcomeEarning">₺0</b></span>
+        </div>
+        <i>›</i>
+      </button>
 
       <button class="mobile-welcome-new-service" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
     </section>
@@ -330,7 +330,36 @@
           <strong id="mobileDailyCashPageDate">Bugün</strong>
         </div>
       </div>
-      <section class="mobile-daily-counter-grid" aria-label="Günlük kasa sayaçları">
+      <section class="mobile-cash-entry-actions" aria-label="Yeni kasa hareketi">
+        <button type="button" class="mobile-cash-add income" data-mobile-cash-add="income">
+          <span>＋</span><div><strong>Gelir Ekle</strong><small>Tahsilat / diğer gelir</small></div>
+        </button>
+        <button type="button" class="mobile-cash-add expense" data-mobile-cash-add="expense">
+          <span>−</span><div><strong>Gider Ekle</strong><small>Yakıt / parça / diğer gider</small></div>
+        </button>
+      </section>
+
+      <section class="mobile-cash-filter-panel" aria-label="Kasa filtreleri">
+        <div class="mobile-cash-quick-ranges">
+          <button type="button" data-mobile-cash-range="today" class="is-active">Bugün</button>
+          <button type="button" data-mobile-cash-range="week">Bu Hafta</button>
+          <button type="button" data-mobile-cash-range="month">Bu Ay</button>
+          <button type="button" data-mobile-cash-range="all">Tümü</button>
+        </div>
+        <div class="mobile-cash-date-range">
+          <label><span>Başlangıç</span><input id="mobileCashStartDate" type="date"></label>
+          <label><span>Bitiş</span><input id="mobileCashEndDate" type="date"></label>
+        </div>
+        <label class="mobile-cash-source-filter">
+          <span>Kaynak</span>
+          <select id="mobileCashSourcePicker">
+            <option value="">Tüm Kaynaklar</option>
+          </select>
+        </label>
+        <button type="button" id="mobileCashApplyFilter" class="mobile-cash-apply">Filtrele</button>
+      </section>
+
+      <section class="mobile-daily-counter-grid" aria-label="Kasa sayaçları">
         <article class="mobile-daily-counter income">
           <span>Toplam Hasılat</span>
           <b id="mobileDailyPageIncome">₺0</b>
@@ -353,6 +382,17 @@
           <small>Hasılat - komisyon - malzeme - gider</small>
         </article>
       </section>
+
+      <section class="mobile-cash-transactions" aria-label="Günlük kasa hareketleri">
+        <div class="mobile-cash-transactions-head">
+          <div>
+            <span>Kasa İşlemleri</span>
+            <strong>Para hareketleri</strong>
+          </div>
+          <b id="mobileDailyCashMovementCount">0 işlem</b>
+        </div>
+        <div id="mobileDailyCashMovementList" class="mobile-cash-movement-list"></div>
+      </section>
     </div>
 
 
@@ -368,6 +408,11 @@
     <div id="mobileDetailSheet" class="mobile-detail-sheet" hidden>
       <div class="mobile-sheet-backdrop" data-mobile-action="close-detail"></div>
       <article class="mobile-sheet-card" role="dialog" aria-modal="true" aria-label="Servis detayı">
+        <div class="mobile-detail-nav">
+          <button class="mobile-detail-back" type="button" data-mobile-action="close-detail" aria-label="Servis listesine dön">‹ <span>Geri</span></button>
+          <strong>Servis Detayı</strong>
+          <span class="mobile-detail-nav-spacer" aria-hidden="true"></span>
+        </div>
         <div class="mobile-sheet-handle"></div>
         <div id="mobileDetailBody"></div>
       </article>
