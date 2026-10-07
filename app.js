@@ -4932,9 +4932,10 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   const dateInput = () => document.querySelector("#mobileDatePicker");
 
   function serviceDates(service) {
-    return [service.availableDate, service.visitDate, service.date, service.createdAt]
-      .filter(Boolean)
-      .map((value) => String(value).slice(0, 10));
+    // V5.3.10: Ana sayfa sayaçları da servis listesiyle aynı güncel planlama tarihini kullanır.
+    const plannedDate = service.availableDate || service.visitDate || service.date;
+    if (plannedDate) return [String(plannedDate).slice(0, 10)];
+    return service.createdAt ? [String(service.createdAt).slice(0, 10)] : [];
   }
 
   function selectedDate() {

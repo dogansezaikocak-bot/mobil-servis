@@ -54,3 +54,8 @@ Ekzen Servis Takip V5.3.0 Native Navigation - yeşil ekran düzeltmeli. V5.2.4.3
 - Planlama tarihi varsa servis yalnızca `availableDate/visitDate/date` gününde listelenir.
 - `createdAt` yalnızca hiç planlama tarihi olmayan eski kayıtlar için yedek tarihtir.
 - Erteleme kaydedilince ekran otomatik yeni tarihe atlamaz; servis bugünkü listeden hemen çıkar.
+
+## V5.3.10 Mobil Sayaç Erteleme Düzeltmesi
+- Ana sayfadaki servis sayaçları artık servis listesiyle aynı tarih kuralını kullanır.
+- Ertelenen servis eski günün sayaç adedinden hemen düşer.
+- Servis yalnızca yeni planlanan tarihin sayacına dahil olur.
