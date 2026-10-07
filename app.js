@@ -3180,9 +3180,12 @@ function serviceHasDate(service, isoDate) {
 }
 
 function serviceDateCandidates(service) {
-  const dates = [service.availableDate, service.visitDate, service.date].filter(Boolean);
-  if (!dates.length && service.createdAt) dates.push(toIsoDate(new Date(service.createdAt)));
-  return uniqueValues(dates);
+  // V5.3.9: Ertelenen servis yalnızca güncel planlama tarihinde görünür.
+  // availableDate/visitDate varsa eski kayıt tarihi artık aday tarih değildir.
+  const plannedDate = service.availableDate || service.visitDate || service.date;
+  if (plannedDate) return [String(plannedDate).slice(0, 10)];
+  if (service.createdAt) return [toIsoDate(new Date(service.createdAt))];
+  return [];
 }
 
 function serviceMainDate(service) {
@@ -3961,7 +3964,7 @@ function mobileSaveDelayDate(serviceId) {
   service.availableDate = nextDate;
   service.visitDate = nextDate;
   service.date = nextDate;
-  mobileSelectedDate = nextDate;
+  // Liste tarihi yerinde kalsın: ertelenen fiş mevcut günden hemen çıkar.
   mobileSaveWorkNote(serviceId);
   saveState();
   mobileCloseDetail();
@@ -4715,10 +4718,17 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   }
 
   function serviceDateCandidates(service) {
-    return [service.availableDate, service.visitDate, service.date, service.createdAt]
-      .filter(Boolean)
-      .map((value) => String(value).slice(0, 10))
-      .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value));
+    // Erteleme sonrası eski createdAt tarihi listede tutulmaz.
+    const plannedDate = service.availableDate || service.visitDate || service.date;
+    if (plannedDate) {
+      const value = String(plannedDate).slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(value) ? [value] : [];
+    }
+    if (service.createdAt) {
+      const value = String(service.createdAt).slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(value) ? [value] : [];
+    }
+    return [];
   }
 
   function matchesDate(service) {

@@ -48,3 +48,9 @@ Ekzen Servis Takip V5.3.0 Native Navigation - yeşil ekran düzeltmeli. V5.2.4.3
 - Mevcut masaüstü Para Hareketi formu kullanılır; veri yapısı aynıdır.
 - Açılan form seçilen işlem tipini, kasa tarihini ve kaynak filtresini otomatik taşır.
 - Kayıttan sonra mobil kasa özeti ve hareket listesi yenilenir.
+
+## V5.3.9 Erteleme Tarihi Düzeltmesi
+- Ertelenen servis artık hem eski gün hem yeni gün üzerinde görünmez.
+- Planlama tarihi varsa servis yalnızca `availableDate/visitDate/date` gününde listelenir.
+- `createdAt` yalnızca hiç planlama tarihi olmayan eski kayıtlar için yedek tarihtir.
+- Erteleme kaydedilince ekran otomatik yeni tarihe atlamaz; servis bugünkü listeden hemen çıkar.
