@@ -4557,8 +4557,10 @@ function renderSharedCashSlots(items){
    const node=document.querySelector(selectors[c.id]);
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
    if(!card)return;
-   card.hidden=c.visible===false;
-   card.style.display=c.visible===false?"none":"";
+   const hideForOwnWork=isOwnWorkSource(selectedSource) && (c.id==="commission" || c.id==="expense");
+   const shouldHide=c.visible===false || hideForOwnWork;
+   card.hidden=shouldHide;
+   card.style.display=shouldHide?"none":"";
    card.style.backgroundColor=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"";
    card.style.color="#fff";
    const heading=card.querySelector("span");
