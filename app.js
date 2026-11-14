@@ -842,6 +842,7 @@ document.addEventListener("click",event=>{
  event.stopImmediatePropagation();
  const slot=card.dataset.homeCashSlot;
  try{
+  if(slot.startsWith("status-")){openHomeServiceList(slot);return;}
   if(slot==="payment"||slot==="income"){openHomeServiceList(slot);return;}
   if(slot==="expense"){
    if(cashSourceFilter)cashSourceFilter.value=activeDashboardSource||"";
@@ -2612,7 +2613,8 @@ function openHomeServiceList(slot){
  const source=activeDashboardSource||(isSourcePortal()?portalSourceName():"");
  const items=filteredDashboardCash();
  const pending=(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&(isStatus(service.status,"Ödeme Bekliyor")||["Havale Bekleniyor","Sonra Tahsil Edilecek"].includes(String(service.paymentStatus||""))));
- const ids=slot==="payment"?pending.map(service=>String(service.id)):items.filter(isServicePrimaryIncome).map(item=>String(item.serviceId));
+ const statusName=slot.startsWith("status-")?decodeURIComponent(slot.slice(7)):null;
+ const ids=statusName?filteredDashboardServices().filter(service=>isStatus(service.status,statusName)).map(service=>String(service.id)):slot==="payment"?pending.map(service=>String(service.id)):items.filter(isServicePrimaryIncome).map(item=>String(item.serviceId));
  switchView("services");
  homeServiceDrilldown={slot,ids:new Set(ids)};
  serviceQuickStatSelection=null;
@@ -4818,7 +4820,10 @@ function renderSharedCashSlots(items){
 
 const HOME_LAYOUT_DEFAULTS={desktop:[],mobile:[]};
 function allHomeCashSlots(){
- return [...cashSlotSettings(),...customCashCounters().map((c,i)=>({...c,id:"custom-"+i,order:100+i}))];
+ const financial=[...cashSlotSettings(),...customCashCounters().map((c,i)=>({...c,id:"custom-"+i,order:100+i}))];
+ const statuses=settingsList("statuses");
+ const serviceCounters=statuses.map((name,i)=>({id:"status-"+encodeURIComponent(name),name,color:"#0f766e",unit:"count",kind:"service-status",statusName:name,order:200+i,visible:true}));
+ return [...financial,...serviceCounters];
 }
 function homeLayout(device){
   const raw=state.settings?.homeLayout?.[device];
@@ -4957,6 +4962,7 @@ function homeCashCounterContext(items,selectedSource){
  };
 }
 function homeCashCounterValue(counter,context){
+ if(counter.kind==="service-status")return 0;
  if(context.isExternal){
   if(counter.id==="profit")return context.sourceDated.hakedis;
   if(counter.id==="commission")return context.sourceDated.ekzenTechnical;
@@ -4981,9 +4987,10 @@ function renderHomeCashCards(device,items){
     const override=special.countersByDevice?.[device]?.[id]||special.counters?.[id]||{};
     if(override.visible===false)return "";
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
-    const value=homeCashCounterValue(c,context);
+    const statusServices=c.kind==="service-status"?(device==="desktop"?filteredDashboardServices():(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!selectedSource||sourceMatches(service.source,selectedSource))&&(mobileAllDates||dateInRange(serviceMainDate(service),mobileRangeStart||mobileSelectedDate||isoToday,mobileRangeEnd||mobileSelectedDate||isoToday)))):null;
+    const value=statusServices?statusServices.filter(service=>isStatus(service.status,c.statusName)).length:homeCashCounterValue(c,context);
     const pendingDetail=id==="payment" ? '<small class="home-pending-amount">'+escapeHtml(String(value))+' fiş</small>' : "";
-    const displayValue=id==="payment" ? escapeHtml("₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0)) : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
+    const displayValue=c.kind==="service-status"?escapeHtml(String(value)+" fiş"):id==="payment" ? escapeHtml("₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0)) : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
     return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" aria-label="'+escapeAttr(override.name||c.name)+' ayrıntılarını aç" style="'+(device==='mobile'?'background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;':'')+'min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
   }).join("");
 }
@@ -6648,6 +6655,16 @@ document.addEventListener("change",event=>{
       event.preventDefault();
       event.stopImmediatePropagation();
       const slot=addedCashCounter.dataset.homeCashSlot;
+      if(slot.startsWith("status-")){
+        const statusName=decodeURIComponent(slot.slice(7));
+        showList(statusGroup(statusName)==="complete"?"closed":"open");
+        const list=document.querySelector("#mobileServiceList");
+        if(list){
+          const ids=new Set((state.services||[]).filter(service=>isStatus(service.status,statusName)).map(service=>String(service.id)));
+          list.querySelectorAll("[data-service-id]").forEach(node=>{const id=node.dataset.serviceId;if(id&&!ids.has(String(id)))node.hidden=true;});
+        }
+        return;
+      }
       if(slot==="payment"){showList("payment");return;}
       mobileCashDetailFilter=({income:"income",commission:"commission",material:"material",expense:"all",profit:"all"})[slot]||"all";
       showCash();
