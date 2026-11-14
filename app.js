@@ -4589,7 +4589,9 @@ function renderSharedCashSlots(items){
    const shouldHide=c.visible===false || hideForOwnWork;
    card.hidden=shouldHide;
    card.style.display=shouldHide?"none":"";
-   card.style.backgroundColor=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"";
+   const chosenColor=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
+    card.style.setProperty("background",chosenColor,"important");
+    card.style.setProperty("background-color",chosenColor,"important");
    card.style.color="#fff";
    const heading=card.querySelector("span");
    if(heading)heading.textContent=isExternalSource&&c.id==="commission"?"Ekzen Payı":isExternalSource&&c.id==="expense"?"Kalan Ödeme":c.name;
