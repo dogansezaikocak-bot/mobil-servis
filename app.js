@@ -1269,7 +1269,7 @@ function showOpenServicesFromTopbar() {
 
 function switchView(view) {
   if (view === "ekzenCash") view = "cash";
-  if(view!=="services")homeServiceDrilldown=null;
+  homeServiceDrilldown=null;
   if (isSourcePortal() && !["dashboard", "cash", "services"].includes(view)) view = "dashboard";
   if (view === "services" && currentView !== "services") { serviceQuickStatSelection = "Yeni Kayıt"; if(topStatusFilter)topStatusFilter.value=""; }
   currentView = view;
