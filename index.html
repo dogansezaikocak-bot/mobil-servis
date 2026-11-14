@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.35-auth-loading">
+  <link rel="stylesheet" href="./styles.css?v=5.3.49-settings-redesign">
 </head>
 <body class="auth-checking">
   <section id="pinScreen" class="pin-screen" aria-label="Giriş ve oturum kontrolü">
@@ -239,26 +239,47 @@
 
       <section class="view" id="settingsView">
         <section class="panel settings-panel">
-          <span class="section-kicker">Sistem</span><h2>Ayarlar</h2>
-          <div class="backup-actions">
-            <button class="primary-button" type="button" data-action="export-backup">Yedek Al</button>
-            <button class="secondary-button" type="button" data-action="choose-backup">Yedekten Yükle</button>
-            <input id="backupFileInput" type="file" accept="application/json,.json" hidden>
+          <div class="settings-hero">
+            <div><span class="settings-eyebrow">EKZEN · YÖNETİM PANELİ</span><h2>Ayarlar</h2><p>İşletme bilgilerinizi, ana sayfalarınızı ve sayaçlarınızı tek yerden yönetin.</p></div>
+            <div class="settings-hero-symbol" aria-hidden="true">⚙</div>
           </div>
-          <div class="backup-actions">
-            <button class="secondary-button" type="button" data-action="change-pin">PIN değiştir</button>
-            <button class="danger-button" type="button" data-action="sign-out">Çıkış yap</button>
-          </div>
-          <form id="settingsForm" class="settings-form">
-            <label>Firma Adı<input name="companyName" type="text"></label>
-            <label>Yetkili<input name="ownerName" type="text"></label>
-            <label>Telefon<input name="phone" type="tel"></label>
-            <label>E-posta<input name="email" type="email"></label>
-            <label>Adres<textarea name="address" rows="3"></textarea></label>
-            <button class="primary-button" type="submit">Kaydet</button>
-          </form>
-          <div id="homeLayoutSettings" class="custom-counter-settings"></div>
-          <div id="customCashCounterSettings" class="custom-counter-settings"></div>
+          <nav class="settings-quick-nav" aria-label="Ayar bölümleri">
+            <a href="#settingsCompany">🏢 İşletme</a>
+            <a href="#settingsHome">▦ Ana sayfa</a>
+            <a href="#settingsCounters">◉ Sayaçlar</a>
+            <a href="#settingsLists">☷ Listeler</a>
+            <a href="#settingsSecurity">🔒 Güvenlik</a>
+          </nav>
+          <section class="settings-section" id="settingsCompany">
+            <div class="settings-section-head"><div class="settings-section-icon">🏢</div><div><h3>İşletme Bilgileri</h3><p>Firma adı ve iletişim bilgilerinizi düzenleyin.</p></div></div>
+            <form id="settingsForm" class="settings-form">
+              <label>Firma Adı<input name="companyName" type="text"></label>
+              <label>Yetkili<input name="ownerName" type="text"></label>
+              <label>Telefon<input name="phone" type="tel"></label>
+              <label>E-posta<input name="email" type="email"></label>
+              <label>Adres<textarea name="address" rows="3"></textarea></label>
+              <button class="primary-button" type="submit">✓ İşletme Bilgilerini Kaydet</button>
+            </form>
+          </section>
+          <section class="settings-section" id="settingsHome">
+            <div class="settings-section-head"><div class="settings-section-icon">▦</div><div><h3>Ana Sayfa Düzeni</h3><p>Mac ve telefon ekranlarını birbirinden bağımsız düzenleyin.</p></div></div>
+            <div id="homeLayoutSettings" class="custom-counter-settings"></div>
+          </section>
+          <section class="settings-section" id="settingsCounters">
+            <div class="settings-section-head"><div class="settings-section-icon">◉</div><div><h3>Kasa Sayaçları</h3><p>Renkleri, isimleri, sıralamayı ve hesaplamaları yönetin.</p></div></div>
+            <div id="customCashCounterSettings" class="custom-counter-settings"></div>
+          </section>
+          <section class="settings-section" id="settingsSecurity">
+            <div class="settings-section-head"><div class="settings-section-icon">🔒</div><div><h3>Güvenlik ve Yedekleme</h3><p>Verilerinizi yedekleyin ve oturumunuzu yönetin.</p></div></div>
+            <div class="settings-action-grid">
+              <button class="primary-button" type="button" data-action="export-backup">↓ Yedek Al</button>
+              <button class="secondary-button" type="button" data-action="choose-backup">↑ Yedekten Yükle</button>
+              <input id="backupFileInput" type="file" accept="application/json,.json" hidden>
+              <button class="secondary-button" type="button" data-action="change-pin">🔑 PIN Değiştir</button>
+              <button class="danger-button" type="button" data-action="sign-out">Çıkış Yap</button>
+            </div>
+          </section>
+          <div class="settings-section-head settings-list-heading"><div class="settings-section-icon">☷</div><div><h3>Diğer Listeler</h3><p>Markalar, cihazlar, kaynaklar ve diğer sistem listeleri.</p></div></div>
           <div id="settingsLists" class="settings-lists"></div>
         </section>
       </section>
