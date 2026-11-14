@@ -2896,7 +2896,7 @@ document.addEventListener("click",event=>{
  const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
  if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
  const counterDevice=event.target.closest("#sourceSpecialSettings [data-source-counter-device-tab]");
- if(counterDevice){activeSourceCounterDeviceTab=counterDevice.dataset.sourceCounterDeviceTab;document.querySelectorAll("#sourceSpecialSettings [data-source-counter-device-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.sourceCounterDeviceTab===activeSourceCounterDeviceTab));document.querySelectorAll("#sourceSpecialSettings [data-source-counter-device-panel]").forEach(p=>p.hidden=p.dataset.sourceCounterDevicePanel!==activeSourceCounterDeviceTab);return;}
+ if(counterDevice){activeSourceCounterDeviceTab=counterDevice.dataset.sourceCounterDeviceTab;renderSourceSpecialSettings();return;}
  const sourceDevice=event.target.closest("#sourceSpecialSettings [data-source-home-device-tab]");
  if(sourceDevice){activeSourceHomeDeviceTab=sourceDevice.dataset.sourceHomeDeviceTab;document.querySelectorAll("#sourceSpecialSettings [data-source-home-device-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.sourceHomeDeviceTab===activeSourceHomeDeviceTab));document.querySelectorAll("#sourceSpecialSettings [data-source-device-panel]").forEach(p=>p.hidden=p.dataset.sourceDevicePanel!==activeSourceHomeDeviceTab);const note=document.querySelector("#sourceSpecialSettings .device-settings-notice strong");if(note)note.textContent=activeSourceHomeDeviceTab==="mobile"?"📱 Telefon":"💻 Mac / Masaüstü";return;}
  const tab=event.target.closest("#settingsView [data-settings-tab]");
