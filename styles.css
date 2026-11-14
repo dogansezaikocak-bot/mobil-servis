@@ -8921,3 +8921,18 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
  #settingsView .settings-action-grid{grid-template-columns:1fr}
  #settingsView .custom-counter-row{align-items:center}
 }
+
+#settingsView .source-settings-picker{display:grid;gap:7px;max-width:420px;margin:14px 0 22px;font-size:14px}
+#settingsView .source-settings-picker select{min-height:48px;padding:10px 14px;border-radius:12px;border:1px solid #a5cfc5;background:#effaf6;font-weight:750}
+#settingsView .source-settings-columns{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px}
+#settingsView .source-settings-columns>div{min-width:0}
+#settingsView .source-settings-columns label:not(.source-settings-checkbox){display:grid;gap:6px;margin:9px 0;font-size:12px;color:#475569}
+#settingsView .source-settings-columns input:not([type=checkbox]),#settingsView .source-settings-columns select{width:100%;box-sizing:border-box;min-height:38px;border-radius:9px;border:1px solid #d6e2e8;padding:8px;background:#fff}
+#settingsView .source-settings-counter{padding:13px;margin:9px 0;border:1px solid #e0e8ee;border-radius:13px;background:#f8fafc}
+#settingsView .source-settings-counter-title{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#settingsView .source-settings-counter-title button{padding:6px 12px;border:1px solid #d1dee4;background:#fff;border-radius:8px}
+#settingsView .source-settings-checkbox{display:flex;align-items:center;gap:9px;margin:9px 0;font-size:13px}
+#settingsView .source-settings-device{padding:12px;border:1px solid #e2e8f0;border-radius:12px;margin:10px 0;background:#f8fafc}
+#settingsView #saveSpecialSourceSettings{margin:18px 0 0;padding:12px 18px;border-radius:12px}
+#settingsView #specialSourceSaveStatus{margin-left:12px;font-weight:700;color:#0f766e}
+@media(max-width:800px){#settingsView .source-settings-columns{grid-template-columns:1fr}}
