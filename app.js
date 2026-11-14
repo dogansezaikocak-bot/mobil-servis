@@ -4604,7 +4604,6 @@ function mobileRenderDailyCash() {
     return true;
   });
   const totals = cashBreakdown(items);
-  renderCustomCashCounters(items);
   const serviceTotals = serviceOnlyCashBreakdown(items);
   const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material - Number(totals.manualExpense || 0);
   const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
@@ -4633,6 +4632,7 @@ function mobileRenderDailyCash() {
     return total + (Number.isFinite(amount) ? Math.max(0, amount) : 0);
   }, 0);
   setText("#mobileCashPaymentAmount", money(pendingAmount));
+  renderCustomCashCounters(items);
 
   const label = startDate && endDate && startDate === endDate
     ? (startDate === isoToday ? `Bugün · ${formatDisplayDate(startDate)}` : formatDisplayDate(startDate))
