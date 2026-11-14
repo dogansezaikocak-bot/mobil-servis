@@ -158,6 +158,7 @@ function migrateState(oldState) {
       dashboardCounters: dashboardCountersVersion < 3 ? ensureValues(currentCounters, ["Açık Fişler", "Toplam Servis"]) : currentCounters,
       dashboardCountersVersion: 3,
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
+      customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
       sources: withoutHiddenSources(ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]), hiddenSources),
       hiddenSources,
       cities: uniqueValues(oldState.settings?.cities || cities),
@@ -824,6 +825,16 @@ function bindEvents() {
     if (action === "sign-out") {
       signOutApp();
       return;
+    }
+    if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
+    if (action === "clear-custom-counter-form") { renderCustomCashCounterSettings(); return; }
+    if (action === "toggle-custom-counter" || action === "delete-custom-counter") {
+      if (isSourcePortal()) return;
+      const list=customCashCounters(); const index=Number(button.dataset.index);
+      if (!Number.isInteger(index)||index<0||index>=list.length)return;
+      if(action==="delete-custom-counter") { if(!confirm("Bu sayaç silinsin mi? Kasa kayıtları silinmez."))return;list.splice(index,1); }
+      else list[index].visible=list[index].visible===false;
+      saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;
     }
     if (action === "change-pin") {
       openPinChange();
@@ -2748,6 +2759,7 @@ function renderSettings() {
     if (form.elements[key]) form.elements[key].value = value || "";
   });
   renderSettingsLists();
+  renderCustomCashCounterSettings();
 }
 
 function renderSettingsLists() {
@@ -4440,6 +4452,99 @@ function mobileCashPopulateSources() {
   select.value = current;
 }
 
+
+/* V5.3.25 — Kullanıcı tanımlı, veri kaynaklarına bağlı kasa hesaplama motoru */
+const CUSTOM_CASH_TERMS = [
+  ["income","Toplam Hasılat"],["commission","Ödenen Komisyon"],
+  ["material","Malzeme"],["expense","Diğer Gider"],["serviceIncome","Servis Hasılatı"],
+  ["pendingAmount","Ödeme Bekleyen Tutar"],["pendingCount","Ödeme Bekleyen Fiş Adedi"]
+];
+function customCashCounters() {
+  if (!Array.isArray(state.settings.customCashCounters)) state.settings.customCashCounters = [];
+  return state.settings.customCashCounters;
+}
+function customCashContext(items) {
+  const totals = cashBreakdown(items);
+  const serviceTotals = serviceOnlyCashBreakdown(items);
+  const pending = (state.services || []).filter(s =>
+    matchesPortalSource(s.source) &&
+    (!mobileCashSource || sourceMatches(s.source,mobileCashSource)) &&
+    (isStatus(s.status,"Ödeme Bekliyor") || ["Havale Bekleniyor","Sonra Tahsil Edilecek"].includes(String(s.paymentStatus||"")))
+  );
+  return {
+    income:totals.income,commission:totals.commission,material:totals.material,
+    expense:totals.manualExpense,serviceIncome:serviceTotals.income,
+    pendingCount:pending.length,
+    pendingAmount:pending.reduce((sum,s)=>{
+      const value=Number(primaryCashForService(s.id)?.amount ?? s.price ?? 0);
+      return sum+(Number.isFinite(value)?Math.max(0,value):0);
+    },0)
+  };
+}
+function customCashValue(counter,context) {
+  return (Array.isArray(counter.terms)?counter.terms:[]).reduce((sum,term)=>{
+    if (!CUSTOM_CASH_TERMS.some(x=>x[0]===term.key)) return sum;
+    const sign=term.sign===-1?-1:1;
+    return sum+sign*(Number(context[term.key])||0);
+  },0);
+}
+function renderCustomCashCounterSettings() {
+  const root=document.querySelector("#customCashCounterSettings");
+  if (!root) return;
+  root.innerHTML=`
+    <h3>Özel Sayaç ve Hesaplama Yönetimi</h3>
+    <p>Yeni sayaç oluşturun. Hesaba katılacak kalemleri ve toplama/çıkarma kurallarını seçin. Mevcut kasa kayıtları değişmez.</p>
+    <div class="custom-counter-list">${customCashCounters().map((c,i)=>`
+      <div class="custom-counter-row">
+        <span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span>
+        <strong>${escapeHtml(c.name||"Sayaç")}</strong>
+        <span>${(c.terms||[]).map(t=>(t.sign===-1?"−":"+")+" "+(CUSTOM_CASH_TERMS.find(x=>x[0]===t.key)?.[1]||"")).join(" ")}</span>
+        <button type="button" data-action="edit-custom-counter" data-index="${i}">Düzenle</button>
+        <button type="button" data-action="toggle-custom-counter" data-index="${i}">${c.visible===false?"Göster":"Gizle"}</button>
+        <button type="button" data-action="delete-custom-counter" data-index="${i}">Sil</button>
+      </div>`).join("")}
+    </div>
+    <form id="customCounterForm" class="custom-counter-form">
+      <input type="hidden" name="index" value="-1">
+      <label>Sayaç adı<input name="name" maxlength="45" required placeholder="Örn. Gerçek Kâr"></label>
+      <label>Renk<input name="color" type="color" value="#2563eb"></label>
+      <label>Gösterim<select name="unit"><option value="money">Para (₺)</option><option value="count">Adet</option></select></label>
+      <div class="custom-counter-terms"><strong>Hesaplama kalemleri</strong>
+        ${CUSTOM_CASH_TERMS.map(([key,label])=>`<label><select data-sign="${key}"><option value="0">Dahil etme</option><option value="1">+ Ekle</option><option value="-1">− Çıkar</option></select> ${label}</label>`).join("")}
+      </div>
+      <button class="primary-button" type="submit">Sayacı Kaydet</button>
+      <button class="secondary-button" type="button" data-action="clear-custom-counter-form">Yeni Sayaç</button>
+    </form>`;
+}
+function editCustomCounter(index) {
+  const c=customCashCounters()[index];if(!c)return;
+  const form=document.querySelector("#customCounterForm");if(!form)return;
+  form.elements.index.value=String(index);
+  form.elements.name.value=c.name||"";
+  form.elements.color.value=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
+  form.elements.unit.value=c.unit==="count"?"count":"money";
+  form.querySelectorAll("[data-sign]").forEach(el=>{
+    const term=(c.terms||[]).find(t=>t.key===el.dataset.sign);
+    el.value=term?String(term.sign===-1?-1:1):"0";
+  });
+  form.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function renderCustomCashCounters(items) {
+  const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;
+  const counters=customCashCounters().filter(c=>c.visible!==false);
+  if (!counters.length){root.hidden=true;root.innerHTML="";return;}
+  root.hidden=false;
+  const context=customCashContext(items);
+  root.innerHTML=counters.map(c=>{
+    const color=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
+    const value=customCashValue(c,context);
+    return `<div class="mobile-daily-counter custom-cash-counter" style="background:${color};color:#fff">
+      <span>${escapeHtml(c.name||"Sayaç")}</span>
+      <b>${escapeHtml(c.unit==="count"?String(value):money(value))}</b>
+    </div>`;
+  }).join("");
+}
+
 function mobileRenderDailyCash() {
   if (!mobileCashRangeInitialized) mobileCashDefaultToday();
   const startDate = mobileCashRangeStart || "";
@@ -4453,6 +4558,7 @@ function mobileRenderDailyCash() {
     return true;
   });
   const totals = cashBreakdown(items);
+  renderCustomCashCounters(items);
   const serviceTotals = serviceOnlyCashBreakdown(items);
   const profit = serviceTotals.income - serviceTotals.commission - serviceTotals.material - Number(totals.manualExpense || 0);
   const setText = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
@@ -6177,4 +6283,26 @@ document.addEventListener("click", function(event) {
     mobileRenderDailyCash();
     document.querySelector("#mobileCashMovementHeading")?.scrollIntoView({behavior:"smooth",block:"start"});
   }
+});
+
+
+document.addEventListener("submit",event=>{
+  if(event.target.id!=="customCounterForm")return;
+  event.preventDefault();
+  if(isSourcePortal())return;
+  const form=event.target;
+  const terms=[...form.querySelectorAll("[data-sign]")].filter(el=>el.value!=="0")
+    .map(el=>({key:el.dataset.sign,sign:Number(el.value)===-1?-1:1}));
+  if(!terms.length){alert("En az bir hesaplama kalemi seçin.");return;}
+  const name=form.elements.name.value.trim();
+  if(!name)return;
+  const list=customCashCounters();
+  const index=Number(form.elements.index.value);
+  const old=Number.isInteger(index)&&index>=0&&index<list.length?list[index]:null;
+  const counter={id:old?.id||uid(),name,color:form.elements.color.value,
+    unit:form.elements.unit.value==="count"?"count":"money",
+    terms,visible:old?.visible!==false};
+  if(old)list[index]=counter;
+  else {if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}list.push(counter);}
+  saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();
 });
