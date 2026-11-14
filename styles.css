@@ -9090,3 +9090,27 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
 
 /* V5.3.62 — fixed desktop financial cards retired; keep sourceMetrics node for calculations */
 #dashboardView .dashboard-band:has(#sourceMetrics){display:none!important}
+
+/* V5.3.63: desktop selectable counters use the same typography as summary cards */
+@media(min-width:821px){
+ #desktopHomeCashCards.mobile-daily-counter-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important;margin:18px 0!important}
+ #desktopHomeCashCards .mobile-daily-counter.home-cash-action{
+  display:flex!important;flex-direction:column!important;justify-content:flex-start!important;align-items:flex-start!important;
+  min-height:156px!important;height:auto!important;padding:25px 30px!important;background:#fff!important;color:#111b30!important;
+  border:1px solid #dce5f1!important;border-radius:24px!important;box-shadow:0 5px 20px rgba(15,23,42,.035)!important;
+  text-align:left!important;font-family:inherit!important;cursor:pointer;
+ }
+ #desktopHomeCashCards .mobile-daily-counter.home-cash-action span{
+  display:block!important;margin:0 0 20px!important;font-size:15px!important;font-weight:850!important;
+  letter-spacing:.035em!important;line-height:1.3!important;text-transform:uppercase!important;color:#8390a4!important;
+ }
+ #desktopHomeCashCards .mobile-daily-counter.home-cash-action b{
+  display:block!important;margin:0!important;font-size:clamp(27px,2.6vw,42px)!important;font-weight:950!important;
+  letter-spacing:-.035em!important;line-height:1.15!important;color:#111b30!important;overflow-wrap:anywhere!important;
+ }
+ #desktopHomeCashCards .mobile-daily-counter.home-cash-action .home-pending-amount{
+  display:block!important;margin-top:8px!important;color:#64748b!important;font-size:17px!important;font-weight:750!important;
+ }
+ #desktopHomeCashCards .mobile-daily-counter.home-cash-action:hover{border-color:#a7b8d2!important;box-shadow:0 8px 24px rgba(15,23,42,.09)!important}
+}
+@media(min-width:821px) and (max-width:1150px){#desktopHomeCashCards.mobile-daily-counter-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
