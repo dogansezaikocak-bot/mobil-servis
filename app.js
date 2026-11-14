@@ -10,7 +10,8 @@ function persistLocalCounterSettings() {
   try {
     localStorage.setItem(COUNTER_SETTINGS_LOCAL_KEY,JSON.stringify({
       cashSlotSettings:state.settings.cashSlotSettings||[],
-      customCashCounters:state.settings.customCashCounters||[]
+      customCashCounters:state.settings.customCashCounters||[],
+      savedAt:new Date().toISOString()
     }));
     return true;
   } catch (_) { return false; }
@@ -409,7 +410,14 @@ function applyCloudData(data) {
   const openDetailId = detailDialog.open ? activeDetailId : null;
   cloudApplyingState = true;
   state = migrateState(data.state);
-  restoreLocalCounterSettings();
+  const localCounterBackup=loadLocalCounterSettings();
+  const cloudTimestamp=Date.parse(data.updatedAt||"")||0;
+  const localTimestamp=Date.parse(localCounterBackup?.savedAt||"")||0;
+  if(localCounterBackup && localTimestamp>cloudTimestamp) {
+    restoreLocalCounterSettings();
+  } else if(localCounterBackup) {
+    try {localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY);} catch (_) {}
+  }
   activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
   activeDashboardStat = "";
   activeDashboardSource = "";
