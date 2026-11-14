@@ -9158,3 +9158,8 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
  grid-column:3!important;display:flex!important;align-items:center!important;gap:6px!important;
  width:auto!important;margin:0!important;position:static!important;
 }
+
+/* V5.3.72 — source-specific home counter names */
+#settingsView #sourceSpecialSettings .source-home-name-field{grid-column:2!important;display:flex!important;flex-direction:column!important;gap:5px!important;min-width:0!important;width:100%!important;margin:0!important;padding:0!important;text-align:left!important}
+#settingsView #sourceSpecialSettings .source-home-name-field .source-home-counter-name{font-size:13px!important;font-weight:750!important;color:#475569!important}
+#settingsView #sourceSpecialSettings .source-home-name-input{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;min-height:36px!important;padding:7px 9px!important;border:1px solid #cbd5e1!important;border-radius:8px!important;background:#fff!important;color:#172b3d!important;font-size:14px!important}
