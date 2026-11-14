@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.3.12</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.12">
+  <title>Ekzen Servis Takip V5.3.13</title>
+  <link rel="stylesheet" href="./styles.css?v=5.3.13">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -17,7 +17,7 @@
         <span class="pin-box" data-pin-box></span>
         <span class="pin-box" data-pin-box></span>
         <span class="pin-box" data-pin-box></span>
-        <input id="pinInput" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="4" pattern="[0-9]*" enterkeyhint="go" autofocus aria-label="4 haneli şifre">
+        <input id="pinInput" class="pin-input" type="text" inputmode="none" readonly autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="4" tabindex="-1" aria-label="4 haneli şifre">
       </div>
       <div class="pin-keypad" id="pinKeypad" aria-label="Rakam tuşları">
         <button class="pin-key" type="button" data-pin-key="1">1</button>
@@ -294,6 +294,7 @@
         <strong id="mobileWelcomeDateDisplay" class="mobile-welcome-date-display">Bugün</strong>
         <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Servis tarihi seç">
       </label>
+      <button type="button" id="mobileWelcomeAllDates" class="mobile-all-dates-toggle" data-mobile-all-dates="toggle" aria-pressed="false">Tüm tarihler</button>
 
       <div class="mobile-welcome-counter-grid" aria-label="Günlük servis sayaçları">
         <button type="button" class="mobile-welcome-counter open" data-welcome-target="open">
@@ -344,6 +345,12 @@
       <div class="mobile-list-page-title">
         <span>Servisler</span>
         <strong id="mobileListPageDate">Bugün</strong>
+      </div>
+      <div class="mobile-list-tools">
+        <button type="button" id="mobileAllDatesToggle" class="mobile-all-dates-toggle" data-mobile-all-dates="toggle" aria-pressed="false">Tüm tarihler</button>
+        <label class="mobile-service-search">
+          <input id="mobileServiceSearch" type="search" placeholder="İsim veya telefon ara" autocomplete="off" enterkeyhint="search" aria-label="Müşteri adı veya telefon ara">
+        </label>
       </div>
       <div class="mobile-date-control-row mobile-date-control-row-v353" aria-label="Mobil tarih ve kaynak filtresi">
         <button class="mobile-list-home-button mobile-top-control" type="button" data-welcome-action="home">
@@ -440,7 +447,7 @@
 </main>
 
     <button class="mobile-new-service-bar" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
-    <div class="mobile-version-badge">Ekzen Servis Takip V5.2.2 Karşılama</div>
+    <div class="mobile-version-badge">Ekzen Servis Takip V5.3.13</div>
 
 
 
@@ -509,6 +516,20 @@
           <input name="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]*" required>
         </label>
         <p id="pinChangeError" class="pin-change-error wide" role="alert"></p>
+        <div class="pin-keypad pin-change-keypad" id="pinChangeKeypad" aria-label="Rakam tuşları" hidden>
+          <button class="pin-key" type="button" data-pin-key="1">1</button>
+          <button class="pin-key" type="button" data-pin-key="2">2</button>
+          <button class="pin-key" type="button" data-pin-key="3">3</button>
+          <button class="pin-key" type="button" data-pin-key="4">4</button>
+          <button class="pin-key" type="button" data-pin-key="5">5</button>
+          <button class="pin-key" type="button" data-pin-key="6">6</button>
+          <button class="pin-key" type="button" data-pin-key="7">7</button>
+          <button class="pin-key" type="button" data-pin-key="8">8</button>
+          <button class="pin-key" type="button" data-pin-key="9">9</button>
+          <button class="pin-key" type="button" data-pin-key="back" aria-label="Sil">Sil</button>
+          <button class="pin-key" type="button" data-pin-key="0">0</button>
+          <span class="pin-key pin-key-blank" aria-hidden="true"></span>
+        </div>
       </div>
       <footer>
         <span></span><span></span>
@@ -645,7 +666,7 @@
           </label>
           <label>Malzeme Gideri<input name="materialCost" type="number" min="0" step="0.01" placeholder="0"></label>
           <label>Diğer Gider<input name="otherExpense" type="number" min="0" step="0.01" placeholder="0"></label>
-          <label>Komisyon
+          <label class="complete-commission-field">Komisyon
             <select name="commissionRate">
               <option value="70">%70</option>
               <option value="60">%60</option>
@@ -822,6 +843,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.12"></script>
+  <script src="./app.js?v=5.3.13"></script>
 </body>
 </html>

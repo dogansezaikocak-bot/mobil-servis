@@ -69,6 +69,13 @@ Ekzen Servis Takip V5.3.0 Native Navigation - yeşil ekran düzeltmeli. V5.2.4.3
 - Aynı isimde kaynak tekrar eklenince listeye geri döner.
 - Silme onayında eski kayıtların korunduğu yazılır.
 
+## V5.3.13 Mobil Düzeltmeler
+- Fiş kapatılınca veya durum değişince mobil kalan listesi ve sayaçlar hemen yenilenir. Kapanan fiş listede beklemez.
+- Kaynağı Kendi İşim olan serviste komisyon oranı sorulmaz; komisyon 0 kaydedilir. Eşleşme büyük/küçük harf ve noktalı/noktasız yazımdan bağımsızdır. Diğer kaynaklarda soru durur. Masaüstü kapanış da aynı kuralı kullanır.
+- Bugünden önceki açık servisler mobil kalan listesinde gecikmiş olarak görünür ve kartta tarihleri yazar. Tüm tarihler düğmesi tarih filtresini kaldırır. İsim veya telefonla arama eklendi.
+- Kaynak seçilmemişken boş veya silinmiş kaynaklı servisler listede kalır. Kayıtlı veri değiştirilmez.
+- Mobil PIN ekranında telefon klavyesi açılmaz; yalnızca ekrandaki tuşlar kullanılır. Masaüstünde fiziksel klavye çalışır. PIN değiştir penceresi de mobilde ekran tuşlarıyla girilir.
+
 ## V5.3.12 PIN Girişi
 - Açılışta tam ekran 4 haneli PIN istenir. Doğru PIN, ortak hesapla Firebase Authentication oturumu açar.
 - Oturum açılmadan bulut eşitlemesi başlamaz. İzinsiz okuma, yerel veya boş veriyi buluta yazmaz.

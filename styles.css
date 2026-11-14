@@ -8329,6 +8329,64 @@ body.photo-viewer-open {
  #cashDialog[open] .dialog-shell{max-height:88dvh;overflow:auto}
 }
 
+/* V5.3.13 - Mobil liste araçları ve komisyonsuz kapanış */
+.mobile-all-dates-toggle {
+  width: 100%;
+  min-height: 48px;
+  margin: 0 0 12px;
+  border: 1px solid #d5e0e4;
+  border-radius: 16px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 900;
+}
+.mobile-all-dates-toggle.is-active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+.mobile-list-tools {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.mobile-service-search input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #d5e0e4;
+  border-radius: 16px;
+  padding: 0 14px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 16px;
+}
+.mobile-overdue-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+.complete-commission-field.is-own-work-commission,
+.complete-commission-field[hidden] {
+  display: none !important;
+}
+#pinChangeForm input.is-pin-target {
+  outline: 2px solid #0f766e;
+  border-radius: 10px;
+}
+.pin-change-keypad {
+  width: 100%;
+}
+@media (min-width: 821px) {
+  .pin-change-keypad { display: none !important; }
+}
+
 /* V5.3.12 - PIN girişi */
 body:not(.is-unlocked) > :not(#pinScreen) {
   display: none !important;
@@ -8433,6 +8491,7 @@ body.is-unlocked #pinScreen {
   opacity: 0;
   caret-color: transparent;
   background: transparent;
+  pointer-events: none;
 }
 
 .pin-keypad {
