@@ -9003,3 +9003,43 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
 @media(max-width:390px){
   #mobileHomeCashCards .mobile-daily-counter{min-height:150px!important;padding:15px 13px!important}
 }
+
+/* V5.3.55 — mobile home cash and service counters share identical geometry */
+@media(max-width:820px){
+  #mobileHomeCashCards.mobile-daily-counter-grid,
+  .mobile-welcome-counter-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    margin-left:14px!important;
+    margin-right:14px!important;
+    align-items:stretch!important;
+  }
+  #mobileHomeCashCards .mobile-daily-counter,
+  .mobile-welcome-counter-grid .mobile-welcome-counter{
+    width:100%!important;
+    min-width:0!important;
+    height:166px!important;
+    min-height:166px!important;
+    max-height:166px!important;
+    padding:18px 16px!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:22px!important;
+    box-sizing:border-box!important;
+    box-shadow:0 12px 28px rgba(15,23,42,.10)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:space-between!important;
+    overflow:hidden!important;
+  }
+}
+@media(max-width:390px){
+  #mobileHomeCashCards .mobile-daily-counter,
+  .mobile-welcome-counter-grid .mobile-welcome-counter{
+    height:150px!important;
+    min-height:150px!important;
+    max-height:150px!important;
+    padding:15px 13px!important;
+  }
+}
