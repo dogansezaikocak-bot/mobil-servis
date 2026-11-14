@@ -2893,8 +2893,6 @@ function showSourceSettingsTab(tab){
  });
 }
 document.addEventListener("click",event=>{
- const save=event.target.closest("#saveSpecialSourceSettings");
- if(save){event.preventDefault();event.stopPropagation();if(!save.disabled)saveSourceSpecialSettings();return;}
  const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
  if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
  const counterDevice=event.target.closest("#sourceSpecialSettings [data-source-counter-device-tab]");
@@ -2906,6 +2904,8 @@ document.addEventListener("click",event=>{
  const sub=event.target.closest("#sourceSpecialSettings [data-source-settings-tab]");
  if(sub){showSourceSettingsTab(sub.dataset.sourceSettingsTab);return;}
 });
+
+document.addEventListener("click",event=>{const button=event.target.closest("#saveSpecialSourceSettings");if(!button)return;event.preventDefault();event.stopPropagation();if(!button.disabled)saveSourceSpecialSettings();},true);
 
 function renderSettings() {
   const form = document.querySelector("#settingsForm");
