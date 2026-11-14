@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.24-blue-expenses">
+  <link rel="stylesheet" href="./styles.css?v=5.3.25-counter-engine">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -258,6 +258,7 @@
             <label>Adres<textarea name="address" rows="3"></textarea></label>
             <button class="primary-button" type="submit">Kaydet</button>
           </form>
+          <div id="customCashCounterSettings" class="custom-counter-settings"></div>
           <div id="settingsLists" class="settings-lists"></div>
         </section>
       </section>
@@ -427,6 +428,7 @@
         <button type="button" id="mobileCashApplyFilter" class="mobile-cash-apply">Filtrele</button>
       </section>
 
+      <section id="mobileCustomCashCounters" class="mobile-daily-counter-grid" aria-label="Özel kasa sayaçları" hidden></section>
       <section class="mobile-daily-counter-grid" aria-label="Kasa sayaçları">
                 <button type="button" class="mobile-daily-counter profit mobile-cash-clickable" id="mobileCashProfitCounter" aria-label="Net kazanç ve kasa hareketleri">
           <span>Net Kazanç</span>
@@ -873,6 +875,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.22-date-payment"></script>
+  <script src="./app.js?v=5.3.25-counter-engine"></script>
 </body>
 </html>
