@@ -1495,6 +1495,7 @@ function filteredServices({ ignoreStatus = false } = {}) {
       service.city,
       service.district,
       service.address,
+      service.locationUrl,
       service.brand,
       service.device,
       service.model,
@@ -2934,7 +2935,7 @@ function renderDetail(id) {
   const linkedCash = state.cash.filter((item) => item.serviceId === service.id);
   const cleanPhone = digits(service.phone);
   const addressText = [service.city, service.district, service.address].filter(Boolean).join(" ");
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
+  const mapUrl = safeServiceLocationUrl(service.locationUrl) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
   const whatsappUrl = cleanPhone ? `https://wa.me/9${cleanPhone}` : "#";
   const serviceTotal = linkedCash.filter((item) => item.type === "income").reduce((total, item) => total + (Number(item.amount) || 0), 0);
   const serviceExpense = linkedCash.filter((item) => item.type === "expense").reduce((total, item) => total + (Number(item.amount) || 0), 0);
@@ -2956,6 +2957,7 @@ function renderDetail(id) {
             <dt>İsim Soyisim</dt><dd>${escapeHtml(service.customerName || "-")}</dd>
             <dt>Telefon</dt><dd>${escapeHtml(service.phone || "-")} ${cleanPhone ? `<a class="v412-inline-phone" href="tel:${cleanPhone}" title="Ara">☎</a>` : ""}</dd>
             <dt>Adres</dt><dd>${escapeHtml(addressText || service.address || "-")}</dd>
+            ${safeServiceLocationUrl(service.locationUrl) ? `<dt>WhatsApp Konumu</dt><dd><a href="${escapeAttr(mapUrl)}" target="_blank" rel="noopener noreferrer">Konumu Aç</a></dd>` : ""}
             <dt>Kayıt Tarihi</dt><dd>${formatDate(service.date || service.availableDate)} ${escapeHtml(service.time || "")}</dd>
             <dt>Durum</dt><dd><span class="status-pill ${statusClass(service.status)}">${escapeHtml(service.status)}</span></dd>
           </dl>
@@ -4153,7 +4155,21 @@ function mobileFullAddress(service) {
   return [service.city || "Ankara", service.district, service.address].filter(Boolean).join(" ").trim();
 }
 
+function safeServiceLocationUrl(value) {
+  const raw=String(value||"").trim();
+  if(!raw)return "";
+  try {
+    const u=new URL(raw);
+    if(u.protocol!=="https:"&&u.protocol!=="http:")return "";
+    const host=u.hostname.toLowerCase();
+    if(!["google.com","www.google.com","maps.google.com","maps.app.goo.gl","goo.gl","maps.apple.com"].includes(host))return "";
+    return u.href;
+  } catch {return "";}
+}
+
 function mobileMapUrl(service) {
+  const shared=safeServiceLocationUrl(service.locationUrl);
+  if(shared)return shared;
   const destination = mobileFullAddress(service);
   if (!destination) return "";
   // Google Haritalar mobilde ve iPhone Safari'de en sorunsuz çalışan arama bağlantısı.
