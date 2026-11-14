@@ -8837,3 +8837,26 @@ body.is-unlocked #pinScreen {
     color:inherit!important;
   }
 }
+
+/* V5.3.25 — Özelleştirilebilir hesaplama sayaçları */
+.custom-counter-settings{margin:18px 0;padding:18px;border:1px solid #d8e2ee;border-radius:18px;background:#f8fafc}
+.custom-counter-settings h3{margin:0 0 8px;font-size:19px}
+.custom-counter-settings p{color:#526277;line-height:1.5}
+.custom-counter-list{display:grid;gap:8px;margin:14px 0}
+.custom-counter-row{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:10px;background:white;border:1px solid #e2e8f0;border-radius:10px}
+.custom-counter-row>span:nth-of-type(2){flex:1 1 220px;color:#475569}
+.custom-counter-row button{padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:white}
+.custom-counter-dot{width:15px;height:15px;border-radius:50%}
+.custom-counter-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.custom-counter-form>label{display:grid;gap:5px;font-weight:700}
+.custom-counter-form input,.custom-counter-form select{min-height:42px;border:1px solid #cbd5e1;border-radius:8px;padding:8px;min-width:0}
+.custom-counter-terms{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.custom-counter-terms>strong{grid-column:1/-1}
+.custom-counter-terms label{display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;padding:8px}
+.custom-counter-terms select{width:125px;flex-shrink:0}
+#mobileCustomCashCounters[hidden]{display:none!important}
+#mobileCustomCashCounters{margin-bottom:12px}
+#mobileCustomCashCounters .custom-cash-counter{display:flex;flex-direction:column;justify-content:space-between;text-align:left}
+#mobileCustomCashCounters .custom-cash-counter>span{font-size:17px;font-weight:950}
+#mobileCustomCashCounters .custom-cash-counter>b{font-size:clamp(28px,8vw,44px);font-weight:950;overflow-wrap:anywhere}
+@media(max-width:600px){.custom-counter-form,.custom-counter-terms{grid-template-columns:1fr}.custom-counter-settings{padding:12px}}
