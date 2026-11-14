@@ -8866,3 +8866,58 @@ body.auth-checking #pinScreen .pin-card { display: none !important; }
 body:not(.auth-checking) #pinLoading { display: none !important; }
 #pinLoading { margin: auto; text-align: center; color: #245b67; font-weight: 600; font-size: 15px; }
 #pinLoading .pin-loading-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display: grid; place-items: center; background: #0f766e; color: white; font-size: 22px; font-weight: 900; }
+
+
+/* V5.3.49 – Settings experience */
+#settingsView .settings-panel{background:#f3f7fb!important;padding:22px!important;border:0!important;border-radius:22px}
+#settingsView .settings-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:26px 28px;border-radius:22px;background:linear-gradient(120deg,#103c4d,#0e766c);color:#fff;box-shadow:0 12px 28px rgba(15,67,74,.16)}
+#settingsView .settings-eyebrow{font-size:11px;font-weight:800;letter-spacing:.13em;color:#a7f3d0}
+#settingsView .settings-hero h2{margin:6px 0 8px!important;font-size:30px!important;color:#fff!important}
+#settingsView .settings-hero p{margin:0;color:#d9f5ef;line-height:1.5}
+#settingsView .settings-hero-symbol{display:grid;place-items:center;width:68px;height:68px;flex:none;border:1px solid #ffffff40;border-radius:19px;background:#ffffff20;font-size:35px}
+#settingsView .settings-quick-nav{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0 22px}
+#settingsView .settings-quick-nav a{display:inline-flex;align-items:center;padding:10px 14px;border-radius:12px;background:#fff;border:1px solid #dbe7eb;color:#18525b;text-decoration:none;font-size:13px;font-weight:800;box-shadow:0 2px 8px #0f172a08}
+#settingsView .settings-quick-nav a:hover{background:#e6f6f2;border-color:#90c9bf}
+#settingsView .settings-section{background:#fff;border:1px solid #dfe8ef;border-radius:20px;margin:0 0 18px;padding:22px;box-shadow:0 5px 18px #0f172a08;scroll-margin-top:22px}
+#settingsView .settings-section-head{display:flex;align-items:center;gap:13px;margin-bottom:17px}
+#settingsView .settings-section-icon{display:grid;place-items:center;flex:none;width:46px;height:46px;border-radius:14px;background:#e8f5f1;color:#087d6b;font-size:23px}
+#settingsView .settings-section-head h3{margin:0 0 4px;font-size:19px;color:#142d3a}
+#settingsView .settings-section-head p{margin:0;font-size:13px;color:#65758a}
+#settingsView .settings-form{padding:0;gap:14px}
+#settingsView .settings-form label{font-size:13px;color:#334155}
+#settingsView .settings-form input,#settingsView .settings-form textarea{border:1px solid #d6e1e8;border-radius:12px;background:#f9fbfd;padding:11px 13px;min-height:44px}
+#settingsView .settings-form input:focus,#settingsView .settings-form textarea:focus{outline:2px solid #78cbb7;outline-offset:1px;background:#fff}
+#settingsView .settings-form button{justify-self:start;border-radius:12px;padding:12px 18px}
+#settingsView .custom-counter-settings{margin:0;padding:0;border:0;border-radius:0;background:transparent}
+#settingsView .custom-counter-settings>h3{display:none}
+#settingsView .custom-counter-settings>p{margin:0 0 18px;color:#64748b;font-size:13px}
+#settingsView .custom-counter-settings h4{font-size:15px;color:#164e63;margin:19px 0 10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0}
+#settingsView .custom-counter-list{margin:10px 0 18px;gap:9px}
+#settingsView .custom-counter-row{border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;padding:12px 14px;gap:10px}
+#settingsView .custom-counter-row strong{flex:1 1 140px;color:#243748;font-size:13px}
+#settingsView .custom-counter-row button{border-radius:10px;border:1px solid #cddde2;background:#fff;color:#164e63;font-size:12px;font-weight:800;min-height:35px}
+#settingsView .custom-counter-row button:hover:not(:disabled){background:#e7f5f1;border-color:#86c7b9}
+#settingsView .custom-counter-row button:disabled{opacity:.4;cursor:not-allowed}
+#settingsView .custom-counter-dot{width:18px;height:18px;flex:none;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1}
+#settingsView .custom-counter-form{padding:18px;border:1px solid #dce8e6;background:#f7fbfa;border-radius:16px}
+#settingsView .custom-counter-form>label{font-size:13px}
+#settingsView .custom-counter-form input,#settingsView .custom-counter-form select{border-radius:10px;background:#fff}
+#settingsView .settings-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#settingsView .settings-action-grid button{min-height:44px;border-radius:12px}
+#settingsView .settings-list-heading{margin:25px 0 12px;padding:0 6px}
+#settingsView .settings-lists{padding:0;gap:14px}
+#settingsView .settings-list{border-radius:16px;border:1px solid #dfe8ef;box-shadow:0 4px 14px #0f172a08}
+#settingsView .settings-list header{padding:14px;background:#eaf4f3}
+#settingsView .setting-chip{padding:10px 13px}
+@media(max-width:720px){
+ #settingsView .settings-panel{padding:12px!important;border-radius:14px}
+ #settingsView .settings-hero{padding:20px;border-radius:16px}
+ #settingsView .settings-hero h2{font-size:25px!important}
+ #settingsView .settings-hero-symbol{width:48px;height:48px;font-size:26px}
+ #settingsView .settings-quick-nav{gap:7px}
+ #settingsView .settings-quick-nav a{font-size:12px;padding:9px 11px}
+ #settingsView .settings-section{padding:15px;border-radius:15px}
+ #settingsView .settings-form,#settingsView .custom-counter-form,#settingsView .custom-counter-terms,#settingsView .settings-lists{grid-template-columns:1fr}
+ #settingsView .settings-action-grid{grid-template-columns:1fr}
+ #settingsView .custom-counter-row{align-items:center}
+}
