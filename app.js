@@ -984,6 +984,7 @@ function bindEvents() {
       renderCash();
       if(slot==="expense")openCashCurrentDetail("balance");
       else if(slot==="payment")openHomePendingPayments();
+      else openHomeCashMovements(slot);
       return;
     }
     if (action === "open-cash-current-detail") openCashCurrentDetail(button.dataset.detailType || "balance");
@@ -2595,6 +2596,25 @@ function closeAccountingCheck() {
 }
 
 
+function openHomeCashMovements(slot){
+ const dialog=document.querySelector("#cashCurrentDetailDialog");
+ const content=document.querySelector("#cashCurrentDetailContent");
+ const title=document.querySelector("#cashCurrentDetailTitle");
+ if(!dialog||!content||!title)return;
+ const labels={profit:"Net Kazanç",income:"Toplam Hasılat",commission:"Komisyon",material:"Malzeme"};
+ const source=activeDashboardSource||(isSourcePortal()?portalSourceName():"");
+ const start=dashboardStartDate?.value||"",end=dashboardEndDate?.value||"";
+ const items=(state.cash||[]).filter(item=>cashIsPosted(item)&&matchesPortalSource(cashItemSource(item))&&(!source||sourceMatches(cashItemSource(item),source))&&dateInRange(cashFilterDate(item),start,end));
+ const matching=items.filter(item=>{
+  if(slot==="income")return isServicePrimaryIncome(item)||(!item.serviceId&&item.type==="income");
+  if(slot==="commission")return Boolean(item.autoCommissionExpense);
+  if(slot==="material")return Boolean(item.autoMaterialExpense);
+  return true;
+ });
+ title.textContent=(labels[slot]||"Kasa Hareketleri")+" · "+(source||"Tüm Kaynaklar");
+ content.innerHTML='<p>Seçili tarih aralığındaki kasa hareketleri</p>'+(matching.length?matching.map(cashRow).join(""):'<p>Bu dönemde hareket bulunamadı.</p>');
+ dialog.showModal();
+}
 function openHomePendingPayments(){
  const dialog=document.querySelector("#cashCurrentDetailDialog");
  const content=document.querySelector("#cashCurrentDetailContent");
