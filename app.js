@@ -834,6 +834,28 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
+// Home counter cards do not have data-action; handle them before the general action dispatcher.
+document.addEventListener("click",event=>{
+ const card=event.target.closest("#desktopHomeCashCards [data-home-cash-slot]");
+ if(!card)return;
+ event.preventDefault();
+ event.stopImmediatePropagation();
+ const slot=card.dataset.homeCashSlot;
+ try{
+  if(slot==="payment"||slot==="income"){openHomeServiceList(slot);return;}
+  if(slot==="expense"){
+   if(cashSourceFilter)cashSourceFilter.value=activeDashboardSource||"";
+   switchView("cash");
+   openCashCurrentDetail("balance");
+   return;
+  }
+  openHomeCashMovements(slot);
+ }catch(error){
+  console.error("Ana sayfa sayaç detayı açılamadı",slot,error);
+  alert("Sayaç ayrıntısı açılamadı. Lütfen sayfayı yenileyip tekrar deneyin.");
+ }
+},true);
+
 function bindEvents() {
   setupPhotoViewerGestures();
   document.addEventListener("click", (event) => {
@@ -975,18 +997,6 @@ function bindEvents() {
     if (action === "print" || action === "print-list") window.print();
     if (action === "print-cash") printCash();
     if (action === "set-cash-list-mode") setCashListMode(button.dataset.mode);
-    const desktopHomeCounter=event.target.closest("#desktopHomeCashCards [data-home-cash-slot]");
-    if(desktopHomeCounter){
-      event.preventDefault();
-      const slot=desktopHomeCounter.dataset.homeCashSlot;
-      if(cashSourceFilter)cashSourceFilter.value=activeDashboardSource||"";
-      switchView("cash");
-      renderCash();
-      if(slot==="expense")openCashCurrentDetail("balance");
-      else if(slot==="payment"||slot==="income")openHomeServiceList(slot);
-      else openHomeCashMovements(slot);
-      return;
-    }
     if (action === "open-cash-current-detail") openCashCurrentDetail(button.dataset.detailType || "balance");
     if (action === "close-cash-current-detail") closeCashCurrentDetail();
     if (action === "open-ekzen-cash-detail") openEkzenCashDetail(button.dataset.detailType || "turnover");
