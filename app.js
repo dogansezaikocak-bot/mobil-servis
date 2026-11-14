@@ -4149,7 +4149,82 @@ function mobileIsRemainingService(service) {
 }
 
 let mobileAllDates = false;
+let mobileRangeStart = "";
+let mobileRangeEnd = "";
 let mobileServiceQuery = "";
+
+function mobileDateWithinRange(date) {
+  return Boolean(date) && date >= mobileRangeStart && date <= mobileRangeEnd;
+}
+
+function mobileDateFilterMatch(service, date, bucket) {
+  if (mobileAllDates) return true;
+  if (!mobileRangeStart || !mobileRangeEnd) return mobileServiceVisibleOnDate(service, date, bucket);
+  const planned = mobilePlanningDate(service);
+  if (mobileDateWithinRange(planned)) return true;
+  const carries = bucket !== "closed" && bucket !== "done";
+  return carries && planned && planned < mobileRangeStart && mobileIsRemainingService(service);
+}
+
+function mobileDateRangeLabel() {
+  if (mobileAllDates) return "Tüm zamanlar";
+  if (mobileRangeStart && mobileRangeEnd) return mobileRangeStart === mobileRangeEnd ? mobileRangeStart : mobileRangeStart + " – " + mobileRangeEnd;
+  return "";
+}
+
+function mobileSetDateRange(start, end, allTime = false) {
+  mobileAllDates = allTime;
+  mobileRangeStart = allTime ? "" : start;
+  mobileRangeEnd = allTime ? "" : end;
+  const picker = document.querySelector("#mobileDatePicker");
+  if (picker && start) picker.value = start;
+  if (start) mobileSelectedDate = start;
+  refreshMobileServiceViews();
+  window.ekzenMobileOpenClosedV511?.(false);
+  window.ekzenUpdateWelcome?.();
+}
+
+function mobileDatePresetRange(preset) {
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const iso = (d) => toIsoDate(d);
+  const shift = (n) => { const d = new Date(base); d.setDate(d.getDate() + n); return iso(d); };
+  if (preset === "allTime") return { allTime: true, start: "", end: "" };
+  if (preset === "yesterday") return { start: shift(-1), end: shift(-1) };
+  if (preset === "tomorrow") return { start: shift(1), end: shift(1) };
+  if (preset === "thisWeek") return { start: shift(-((base.getDay()+6)%7)), end: shift(6-((base.getDay()+6)%7)) };
+  if (preset === "thisMonth") return { start: iso(new Date(base.getFullYear(),base.getMonth(),1)), end: iso(new Date(base.getFullYear(),base.getMonth()+1,0)) };
+  return { start: iso(base), end: iso(base) };
+}
+document.addEventListener("click", (event) => {
+  const dateCard = event.target.closest("#mobileWelcomePage .mobile-welcome-date-card");
+  if (dateCard) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const dialog = document.querySelector("#mobileWelcomeDateDialog");
+    if (dialog && !dialog.open) dialog.showModal();
+    return;
+  }
+  if (event.target.closest("[data-mobile-date-close]")) {
+    document.querySelector("#mobileWelcomeDateDialog")?.close();
+    return;
+  }
+  const preset = event.target.closest("[data-mobile-date-preset]");
+  if (preset) {
+    const range = mobileDatePresetRange(preset.dataset.mobileDatePreset);
+    mobileSetDateRange(range.start,range.end,Boolean(range.allTime));
+    document.querySelector("#mobileWelcomeDateDialog")?.close();
+    return;
+  }
+  if (event.target.closest("[data-mobile-date-apply]")) {
+    const start = document.querySelector("#mobileWelcomeDateStart")?.value;
+    const end = document.querySelector("#mobileWelcomeDateEnd")?.value;
+    if (!start || !end || start > end) { alert("Geçerli başlangıç ve bitiş tarihi seç."); return; }
+    mobileSetDateRange(start,end);
+    document.querySelector("#mobileWelcomeDateDialog")?.close();
+  }
+}, true);
+
 
 function mobilePlanningDate(service) {
   return serviceDateCandidates(service)[0] || "";
@@ -4157,6 +4232,7 @@ function mobilePlanningDate(service) {
 
 function mobileServiceVisibleOnDate(service, date, bucket) {
   if (mobileAllDates || !date) return true;
+  if (mobileRangeStart && mobileRangeEnd) return mobileDateFilterMatch(service, date, bucket);
   const serviceDate = mobilePlanningDate(service);
   const carries = bucket !== "closed" && bucket !== "done";
   if (!serviceDate) return carries;
@@ -5405,7 +5481,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.3.13";
+  const VERSION = "V5.3.18";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
@@ -5433,7 +5509,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   }
 
   function matchesDate(service, bucket) {
-    return mobileServiceVisibleOnDate(service, selectedDate, bucket === "closed" ? "closed" : "open");
+    return mobileDateFilterMatch(service, selectedDate, bucket === "closed" ? "closed" : "open");
   }
 
   function matchesSource(service) {
@@ -5661,7 +5737,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     return (state.services || []).filter((service) => {
       if (!mobileSourceVisible(service, source) || !mobileMatchesServiceQuery(service, mobileServiceQuery)) return false;
       const bucket = mobileIsRemainingService(service) ? "open" : "closed";
-      return mobileServiceVisibleOnDate(service, date, bucket);
+      return mobileDateFilterMatch(service, date, bucket);
     });
   }
 
@@ -5721,11 +5797,11 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     if (incomeEl) incomeEl.textContent = money(income);
     if (earningEl) earningEl.textContent = money(earning);
     const profitEl = document.querySelector("#mobileWelcomeProfitCount");
-    if (profitEl) profitEl.textContent = money(dashboardServiceProfit((state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (!source || sourceMatches(cashItemSource(item), source)) && (mobileAllDates || dateInRange(cashFilterDate(item), selectedDate(), selectedDate())))));
+    if (profitEl) profitEl.textContent = money(dashboardServiceProfit((state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (!source || sourceMatches(cashItemSource(item), source)) && (mobileAllDates || dateInRange(cashFilterDate(item), mobileRangeStart || selectedDate(), mobileRangeEnd || selectedDate())))));
 
-    if (textEl) textEl.textContent = mobileAllDates ? "Tüm tarihler servis özeti" : formatWelcomeSummary(selectedDate());
+    if (textEl) textEl.textContent = mobileAllDates ? "Tüm tarihler servis özeti" : mobileRangeStart && mobileRangeEnd ? mobileDateRangeLabel() + " servis özeti" : formatWelcomeSummary(selectedDate());
     if (dateDisplayEl) {
-      dateDisplayEl.innerHTML = mobileAllDates
+      dateDisplayEl.innerHTML = mobileRangeStart && mobileRangeEnd ? `<span class="mobile-welcome-date-line">${escapeHtml(mobileDateRangeLabel())}</span><span class="mobile-welcome-day-line">Seçili tarih aralığı</span>` : mobileAllDates
         ? `<span class="mobile-welcome-date-line">Tüm tarihler</span><span class="mobile-welcome-day-line">Açık fişler gecikmiş olanlarla birlikte</span>`
         : `<span class="mobile-welcome-date-line">${formatWelcomeDate(selectedDate())}</span><span class="mobile-welcome-day-line">${formatWelcomeDay(selectedDate())}</span>`;
     }
