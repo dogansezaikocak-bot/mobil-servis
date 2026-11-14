@@ -983,7 +983,7 @@ function bindEvents() {
       switchView("cash");
       renderCash();
       if(slot==="expense")openCashCurrentDetail("balance");
-      else if(slot==="payment")openHomePendingPayments();
+      else if(slot==="payment"||slot==="income")openHomeServiceList(slot);
       else openHomeCashMovements(slot);
       return;
     }
@@ -1269,6 +1269,7 @@ function showOpenServicesFromTopbar() {
 
 function switchView(view) {
   if (view === "ekzenCash") view = "cash";
+  if(view!=="services")homeServiceDrilldown=null;
   if (isSourcePortal() && !["dashboard", "cash", "services"].includes(view)) view = "dashboard";
   if (view === "services" && currentView !== "services") { serviceQuickStatSelection = "Yeni Kayıt"; if(topStatusFilter)topStatusFilter.value=""; }
   currentView = view;
@@ -1550,11 +1551,12 @@ function dashboardCounterCount(label, services) {
 }
 
 let serviceQuickStatSelection = "Yeni Kayıt";
+let homeServiceDrilldown=null;
 function renderServices() {
   // Counts use the active date/source/search filters, never the selected status card.
-  const allMatching = sortServices(filteredServices({ ignoreStatus: true }));
+  const allMatching = sortServices(homeServiceDrilldown ? (state.services||[]).filter(service=>homeServiceDrilldown.ids.has(String(service.id))&&matchesPortalSource(service.source)) : filteredServices({ ignoreStatus: true }));
   const selectedStatus = topStatusFilter?.value || "";
-  const shown = selectedStatus
+  const shown = homeServiceDrilldown ? allMatching : selectedStatus
     ? allMatching.filter(s => s.status === selectedStatus)
     : serviceQuickStatSelection === null
       ? allMatching
@@ -2596,23 +2598,47 @@ function closeAccountingCheck() {
 }
 
 
+function openHomeServiceList(slot){
+ const source=activeDashboardSource||(isSourcePortal()?portalSourceName():"");
+ const items=filteredDashboardCash();
+ const pending=(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&(isStatus(service.status,"Ödeme Bekliyor")||["Havale Bekleniyor","Sonra Tahsil Edilecek"].includes(String(service.paymentStatus||""))));
+ const ids=slot==="payment"?pending.map(service=>String(service.id)):items.filter(isServicePrimaryIncome).map(item=>String(item.serviceId));
+ switchView("services");
+ homeServiceDrilldown={slot,ids:new Set(ids)};
+ serviceQuickStatSelection=null;
+ if(topStatusFilter)topStatusFilter.value="";
+ renderServices();
+ const result=document.querySelector("#serviceList");
+ result?.scrollIntoView({behavior:"smooth",block:"start"});
+}
 function openHomeCashMovements(slot){
  const dialog=document.querySelector("#cashCurrentDetailDialog");
  const content=document.querySelector("#cashCurrentDetailContent");
  const title=document.querySelector("#cashCurrentDetailTitle");
  if(!dialog||!content||!title)return;
- const labels={profit:"Net Kazanç",income:"Toplam Hasılat",commission:"Komisyon",material:"Malzeme"};
  const source=activeDashboardSource||(isSourcePortal()?portalSourceName():"");
- const start=dashboardStartDate?.value||"",end=dashboardEndDate?.value||"";
- const items=(state.cash||[]).filter(item=>cashIsPosted(item)&&matchesPortalSource(cashItemSource(item))&&(!source||sourceMatches(cashItemSource(item),source))&&dateInRange(cashFilterDate(item),start,end));
+ const items=filteredDashboardCash();
+ const context=homeCashCounterContext(items,source);
+ const counter=allHomeCashSlots().find(c=>c.id===slot);
+ const value=counter?homeCashCounterValue(counter,context):0;
+ const labels={profit:"Net Kazanç",commission:"Ödenen Komisyon",material:"Malzeme"};
  const matching=items.filter(item=>{
-  if(slot==="income")return isServicePrimaryIncome(item)||(!item.serviceId&&item.type==="income");
-  if(slot==="commission")return Boolean(item.autoCommissionExpense);
-  if(slot==="material")return Boolean(item.autoMaterialExpense);
-  return true;
+   if(slot==="commission")return Boolean(item.autoCommissionExpense);
+   if(slot==="material")return Boolean(item.autoMaterialExpense);
+   return isServicePrimaryIncome(item)||Boolean(item.autoCommissionExpense)||Boolean(item.autoMaterialExpense)||Boolean(item.autoOtherExpense)||(!item.serviceId&&(item.type==="income"||item.type==="expense"));
  });
- title.textContent=(labels[slot]||"Kasa Hareketleri")+" · "+(source||"Tüm Kaynaklar");
- content.innerHTML='<p>Seçili tarih aralığındaki kasa hareketleri</p>'+(matching.length?matching.map(cashRow).join(""):'<p>Bu dönemde hareket bulunamadı.</p>');
+ const totals=cashBreakdown(items);
+ const service=serviceOnlyCashBreakdown(items);
+ const sourceTotals=serviceSourceCounterBreakdown(items);
+ const summary=slot==="profit"?(context.isExternal?
+   [['Tahsilat',sourceTotals.customerMoney],['Malzeme',-sourceTotals.material],['Hakediş',sourceTotals.hakedis],['Ekzen Payı',sourceTotals.ekzenTechnical]]:
+   [['Servis Hasılatı',service.income],['Komisyon',-service.commission],['Malzeme',-service.material],['Diğer Gider',-totals.manualExpense]]):
+   [[slot==="material"?"Malzeme Gideri":"Komisyon Gideri",value]];
+ title.textContent=(labels[slot]||counter?.name||"Kasa Özeti")+" · "+(source||"Tüm Kaynaklar");
+ content.innerHTML='<div class="cash-current-summary">'+summary.map(([label,amount])=>'<article><span>'+escapeHtml(label)+'</span><b>'+money(amount)+'</b></article>').join("")+
+ '<article><span>Sayaç Toplamı</span><b>'+money(value)+'</b></article></div>'+
+ '<h3>Bu tutarı oluşturan kasa hareketleri</h3>'+
+ (matching.length?renderCashGroups(matching,"service"):'<p>Bu tarih aralığında kasa hareketi yok.</p>');
  dialog.showModal();
 }
 function openHomePendingPayments(){
