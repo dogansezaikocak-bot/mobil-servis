@@ -4721,7 +4721,7 @@ function renderSourceSpecialSettings(){
       return '<div class="source-settings-device"><strong>'+(device==="desktop"?"Mac":"Telefon")+'</strong>'+
       ordered.map(c=>'<label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+c.id+'" '+(chosen.includes(c.id)?"checked":"")+'> '+escapeHtml(overrides[c.id]?.name||c.name)+'</label>').join("")+'</div>';
     }).join("")+
-    '<h4>Komisyon ve Hakediş</h4><label>Bize kalan pay (%)<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
+    '<h4>Komisyon ve Hakediş</h4><label>'+(isOwnWorkSource(source)?'Kaynağa ayrılan pay (%)':'Bize kalan pay (%)')+'<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
     '<p>Bu oran yeni fişlerde varsayılan pay olarak kullanılır. Eski fişlerin kaydedilmiş oranları korunur.</p>'+
     '<label>Hakediş açıklaması<input id="specialSourceHakedis" maxlength="120" value="'+escapeAttr(config.hakedisNote||"")+'" placeholder="Örn. Ay sonunda hesaplaşma"></label>'+
     '<label>Ödeme vadesi (gün)<input id="specialSourcePaymentDays" type="number" min="0" max="365" value="'+(Number.isInteger(config.paymentDays)?config.paymentDays:0)+'"></label>'+
@@ -4783,7 +4783,7 @@ function renderHomeLayoutSettings(){
     }).join("");
 }
 function renderHomeCashCards(device,items){
-  const selectedSource=device==="desktop"?activeDashboardSource:(typeof selectedSourceValue==="function"?selectedSourceValue():"");
+  const selectedSource=device==="desktop"?activeDashboardSource:(document.querySelector("#mobileSourcePicker")?.value||"");
   const special=selectedSource?sourceSpecialConfig(selectedSource):{};
   const root=document.querySelector(device==="desktop"?"#desktopHomeCashCards":"#mobileHomeCashCards");
   if(!root)return;
