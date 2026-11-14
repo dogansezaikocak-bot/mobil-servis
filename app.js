@@ -5663,6 +5663,11 @@ document.addEventListener("keydown", (event) => {
     picker.innerHTML = `<option value="">Tüm Kaynaklar</option>${names.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}`;
     picker.value = names.includes(previous) ? previous : "";
     mobileSelectedSource = picker.value;
+    const homePicker=document.querySelector("#mobileWelcomeSourcePicker");
+    if(homePicker){
+      homePicker.innerHTML=picker.innerHTML;
+      homePicker.value=picker.value;
+    }
   }
 
   function isDoneSafe(service) {
@@ -6157,6 +6162,23 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   openMobileCloseServiceWizard(serviceId);
 };
 
+
+/* V5.3.73 — home source selector uses the existing mobile source filter. */
+document.addEventListener("change",event=>{
+ const homePicker=event.target.closest("#mobileWelcomeSourcePicker");
+ if(homePicker){
+   const existing=document.querySelector("#mobileSourcePicker");
+   if(!existing)return;
+   existing.value=homePicker.value;
+   existing.dispatchEvent(new Event("change",{bubbles:true}));
+   window.ekzenUpdateWelcome?.();
+   return;
+ }
+ if(event.target.matches("#mobileSourcePicker")){
+   const home=document.querySelector("#mobileWelcomeSourcePicker");
+   if(home){home.innerHTML=event.target.innerHTML;home.value=event.target.value;}
+ }
+},true);
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
