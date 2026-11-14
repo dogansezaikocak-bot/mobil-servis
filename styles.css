@@ -8757,3 +8757,54 @@ body.is-unlocked #pinScreen {
     display:inline!important;font-size:inherit!important;font-weight:inherit!important;color:inherit!important;
   }
 }
+
+/* V5.3.23 — Kasa sayaç sıralaması, güçlü renkler ve büyük tutarlar */
+@media(max-width:820px){
+  #mobileDailyCashPage .mobile-daily-counter-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter{
+    min-height:166px!important;
+    border-radius:22px!important;
+    box-shadow:0 12px 28px rgba(15,23,42,.13)!important;
+    padding:17px 14px!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter>b{
+    font-size:clamp(27px,7.6vw,43px)!important;
+    font-weight:950!important;
+    line-height:1.05!important;
+    letter-spacing:-1.2px!important;
+    overflow-wrap:anywhere!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter.income{
+    background:linear-gradient(145deg,#15803d,#166534)!important;
+    color:#fff!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter.commission,
+  #mobileDailyCashPage .mobile-daily-counter.material,
+  #mobileDailyCashPage .mobile-daily-counter.expense{
+    background:linear-gradient(145deg,#dc2626,#991b1b)!important;
+    color:#fff!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter.income>b,
+  #mobileDailyCashPage .mobile-daily-counter.commission>b,
+  #mobileDailyCashPage .mobile-daily-counter.material>b,
+  #mobileDailyCashPage .mobile-daily-counter.expense>b{
+    color:#fff!important;
+  }
+  #mobileDailyCashPage #mobileCashProfitCounter{
+    background:linear-gradient(145deg,#0f766e,#087f73)!important;
+    color:#fff!important;
+  }
+  #mobileDailyCashPage #mobileCashPaymentCounter{
+    background:linear-gradient(145deg,#f59e0b,#ea580c)!important;
+    color:#fff!important;
+  }
+  #mobileDailyCashPage #mobileCashProfitCounter>b,
+  #mobileDailyCashPage #mobileCashPaymentCounter>b{
+    font-size:clamp(26px,7.2vw,41px)!important;
+    color:#fff!important;
+  }
+}
