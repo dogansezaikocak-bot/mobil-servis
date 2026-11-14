@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.50-source-settings">
+  <link rel="stylesheet" href="./styles.css?v=5.3.51-settings-tabs">
 </head>
 <body class="auth-checking">
   <section id="pinScreen" class="pin-screen" aria-label="Giriş ve oturum kontrolü">
@@ -243,12 +243,13 @@
             <div><span class="settings-eyebrow">EKZEN · YÖNETİM PANELİ</span><h2>Ayarlar</h2><p>İşletme bilgilerinizi, ana sayfalarınızı ve sayaçlarınızı tek yerden yönetin.</p></div>
             <div class="settings-hero-symbol" aria-hidden="true">⚙</div>
           </div>
-          <nav class="settings-quick-nav" aria-label="Ayar bölümleri">
-            <a href="#settingsCompany">🏢 İşletme</a>
-            <a href="#settingsHome">▦ Ana sayfa</a>
-            <a href="#settingsCounters">◉ Sayaçlar</a><a href="#settingsSources">♧ Kaynağa özel</a>
-            <a href="#settingsLists">☷ Listeler</a>
-            <a href="#settingsSecurity">🔒 Güvenlik</a>
+          <nav class="settings-quick-nav settings-tabs" aria-label="Ayar kategorileri">
+            <button type="button" data-settings-tab="settingsCompany">🏢 İşletme</button>
+            <button type="button" data-settings-tab="settingsHome">▦ Ana Sayfa</button>
+            <button type="button" data-settings-tab="settingsCounters">◉ Sayaçlar</button>
+            <button type="button" data-settings-tab="settingsSources">♧ Kaynağa Özel</button>
+            <button type="button" data-settings-tab="settingsListsPanel">☷ Listeler</button>
+            <button type="button" data-settings-tab="settingsSecurity">🔒 Güvenlik</button>
           </nav>
           <section class="settings-section" id="settingsCompany">
             <div class="settings-section-head"><div class="settings-section-icon">🏢</div><div><h3>İşletme Bilgileri</h3><p>Firma adı ve iletişim bilgilerinizi düzenleyin.</p></div></div>
@@ -280,8 +281,8 @@
               <button class="danger-button" type="button" data-action="sign-out">Çıkış Yap</button>
             </div>
           </section>
-          <div class="settings-section-head settings-list-heading"><div class="settings-section-icon">☷</div><div><h3>Diğer Listeler</h3><p>Markalar, cihazlar, kaynaklar ve diğer sistem listeleri.</p></div></div>
-          <div id="settingsLists" class="settings-lists"></div>
+          <section class="settings-section" id="settingsListsPanel"><div class="settings-section-head settings-list-heading"><div class="settings-section-icon">☷</div><div><h3>Diğer Listeler</h3><p>Markalar, cihazlar, kaynaklar ve diğer sistem listeleri.</p></div></div>
+          <div id="settingsLists" class="settings-lists"></div></section>
         </section>
       </section>
     
@@ -899,6 +900,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.50-source-settings"></script>
+  <script src="./app.js?v=5.3.51-settings-tabs"></script>
 </body>
 </html>
