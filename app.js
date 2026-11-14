@@ -1533,6 +1533,7 @@ function applyDashboardStatFilter(stat) {
     syncDashboardDateRangeControls();
   }
   switchView("services");
+  serviceQuickStatSelection = null;
   renderServices();
 }
 
@@ -1546,6 +1547,7 @@ function showAllRecords() {
   if (dashboardEndDate) dashboardEndDate.value = "";
   syncDashboardDateRangeControls();
   switchView("services");
+  serviceQuickStatSelection = null;
   renderDashboard();
   renderServices();
   renderCash();
@@ -1558,6 +1560,7 @@ function applyDashboardSourceFilter(source) {
   topSourceFilter.value = isSourcePortal() ? portalSourceName() : "";
   topStatusFilter.value = "";
   switchView("services");
+  serviceQuickStatSelection = null;
   renderServices();
 }
 
