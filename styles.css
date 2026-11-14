@@ -8596,3 +8596,13 @@ body.is-unlocked #pinScreen {
     margin-top: 12px;
   }
 }
+
+/* V5.3.16 — mobil 2x2 sayaçlar ve fiş silme */
+@media(max-width:768px){
+  .mobile-welcome-counter-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  .mobile-welcome-counter.payment,.mobile-welcome-counter.profit{min-width:0!important;cursor:pointer!important}
+  .mobile-welcome-counter.profit strong b{font-size:clamp(16px,4.5vw,23px)!important;white-space:nowrap!important}
+  .mobile-delete-service-btn{background:#fff1f2!important;color:#a11b30!important;border:1px solid #fecdd3!important;border-radius:10px!important;padding:11px 12px!important;font-weight:800!important;cursor:pointer!important}
+  .mobile-sheet-footer{flex-wrap:wrap!important}
+}
+.desktop-delete-service-btn{display:inline-flex;align-items:center;justify-content:center;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3;border-radius:9px;padding:8px 12px;font-weight:700;cursor:pointer;margin:0 0 10px auto}
