@@ -9082,3 +9082,8 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
 #mobileHomeCashCards .mobile-daily-counter:has(.home-pending-amount){justify-content:space-between!important}
 #mobileHomeCashCards .mobile-daily-counter:has(.home-pending-amount) b{font-size:clamp(22px,6vw,32px)!important;white-space:nowrap!important}
 #mobileHomeCashCards .home-pending-amount{display:block!important;font-size:clamp(18px,5vw,25px)!important;font-weight:900!important;color:#fff!important;line-height:1.1!important;white-space:nowrap!important}
+
+/* V5.3.60 — accessible clickable added mobile home counters */
+#mobileHomeCashCards button.home-cash-action{font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer;touch-action:manipulation}
+#mobileHomeCashCards button.home-cash-action:active{filter:brightness(.94)}
+#mobileHomeCashCards button.home-cash-action:focus-visible{outline:3px solid #0f766e;outline-offset:3px}
