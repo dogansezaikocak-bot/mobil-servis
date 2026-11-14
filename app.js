@@ -1160,6 +1160,7 @@ function showOpenServicesFromTopbar() {
 }
 
 function switchView(view) {
+  if (view === "ekzenCash") view = "cash";
   if (isSourcePortal() && !["dashboard", "cash", "services"].includes(view)) view = "dashboard";
   currentView = view;
   Object.entries(views).forEach(([key, element]) => {
