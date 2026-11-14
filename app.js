@@ -4491,7 +4491,7 @@ function mobileCashPopulateSources() {
 const CUSTOM_CASH_TERMS = [
   ["income","Toplam Hasılat"],["commission","Ödenen Komisyon"],
   ["material","Malzeme"],["expense","Diğer Gider"],["serviceIncome","Servis Hasılatı"],
-  ["pendingAmount","Ödeme Bekleyen Tutar"],["pendingCount","Ödeme Bekleyen Fiş Adedi"]
+  ["pendingAmount","Ödeme Bekleyen Tutar"],["pendingCount","Ödeme Bekleyen Fiş Adedi"],["ekzenShare","Ekzen Payı"],["remainingPayment","Kalan Ödeme"]
 ];
 function customCashCounters() {
   if (!Array.isArray(state.settings.customCashCounters)) state.settings.customCashCounters = [];
@@ -4500,6 +4500,7 @@ function customCashCounters() {
 function customCashContext(items) {
   const totals = cashBreakdown(items);
   const serviceTotals = serviceOnlyCashBreakdown(items);
+  const sourceTotals = serviceSourceCounterBreakdown(items);
   const pending = (state.services || []).filter(s =>
     matchesPortalSource(s.source) &&
     (!mobileCashSource || sourceMatches(s.source,mobileCashSource)) &&
@@ -4508,6 +4509,7 @@ function customCashContext(items) {
   return {
     income:totals.income,commission:totals.commission,material:totals.material,
     expense:totals.manualExpense,serviceIncome:serviceTotals.income,
+    ekzenShare:sourceTotals.ekzenTechnical,remainingPayment:sourceTotals.remainingPayment,
     pendingCount:pending.length,
     pendingAmount:pending.reduce((sum,s)=>{
       const value=Number(primaryCashForService(s.id)?.amount ?? s.price ?? 0);
@@ -4529,7 +4531,7 @@ const CASH_SLOT_DEFAULTS=[
  {id:"income",name:"Toplam Hasılat",color:"#15803d",unit:"money",terms:[{key:"income",sign:1}]},
  {id:"commission",name:"Ödenen Komisyon",color:"#b91c1c",unit:"money",terms:[{key:"commission",sign:1}]},
  {id:"material",name:"Malzeme",color:"#2563eb",unit:"money",terms:[{key:"material",sign:1}]},
- {id:"expense",name:"Diğer Gider",color:"#2563eb",unit:"money",terms:[{key:"expense",sign:1}]}
+ {id:"expense",name:"Kalan Ödeme",color:"#2563eb",unit:"money",terms:[{key:"remainingPayment",sign:1}]}
 ];
 function cashSlotSettings(){
  if(!Array.isArray(state.settings.cashSlotSettings))state.settings.cashSlotSettings=[];
@@ -4539,6 +4541,10 @@ function renderSharedCashSlots(items){
  const grid=document.querySelector("#mobileCashProfitCounter")?.parentElement;
  if(!grid)return;
  const context=customCashContext(items);
+ const selectedSource=isSourcePortal()?portalSourceName():mobileCashSource;
+ const isExternalSource=Boolean(selectedSource)&&!isOwnWorkSource(selectedSource);
+ const datedSource=isExternalSource?serviceSourceCounterBreakdown(items):null;
+ const allTimeSource=isExternalSource?serviceSourceCounterBreakdown((state.cash||[]).filter(item=>cashIsPosted(item)&&matchesPortalSource(cashItemSource(item))&&sourceMatches(cashItemSource(item),selectedSource))):null;
  const selectors={profit:"#mobileCashProfitCounter",payment:"#mobileCashPaymentCounter",
  income:"#mobileDailyPageIncome",commission:"#mobileDailyPageCommission",
  material:"#mobileDailyPageMaterial",expense:"#mobileDailyPageExpense"};
@@ -4551,8 +4557,17 @@ function renderSharedCashSlots(items){
    card.style.backgroundColor=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"";
    card.style.color="#fff";
    const heading=card.querySelector("span");
-   if(heading)heading.textContent=c.name;
-   const value=customCashValue(c,context);
+   if(heading)heading.textContent=isExternalSource&&c.id==="commission"?"Ekzen Payı":isExternalSource&&c.id==="expense"?"Kalan Ödeme":c.name;
+   let value=customCashValue(c,context);
+   if(isExternalSource){
+     if(c.id==="profit")value=datedSource.ekzenTechnical;
+     if(c.id==="commission")value=datedSource.ekzenTechnical;
+     if(c.id==="income")value=datedSource.customerMoney;
+     if(c.id==="material")value=datedSource.material;
+     if(c.id==="expense")value=allTimeSource.remainingPayment;
+   } else if(c.id==="expense") {
+     value=serviceSourceCounterBreakdown((state.cash||[]).filter(item=>cashIsPosted(item)&&matchesPortalSource(cashItemSource(item))&&(!selectedSource||sourceMatches(cashItemSource(item),selectedSource)))).remainingPayment;
+   }
    if(c.id==="payment"){
      const summary=card.querySelector("b");
      if(summary)summary.innerHTML=c.unit==="count"?'<span id="mobileCashPaymentCount">'+String(value)+'</span> fiş':escapeHtml(money(value));
@@ -4635,7 +4650,7 @@ function mobileRenderDailyCash() {
   const endDate = mobileCashRangeEnd || "";
   const items = (state.cash || []).filter((item) => {
     if (!cashIsPosted(item) || !matchesPortalSource(cashItemSource(item))) return false;
-    const d = String(item.date || "").slice(0,10);
+    const d = String(cashFilterDate(item) || "").slice(0,10);
     if (startDate && d < startDate) return false;
     if (endDate && d > endDate) return false;
     if (mobileCashSource && !sourceMatches(cashItemSource(item), mobileCashSource)) return false;
