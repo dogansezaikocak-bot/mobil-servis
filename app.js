@@ -184,6 +184,7 @@ function migrateState(oldState) {
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
       customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
       cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
+      homeLayout: {desktop:Array.isArray(oldState.settings?.homeLayout?.desktop)?oldState.settings.homeLayout.desktop:[],mobile:Array.isArray(oldState.settings?.homeLayout?.mobile)?oldState.settings.homeLayout.mobile:[]},
       sources: withoutHiddenSources(ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]), hiddenSources),
       hiddenSources,
       cities: uniqueValues(oldState.settings?.cities || cities),
@@ -878,6 +879,31 @@ function bindEvents() {
       }else alert("Sıralama bu cihazda kaydedildi ancak bulut eşitlemesi kullanılamıyor.");
       return;
     }
+    if(action==="home-layout-toggle"||action==="home-layout-move"){
+      if(isSourcePortal())return;
+      const device=button.dataset.device;
+      if(device!=="desktop"&&device!=="mobile")return;
+      const id=button.dataset.slot;
+      const ids=homeLayout(device);
+      const index=ids.indexOf(id);
+      if(action==="home-layout-toggle"){
+        if(index>=0)ids.splice(index,1);else if(CASH_SLOT_DEFAULTS.some(x=>x.id===id))ids.push(id);
+      }else{
+        const next=index+Number(button.dataset.direction);
+        if(index<0||next<0||next>=ids.length)return;
+        [ids[index],ids[next]]=[ids[next],ids[index]];
+      }
+      if(!state.settings.homeLayout)state.settings.homeLayout={desktop:[],mobile:[]};
+      state.settings.homeLayout[device]=ids;
+      saveLocalState();
+      renderHomeLayoutSettings();
+      renderDashboard();
+      if(typeof mobileRenderDailyCash==="function")mobileRenderDailyCash();
+      if(canSyncCloud())cloudRef.update({"state/settings/homeLayout":state.settings.homeLayout,updatedAt:new Date().toISOString()})
+        .catch(error=>{console.warn("Ana sayfa düzeni eşitlenemedi",error);alert("Düzen bu cihazda kaydedildi ancak buluta aktarılamadı.");});
+      else alert("Düzen bu cihazda kaydedildi ancak bulut eşitlemesi kullanılamıyor.");
+      return;
+    }
     if(action==="edit-cash-slot"){editCashSlot(button.dataset.slot);return;}
     if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;}
     if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
@@ -1265,6 +1291,7 @@ function renderDashboard() {
   renderDashboardEkzenCashStatus();
   renderDailyCashSummary(cashItems);
   renderDashboardCounters(services);
+  renderHomeCashCards("desktop",cashItems);
 
   const plans = [...services]
     .filter((service) => isActiveDashboardDateStatus(service.status))
@@ -2830,6 +2857,7 @@ function renderSettings() {
   });
   renderSettingsLists();
   renderCustomCashCounterSettings();
+  renderHomeLayoutSettings();
 }
 
 function renderSettingsLists() {
@@ -4634,6 +4662,45 @@ function renderSharedCashSlots(items){
  });
 }
 
+
+const HOME_LAYOUT_DEFAULTS={desktop:[],mobile:[]};
+function homeLayout(device){
+  const raw=state.settings?.homeLayout?.[device];
+  const valid=new Set(CASH_SLOT_DEFAULTS.map(x=>x.id));
+  return Array.isArray(raw)?[...new Set(raw.filter(id=>valid.has(id)))]:[];
+}
+function renderHomeLayoutSettings(){
+  const root=document.querySelector("#homeLayoutSettings");if(!root)return;
+  root.innerHTML='<h3>Ana Sayfa Düzeni</h3><p>Mac ve telefon ana sayfasına eklemek istediğiniz kasa sayaçlarını ayrı seçin. Oklarla sıralayın. Mevcut ana sayfa bölümleri korunur.</p>'+
+    ["desktop","mobile"].map(device=>{
+      const ids=homeLayout(device);
+      const available=cashSlotSettings();
+      return '<h4>'+(device==="desktop"?"Mac ana sayfası":"Telefon ana sayfası")+'</h4><div class="custom-counter-list">'+
+        available.map(c=>{
+          const i=ids.indexOf(c.id),selected=i>=0;
+          return '<div class="custom-counter-row"><strong>'+escapeHtml(c.name)+'</strong>'+
+            '<button type="button" data-action="home-layout-toggle" data-device="'+device+'" data-slot="'+c.id+'">'+(selected?"Ana sayfadan kaldır":"Ana sayfaya ekle")+'</button>'+
+            (selected?'<button type="button" data-action="home-layout-move" data-device="'+device+'" data-slot="'+c.id+'" data-direction="-1" '+(i===0?"disabled":"")+'>↑</button><button type="button" data-action="home-layout-move" data-device="'+device+'" data-slot="'+c.id+'" data-direction="1" '+(i===ids.length-1?"disabled":"")+'>↓</button>':"")+
+          '</div>';
+        }).join("")+'</div>';
+    }).join("");
+}
+function renderHomeCashCards(device,items){
+  const root=document.querySelector(device==="desktop"?"#desktopHomeCashCards":"#mobileHomeCashCards");
+  if(!root)return;
+  const ids=homeLayout(device);
+  const slots=cashSlotSettings();
+  const context=customCashContext(items);
+  root.hidden=!ids.length;
+  root.innerHTML=ids.map(id=>{
+    const c=slots.find(x=>x.id===id);
+    if(!c)return "";
+    const color=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
+    const value=customCashValue(c,context);
+    return '<div class="mobile-daily-counter" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(c.name)+'</span><b style="color:#fff">'+escapeHtml(c.unit==="count"?String(value):money(value))+'</b></div>';
+  }).join("");
+}
+
 function renderCustomCashCounterSettings() {
   const root=document.querySelector("#customCashCounterSettings");
   if (!root) return;
@@ -6121,6 +6188,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const earningEl = document.querySelector("#mobileWelcomeEarning");
     if (incomeEl) incomeEl.textContent = money(income);
     if (earningEl) earningEl.textContent = money(earning);
+    renderHomeCashCards("mobile",cashItems);
     const profitEl = document.querySelector("#mobileWelcomeProfitCount");
     if (profitEl) profitEl.textContent = money(dashboardServiceProfit((state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (!source || sourceMatches(cashItemSource(item), source)) && (mobileAllDates || dateInRange(cashFilterDate(item), mobileRangeStart || selectedDate(), mobileRangeEnd || selectedDate())))));
 
