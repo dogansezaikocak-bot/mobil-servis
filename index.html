@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.17-orange-navy">
+  <link rel="stylesheet" href="./styles.css?v=5.3.18-commission-date">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -294,7 +294,29 @@
         <strong id="mobileWelcomeDateDisplay" class="mobile-welcome-date-display">Bugün</strong>
         <input id="mobileDatePicker" class="mobile-date-input-real" type="date" aria-label="Servis tarihi seç">
       </label>
-      <button type="button" id="mobileWelcomeAllDates" class="mobile-all-dates-toggle" data-mobile-all-dates="toggle" aria-pressed="false">Tüm tarihler</button>
+      <dialog id="mobileWelcomeDateDialog" class="dialog date-range-dialog">
+        <div class="dialog-shell date-range-shell">
+          <header><h2>Tarih Filtresi</h2><button type="button" class="icon-button" data-mobile-date-close>×</button></header>
+          <div class="date-range-body">
+            <div class="date-preset-list">
+              <button type="button" data-mobile-date-preset="today">Bugün</button>
+              <button type="button" data-mobile-date-preset="yesterday">Dün</button>
+              <button type="button" data-mobile-date-preset="tomorrow">Yarın</button>
+              <button type="button" data-mobile-date-preset="thisWeek">Bu hafta</button>
+              <button type="button" data-mobile-date-preset="thisMonth">Bu ay</button>
+              <button type="button" data-mobile-date-preset="allTime">Tüm zamanlar</button>
+            </div>
+            <div class="date-custom-panel">
+              <strong>Özel tarih aralığı</strong>
+              <div class="date-custom-inputs">
+                <label>Başlangıç<input id="mobileWelcomeDateStart" type="date"></label>
+                <label>Bitiş<input id="mobileWelcomeDateEnd" type="date"></label>
+              </div>
+              <button type="button" class="primary-button" data-mobile-date-apply>Uygula</button>
+            </div>
+          </div>
+        </div>
+      </dialog>
 
       <div class="mobile-welcome-counter-grid" aria-label="Günlük servis sayaçları">
         <button type="button" class="mobile-welcome-counter open" data-welcome-target="open">
@@ -753,6 +775,7 @@
         <input name="oldName" type="hidden">
         <label>Kaynak Adı<input name="name" type="text"></label>
         <label>Telefon<input name="phone" type="tel" placeholder="İsteğe bağlı"></label>
+        <label>Kaynak Payı / Komisyon (%)<input name="commissionRate" type="number" min="0" max="100" step="1" value="50" required></label>
       </div>
       <footer>
         <button class="danger-button" type="button" data-action="delete-source">Sil</button>
@@ -853,6 +876,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.16-counters-delete-20261114"></script>
+  <script src="./app.js?v=5.3.18-commission-date"></script>
 </body>
 </html>
