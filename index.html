@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.20-cash-counters">
+  <link rel="stylesheet" href="./styles.css?v=5.3.21-cash-simple">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -428,22 +428,22 @@
       </section>
 
       <section class="mobile-daily-counter-grid" aria-label="Kasa sayaçları">
-        <article class="mobile-daily-counter income">
+        <button type="button" class="mobile-daily-counter income mobile-cash-clickable" data-cash-detail="income" aria-label="income hareketlerini görüntüle">
           <span>Toplam Hasılat</span>
           <b id="mobileDailyPageIncome">₺0</b>
-        </article>
-        <article class="mobile-daily-counter commission">
+        </button>
+        <button type="button" class="mobile-daily-counter commission mobile-cash-clickable" data-cash-detail="commission" aria-label="commission hareketlerini görüntüle">
           <span>Ödenen Komisyon</span>
           <b id="mobileDailyPageCommission">₺0</b>
-        </article>
-        <article class="mobile-daily-counter material">
+        </button>
+        <button type="button" class="mobile-daily-counter material mobile-cash-clickable" data-cash-detail="material" aria-label="material hareketlerini görüntüle">
           <span>Malzeme</span>
           <b id="mobileDailyPageMaterial">₺0</b>
-        </article>
-        <article class="mobile-daily-counter expense">
+        </button>
+        <button type="button" class="mobile-daily-counter expense mobile-cash-clickable" data-cash-detail="expense" aria-label="expense hareketlerini görüntüle">
           <span>Diğer Gider</span>
           <b id="mobileDailyPageExpense">₺0</b>
-        </article>
+        </button>
         <button type="button" class="mobile-daily-counter profit mobile-cash-clickable" id="mobileCashProfitCounter" aria-label="Net kazanç ve kasa hareketleri">
           <span>Net Kazanç</span>
           <b id="mobileDailyPageProfit">₺0</b>
@@ -871,6 +871,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.20-cash-counters"></script>
+  <script src="./app.js?v=5.3.21-cash-simple"></script>
 </body>
 </html>
