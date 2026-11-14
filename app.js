@@ -860,6 +860,24 @@ function bindEvents() {
       signOutApp();
       return;
     }
+    if(action==="move-cash-slot"){
+      if(isSourcePortal())return;
+      const ordered=cashSlotSettings();
+      const index=ordered.findIndex(c=>c.id===button.dataset.slot);
+      const next=index+Number(button.dataset.direction);
+      if(index<0||next<0||next>=ordered.length)return;
+      [ordered[index],ordered[next]]=[ordered[next],ordered[index]];
+      state.settings.cashSlotSettings=ordered.map((c,i)=>({...c,order:i,visible:c.visible!==false}));
+      persistLocalCounterSettings();
+      saveLocalState();
+      renderCustomCashCounterSettings();
+      mobileRenderDailyCash();
+      if(canSyncCloud()){
+        cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings,updatedAt:new Date().toISOString()})
+          .catch(error=>{console.warn("Sayaç sırası eşitlenemedi:",error);alert("Sıralama bu cihazda kaydedildi ancak buluta aktarılamadı.");});
+      }else alert("Sıralama bu cihazda kaydedildi ancak bulut eşitlemesi kullanılamıyor.");
+      return;
+    }
     if(action==="edit-cash-slot"){editCashSlot(button.dataset.slot);return;}
     if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;}
     if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
@@ -4568,7 +4586,7 @@ const CASH_SLOT_DEFAULTS=[
 ];
 function cashSlotSettings(){
  if(!Array.isArray(state.settings.cashSlotSettings))state.settings.cashSlotSettings=[];
- return CASH_SLOT_DEFAULTS.map(def=>{const saved=state.settings.cashSlotSettings.find(c=>c?.id===def.id)||{};return {...def,...saved,visible:saved.visible!==false};});
+ return CASH_SLOT_DEFAULTS.map((def,index)=>{const saved=state.settings.cashSlotSettings.find(c=>c?.id===def.id)||{};return {...def,...saved,visible:saved.visible!==false,order:Number.isInteger(saved.order)?saved.order:index};}).sort((a,b)=>a.order-b.order);
 }
 function renderSharedCashSlots(items){
  const grid=document.querySelector("#mobileCashProfitCounter")?.parentElement;
@@ -4585,6 +4603,7 @@ function renderSharedCashSlots(items){
    const node=document.querySelector(selectors[c.id]);
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
    if(!card)return;
+   card.style.order=String(c.order);
    const hideForOwnWork=isOwnWorkSource(selectedSource) && (c.id==="commission" || c.id==="expense");
    const shouldHide=c.visible===false || hideForOwnWork;
    card.hidden=shouldHide;
@@ -4620,7 +4639,7 @@ function renderCustomCashCounterSettings() {
   if (!root) return;
   root.innerHTML=`
     <h3>Ortak Sayaç ve Hesaplama Yönetimi</h3>
-    <p>Sayaç ayarları ortak kaydedilir. Mobil kartların boyutu ve yerleşimi değişmez; sadece isim, renk, görünürlük ve hesaplama güncellenir.</p>\n    <h4>Mevcut mobil kasa sayaçları</h4>\n    <div class="custom-counter-list">${cashSlotSettings().map(c=>`<div class="custom-counter-row"><span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span><strong>${escapeHtml(c.name)}</strong><button type="button" data-action="edit-cash-slot" data-slot="${c.id}">Düzenle</button><button type="button" data-action="toggle-cash-slot" data-slot="${c.id}">${c.visible===false?"Göster":"Gizle"}</button></div>`).join("")}</div>\n    <h4>Ek sayaçlar</h4>
+    <p>Sayaç ayarları ortak kaydedilir. Mobil sayaçların sırasını Yukarı / Aşağı düğmeleriyle değiştirebilirsiniz. Değişiklikler telefona eşitlenir.</p>\n    <h4>Mevcut mobil kasa sayaçları</h4>\n    <div class="custom-counter-list">${cashSlotSettings().map((c,i,all)=>`<div class="custom-counter-row"><span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span><strong>${escapeHtml(c.name)}</strong><button type="button" data-action="move-cash-slot" data-slot="${c.id}" data-direction="-1" ${i===0?"disabled":""}>↑ Yukarı</button><button type="button" data-action="move-cash-slot" data-slot="${c.id}" data-direction="1" ${i===all.length-1?"disabled":""}>↓ Aşağı</button><button type="button" data-action="edit-cash-slot" data-slot="${c.id}">Düzenle</button><button type="button" data-action="toggle-cash-slot" data-slot="${c.id}">${c.visible===false?"Göster":"Gizle"}</button></div>`).join("")}</div>\n    <h4>Ek sayaçlar</h4>
     <div class="custom-counter-list">${customCashCounters().map((c,i)=>`
       <div class="custom-counter-row">
         <span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span>
