@@ -865,6 +865,7 @@ function bindEvents() {
     if (action === "photo-viewer-zoom-out") zoomPhotoViewer(-0.25);
     if (action === "photo-viewer-reset") resetPhotoViewer();
     if (action === "delete-service") deleteCurrentService();
+    if (action === "delete-service-direct") deleteServiceById(button.dataset.serviceId);
     if (action === "print" || action === "print-list") window.print();
     if (action === "print-cash") printCash();
     if (action === "set-cash-list-mode") setCashListMode(button.dataset.mode);
@@ -2861,12 +2862,29 @@ function deleteCurrentService() {
   const service = state.services.find((item) => item.id === id);
   if (!service || !matchesPortalSource(service.source)) return;
   if (!confirm(`${id} numaralı servis silinsin mi?`)) return;
-  state.services = state.services.filter((service) => service.id !== id);
-  state.cash = state.cash.filter((item) => item.serviceId !== id);
-  saveState();
-  serviceDialog.close();
+  removeServiceAndLinkedCash(id);
+}
+
+function removeServiceAndLinkedCash(id) {
+  const before = state.services.length;
+  state.services = state.services.filter((entry) => entry.id !== id);
+  if (state.services.length === before) return;
+  state.cash = state.cash.filter((entry) => entry.serviceId !== id);
+  activeDetailId = "";
+  if (serviceDialog.open) serviceDialog.close();
   if (detailDialog.open) detailDialog.close();
+  mobileCloseDetail();
+  saveState();
   render();
+  refreshMobileServiceViews();
+}
+
+function deleteServiceById(id) {
+  if (isSourcePortal()) return;
+  const service = state.services.find((entry) => entry.id === id);
+  if (!service || !matchesPortalSource(service.source)) return;
+  if (!confirm(`${service.customerName || id} — ${id} numaralı servis ve bağlı kasa hareketleri kalıcı olarak silinsin mi?`)) return;
+  removeServiceAndLinkedCash(id);
 }
 
 function openDetail(id) {
@@ -2897,6 +2915,7 @@ function renderDetail(id) {
   const financeLabel = isOwnWorkSource(service.source) ? "Kalan Miktar" : "Ekzen Teknik";
 
   detailBody.innerHTML = `
+    <button type="button" class="desktop-delete-service-btn" data-action="delete-service-direct" data-service-id="${escapeAttr(service.id)}">Fişi Sil</button>
     <div class="v412-detail">
       <div class="v412-grid v412-top-grid">
         <section class="v412-card">
@@ -4515,6 +4534,7 @@ function mobileRenderDetail(serviceId) {
     <footer class="mobile-sheet-footer">
       <button class="mobile-delay-btn" type="button" data-mobile-action="delay-service" data-service-id="${escapeAttr(service.id)}">Ertele</button>
       <button class="mobile-close-btn" type="button" data-mobile-action="finish-service" data-service-id="${escapeAttr(service.id)}">Fişi Kapat</button>
+      <button class="mobile-delete-service-btn" type="button" data-mobile-action="delete-service" data-service-id="${escapeAttr(service.id)}">Fişi Sil</button>
     </footer>
   `;
 }
@@ -4796,6 +4816,7 @@ document.addEventListener("keydown", (event) => {
     if (action === "open-detail" && serviceId) mobileOpenDetail(serviceId);
     if (action === "close-detail") mobileCloseDetail();
     if (action === "finish-service" && serviceId) mobileFinishService(serviceId);
+    if (action === "delete-service" && serviceId) { event.preventDefault(); deleteServiceById(serviceId); }
     if (action === "delay-service" && serviceId) mobileDelayService(serviceId);
     if (action === "save-delay" && serviceId) mobileSaveDelayDate(serviceId);
     if (action === "cancel-delay") document.querySelector("#mobileDelayPanel")?.remove();
@@ -5420,7 +5441,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
   function recordsFor(bucket) {
     const rows = sortServices(state.services || []).filter((service) => matchesSource(service) && mobileMatchesServiceQuery(service, mobileServiceQuery) && matchesDate(service, bucket));
-    return bucket === "closed" ? rows.filter(isClosedService) : rows.filter(isOpenService);
+    return bucket === "payment" ? rows.filter((service) => isStatus(service.status, "Ödeme Bekliyor") || ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || ""))) : bucket === "closed" ? rows.filter(isClosedService) : rows.filter(isOpenService);
   }
 
   function formattedDate() {
@@ -5452,7 +5473,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
     const openRows = recordsFor("open");
     const closedRows = recordsFor("closed");
-    const visibleRows = activeBucket === "closed" ? closedRows : openRows;
+    const visibleRows = activeBucket === "payment" ? recordsFor("payment") : activeBucket === "closed" ? closedRows : openRows;
 
     const openCount = document.querySelector("#mobileCountOpen");
     const closedCount = document.querySelector("#mobileCountClosed");
@@ -5466,7 +5487,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
 
-    const bucketLabel = activeBucket === "closed" ? "Kapalı Fişler" : "Açık Fişler";
+    const bucketLabel = activeBucket === "payment" ? "Ödeme Bekliyor" : activeBucket === "closed" ? "Kapalı Fişler" : "Açık Fişler";
     const title = document.querySelector("#mobileListTitle");
     if (title) title.textContent = `${formattedDate()} · ${bucketLabel}`;
     const summary = document.querySelector("#mobileTechSummary");
@@ -5501,6 +5522,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       requestAnimationFrame(() => list.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
   }
+
+  window.ekzenMobileShowPaymentList = () => { activeBucket = "payment"; settle(false); };
 
   function settle(scrollToList = false) {
     // V5.1.2: Tarih değişiminde gecikmeli ikinci render kaldırıldı.
@@ -5669,6 +5692,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const listDateEl = document.querySelector("#mobileListPageDate");
     if (openEl) openEl.textContent = String(openRows.length);
     if (closedEl) closedEl.textContent = String(closedRows.length);
+    const paymentEl = document.querySelector("#mobileWelcomePaymentCount");
+    if (paymentEl) paymentEl.textContent = String(rows.filter((service) => isStatus(service.status, "Ödeme Bekliyor") || ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || ""))).length);
 
     const source = selectedSourceValue();
     const cashItems = (state.cash || []).filter((item) => {
@@ -5686,6 +5711,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const earningEl = document.querySelector("#mobileWelcomeEarning");
     if (incomeEl) incomeEl.textContent = money(income);
     if (earningEl) earningEl.textContent = money(earning);
+    const profitEl = document.querySelector("#mobileWelcomeProfitCount");
+    if (profitEl) profitEl.textContent = money(dashboardServiceProfit((state.cash || []).filter((item) => cashIsPosted(item) && matchesPortalSource(cashItemSource(item)) && (!source || sourceMatches(cashItemSource(item), source)) && (mobileAllDates || dateInRange(cashFilterDate(item), selectedDate(), selectedDate())))));
 
     if (textEl) textEl.textContent = mobileAllDates ? "Tüm tarihler servis özeti" : formatWelcomeSummary(selectedDate());
     if (dateDisplayEl) {
@@ -5809,7 +5836,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       globalNewButton.style.removeProperty("display");
     }
     const tab = document.querySelector(`#mobileTechApp [data-mobile-bucket="${bucket}"]`);
-    if (tab) tab.click();
+    if (bucket === "payment") window.ekzenMobileShowPaymentList?.();
+    else if (tab) tab.click();
     updateWelcome();
     openNativePage("list");
     document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
@@ -5830,7 +5858,9 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     if (counter) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      showList(counter.dataset.welcomeTarget === "closed" ? "closed" : "open");
+      const target = counter.dataset.welcomeTarget;
+      if (target === "profit") { showCash(); return; }
+      showList(target === "payment" ? "payment" : target === "closed" ? "closed" : "open");
       return;
     }
 
