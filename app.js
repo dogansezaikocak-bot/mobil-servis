@@ -4560,7 +4560,7 @@ function renderSharedCashSlots(items){
    if(heading)heading.textContent=isExternalSource&&c.id==="commission"?"Ekzen Payı":isExternalSource&&c.id==="expense"?"Kalan Ödeme":c.name;
    let value=customCashValue(c,context);
    if(isExternalSource){
-     if(c.id==="profit")value=datedSource.ekzenTechnical;
+     if(c.id==="profit")value=datedSource.hakedis;
      if(c.id==="commission")value=datedSource.ekzenTechnical;
      if(c.id==="income")value=datedSource.customerMoney;
      if(c.id==="material")value=datedSource.material;
