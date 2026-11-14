@@ -2893,6 +2893,8 @@ function showSourceSettingsTab(tab){
  });
 }
 document.addEventListener("click",event=>{
+ const save=event.target.closest("#saveSpecialSourceSettings");
+ if(save){event.preventDefault();event.stopPropagation();if(!save.disabled)saveSourceSpecialSettings();return;}
  const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
  if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
  const counterDevice=event.target.closest("#sourceSpecialSettings [data-source-counter-device-tab]");
@@ -4776,7 +4778,7 @@ function renderSourceSpecialSettings(){
     '<button type="button" class="primary-button" id="saveSpecialSourceSettings">✓ Kaynağın Ayarlarını Kaydet</button><span id="specialSourceSaveStatus" role="status"></span>');
   showSourceSettingsTab(activeSourceSettingsTab);
   root.querySelector("#specialSourcePicker")?.addEventListener("change",e=>{selectedSourceSettingsName=e.target.value;renderSourceSpecialSettings();});
-  root.querySelector("#saveSpecialSourceSettings")?.addEventListener("click",event=>{event.preventDefault();saveSourceSpecialSettings();});
+  // The save action is handled by a capturing listener to avoid mobile navigation click interception.
 }
 async function saveSourceSpecialSettings(){
   const source=selectedSourceSettingsName;
