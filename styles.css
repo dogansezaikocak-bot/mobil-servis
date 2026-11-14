@@ -8860,3 +8860,9 @@ body.is-unlocked #pinScreen {
 #mobileCustomCashCounters .custom-cash-counter>span{font-size:17px;font-weight:950}
 #mobileCustomCashCounters .custom-cash-counter>b{font-size:clamp(28px,8vw,44px);font-weight:950;overflow-wrap:anywhere}
 @media(max-width:600px){.custom-counter-form,.custom-counter-terms{grid-template-columns:1fr}.custom-counter-settings{padding:12px}}
+
+/* V5.3.35 - Oturum kontrolünde PIN ekranı yanıp sönmesin */
+body.auth-checking #pinScreen .pin-card { display: none !important; }
+body:not(.auth-checking) #pinLoading { display: none !important; }
+#pinLoading { margin: auto; text-align: center; color: #245b67; font-weight: 600; font-size: 15px; }
+#pinLoading .pin-loading-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display: grid; place-items: center; background: #0f766e; color: white; font-size: 22px; font-weight: 900; }
