@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.21-cash-simple">
+  <link rel="stylesheet" href="./styles.css?v=5.3.22-date-payment">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -452,6 +452,7 @@
         <button type="button" class="mobile-daily-counter payment mobile-cash-clickable" id="mobileCashPaymentCounter" aria-label="Tüm zamanlarda ödeme bekleyen fişleri görüntüle">
           <span>Ödeme Bekliyor</span>
           <b><span id="mobileCashPaymentCount">0</span> fiş</b>
+          <strong class="mobile-payment-amount" id="mobileCashPaymentAmount">₺0</strong>
           <small>Tüm zamanlar · Fişleri görüntüle</small>
         </button>
       </section>
@@ -872,6 +873,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.21-cash-simple"></script>
+  <script src="./app.js?v=5.3.22-date-payment"></script>
 </body>
 </html>
