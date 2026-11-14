@@ -6462,8 +6462,9 @@ async function saveCustomCounterForm(form) {
     return;
   }
   try {
-    await cloudRef.set({updatedAt:new Date().toISOString(),state});
-    alert("Değişiklikler kaydedildi.");
+    await cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings||[],"state/settings/customCashCounters":state.settings.customCashCounters||[],updatedAt:new Date().toISOString()});
+    try { localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY); } catch (_) {}
+    alert("Değişiklikler kaydedildi ve telefonla eşitlendi.");
   } catch(error) {
     console.warn("Sayaç ayarları buluta yazılamadı:",error?.code||error?.message||error);
     if(isPermissionDenied(error))denyCloudWrite();
