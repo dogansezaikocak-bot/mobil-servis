@@ -2864,6 +2864,38 @@ function customerCashBalance(items = state.cash) {
   return totals.income - totals.material - totals.commission + ownWorkManualTotals.balance;
 }
 
+let activeSettingsTab="settingsSources";
+let activeSourceSettingsTab="counters";
+function showSettingsTab(tab){
+ const allowed=["settingsCompany","settingsHome","settingsCounters","settingsSources","settingsListsPanel","settingsSecurity"];
+ if(!allowed.includes(tab))return;
+ activeSettingsTab=tab;
+ document.querySelectorAll("#settingsView .settings-tabs [data-settings-tab]").forEach(b=>{
+   const active=b.dataset.settingsTab===tab;
+   b.classList.toggle("is-active",active);
+   b.setAttribute("aria-pressed",String(active));
+ });
+ allowed.forEach(id=>{const node=document.getElementById(id);if(node)node.hidden=id!==tab;});
+}
+function showSourceSettingsTab(tab){
+ if(!["counters","home","finance"].includes(tab))return;
+ activeSourceSettingsTab=tab;
+ document.querySelectorAll("#sourceSpecialSettings [data-source-settings-tab]").forEach(b=>{
+   const active=b.dataset.sourceSettingsTab===tab;
+   b.classList.toggle("is-active",active);
+   b.setAttribute("aria-pressed",String(active));
+ });
+ document.querySelectorAll("#sourceSpecialSettings [data-source-settings-panel]").forEach(panel=>{
+   panel.hidden=panel.dataset.sourceSettingsPanel!==tab;
+ });
+}
+document.addEventListener("click",event=>{
+ const tab=event.target.closest("#settingsView [data-settings-tab]");
+ if(tab){showSettingsTab(tab.dataset.settingsTab);return;}
+ const sub=event.target.closest("#sourceSpecialSettings [data-source-settings-tab]");
+ if(sub){showSourceSettingsTab(sub.dataset.sourceSettingsTab);return;}
+});
+
 function renderSettings() {
   const form = document.querySelector("#settingsForm");
   Object.entries(state.company).forEach(([key, value]) => {
@@ -2873,6 +2905,7 @@ function renderSettings() {
   renderCustomCashCounterSettings();
   renderHomeLayoutSettings();
   renderSourceSpecialSettings();
+  showSettingsTab(activeSettingsTab);
 }
 
 function renderSettingsLists() {
@@ -4708,26 +4741,27 @@ function renderSourceSpecialSettings(){
   root.innerHTML='<h3>Kaynağa Özel Ayarlar</h3><p>Bir kaynak seçin. Buradaki değişiklikler diğer kaynakları etkilemez. Mevcut fişlerin geçmiş hesapları değiştirilmez.</p>'+
     '<label class="source-settings-picker">Servis kaynağı<select id="specialSourcePicker">'+names.map(n=>'<option value="'+escapeAttr(n)+'" '+(n===source?"selected":"")+'>'+escapeHtml(n)+'</option>').join("")+'</select></label>'+
     (!source?'<p>Önce bir servis kaynağı ekleyin.</p>':
-    '<div class="source-settings-columns"><div><h4>Kaynağa Özel Sayaçlar</h4><p>İsim, renk, görünürlük ve sıralama yalnızca seçilen kaynakta geçerlidir.</p>'+
+    '<nav class="source-settings-tabs" aria-label="Kaynağa özel ayar türü"><button type="button" data-source-settings-tab="counters">◉ Sayaçlar</button><button type="button" data-source-settings-tab="home">▦ Ana Sayfa</button><button type="button" data-source-settings-tab="finance">₺ Komisyon ve Ödeme</button></nav><div class="source-settings-columns"><div data-source-settings-panel="counters"><h4>Kaynağa Özel Sayaçlar</h4><p>İsim, renk, görünürlük ve sıralama yalnızca seçilen kaynakta geçerlidir.</p>'+
     ordered.map((c,i)=>{
       const o=overrides[c.id]||{};
       return '<div class="source-settings-counter" data-special-counter="'+c.id+'"><div class="source-settings-counter-title"><strong>'+escapeHtml(c.name)+'</strong><span><button type="button" data-action="source-counter-move" data-slot="'+c.id+'" data-direction="-1" '+(i===0?"disabled":"")+'>↑</button><button type="button" data-action="source-counter-move" data-slot="'+c.id+'" data-direction="1" '+(i===ordered.length-1?"disabled":"")+'>↓</button></span></div>'+
       '<label>Özel ad<input data-special-name value="'+escapeAttr(o.name||"")+'" placeholder="'+escapeAttr(c.name)+'"></label>'+
       '<label>Renk<input data-special-color type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(o.color)?o.color:c.color)+'"></label>'+
       '<label class="source-settings-checkbox"><input data-special-visible type="checkbox" '+(o.visible!==false?"checked":"")+'> Göster</label></div>';
-    }).join("")+'</div><div><h4>Mac ve Telefon Ana Sayfası</h4><p>Bu kaynak seçildiğinde görünecek sayaçları belirleyin.</p>'+
+    }).join("")+'</div><div data-source-settings-panel="home"><h4>Mac ve Telefon Ana Sayfası</h4><p>Bu kaynak seçildiğinde görünecek sayaçları belirleyin.</p>'+
     ["desktop","mobile"].map(device=>{
       const chosen=Array.isArray(config.homeLayout?.[device])?config.homeLayout[device]:homeLayout(device);
       return '<div class="source-settings-device"><strong>'+(device==="desktop"?"Mac":"Telefon")+'</strong>'+
       ordered.map(c=>'<label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+c.id+'" '+(chosen.includes(c.id)?"checked":"")+'> '+escapeHtml(overrides[c.id]?.name||c.name)+'</label>').join("")+'</div>';
     }).join("")+
-    '<h4>Komisyon ve Hakediş</h4><label>'+(isOwnWorkSource(source)?'Kaynağa ayrılan pay (%)':'Bize kalan pay (%)')+'<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
+    '</div><div data-source-settings-panel="finance"><h4>Komisyon ve Hakediş</h4><label>'+(isOwnWorkSource(source)?'Kaynağa ayrılan pay (%)':'Bize kalan pay (%)')+'<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
     '<p>Bu oran yeni fişlerde varsayılan pay olarak kullanılır. Eski fişlerin kaydedilmiş oranları korunur.</p>'+
     '<label>Hakediş açıklaması<input id="specialSourceHakedis" maxlength="120" value="'+escapeAttr(config.hakedisNote||"")+'" placeholder="Örn. Ay sonunda hesaplaşma"></label>'+
     '<label>Ödeme vadesi (gün)<input id="specialSourcePaymentDays" type="number" min="0" max="365" value="'+(Number.isInteger(config.paymentDays)?config.paymentDays:0)+'"></label>'+
     '<label>Ödeme kuralı<select id="specialSourcePaymentRule"><option value="manual" '+(config.paymentRule!=="on-close"?"selected":"")+'>Manuel hesaplaşma</option><option value="on-close" '+(config.paymentRule==="on-close"?"selected":"")+'>Fiş kapanınca hakediş</option></select></label>'+
     '<p>Ödeme vadesi ve kuralı şimdilik kaynak profilinde saklanır; mevcut tahsilatları veya kasa bakiyesini otomatik değiştirmez.</p></div></div>'+
     '<button type="button" class="primary-button" id="saveSpecialSourceSettings">✓ Kaynağın Ayarlarını Kaydet</button><span id="specialSourceSaveStatus" role="status"></span>');
+  showSourceSettingsTab(activeSourceSettingsTab);
   root.querySelector("#specialSourcePicker")?.addEventListener("change",e=>{selectedSourceSettingsName=e.target.value;renderSourceSpecialSettings();});
   root.querySelector("#saveSpecialSourceSettings")?.addEventListener("click",saveSourceSpecialSettings);
 }
