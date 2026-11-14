@@ -158,7 +158,8 @@ function migrateState(oldState) {
       dashboardCounters: dashboardCountersVersion < 3 ? ensureValues(currentCounters, ["Açık Fişler", "Toplam Servis"]) : currentCounters,
       dashboardCountersVersion: 3,
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
-      customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],\n      cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
+      customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
+      cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
       sources: withoutHiddenSources(ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]), hiddenSources),
       hiddenSources,
       cities: uniqueValues(oldState.settings?.cities || cities),
@@ -826,7 +827,9 @@ function bindEvents() {
       signOutApp();
       return;
     }
-    if(action==="edit-cash-slot"){editCashSlot(button.dataset.slot);return;}\n    if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;}\n    if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
+    if(action==="edit-cash-slot"){editCashSlot(button.dataset.slot);return;}
+    if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;}
+    if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
     if (action === "clear-custom-counter-form") { renderCustomCashCounterSettings(); return; }
     if (action === "toggle-custom-counter" || action === "delete-custom-counter") {
       if (isSourcePortal()) return;
@@ -4572,7 +4575,14 @@ function editCustomCounter(index) {
   });
   form.scrollIntoView({behavior:"smooth",block:"center"});
 }
-function editCashSlot(id){\n const c=cashSlotSettings().find(x=>x.id===id);if(!c)return;\n const form=document.querySelector("#customCounterForm");if(!form)return;\n form.elements.slot.value=id;form.elements.index.value="-1";form.elements.name.value=c.name;form.elements.color.value=c.color;form.elements.unit.value=c.unit;\n form.querySelectorAll("[data-sign]").forEach(el=>{const t=(c.terms||[]).find(t=>t.key===el.dataset.sign);el.value=t?String(t.sign===-1?-1:1):"0";});\n form.scrollIntoView({behavior:"smooth",block:"center"});\n}\nfunction renderCustomCashCounters(items) {
+function editCashSlot(id){
+ const c=cashSlotSettings().find(x=>x.id===id);if(!c)return;
+ const form=document.querySelector("#customCounterForm");if(!form)return;
+ form.elements.slot.value=id;form.elements.index.value="-1";form.elements.name.value=c.name;form.elements.color.value=c.color;form.elements.unit.value=c.unit;
+ form.querySelectorAll("[data-sign]").forEach(el=>{const t=(c.terms||[]).find(t=>t.key===el.dataset.sign);el.value=t?String(t.sign===-1?-1:1):"0";});
+ form.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function renderCustomCashCounters(items) {
   const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;
   renderSharedCashSlots(items);
   const counters=customCashCounters().filter(c=>c.visible!==false);
