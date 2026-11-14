@@ -1,5 +1,6 @@
 const STORAGE_KEY = "ekzen-servis-takip-v1";
 const CLOUD_STATE_PATH = "servis_takip_v2/state";
+const AUTH_EMAIL = "ekzen-giris@ekzen-teknik.app";
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyArRO3GilYemYHX8sJdzNqv-uG7V6LsskQ",
   authDomain: "ekzen-teknik.firebaseapp.com",
@@ -50,6 +51,12 @@ let cloudRef = null;
 let cloudReady = false;
 let cloudApplyingState = false;
 let cloudInitialHandled = false;
+let cloudWriteBlocked = false;
+let cloudSyncStarted = false;
+let cloudSyncStarting = false;
+let cloudSeedQueued = false;
+let cloudListenGeneration = 0;
+let authEpoch = 0;
 
 const views = {
   dashboard: document.querySelector("#dashboardView"),
@@ -96,13 +103,8 @@ const backupFileInput = document.querySelector("#backupFileInput");
 init();
 
 function init() {
-  fillSelects();
-  applySourcePortalMode();
   bindEvents();
-  setDefaultDates();
-  saveLocalState();
-  render();
-  initCloudSync();
+  startPinAuth();
 }
 
 function loadState() {
@@ -242,7 +244,7 @@ function normalizeStatusHistory(service) {
     id: uid(),
     date: toIsoDate(new Date(service.createdAt || new Date())),
     status: service.status || "Yeni Kayıt",
-    sortOrder: Number.isFinite(Number(service.sortOrder)) ? Number(service.sortOrder) : index,
+    sortOrder: Number.isFinite(Number(service.sortOrder)) ? Number(service.sortOrder) : 0,
     technician: service.technician || "",
     description: "İlk kayıt",
     createdAt: service.createdAt || new Date().toISOString(),
@@ -318,46 +320,377 @@ function saveLocalState() {
 
 function saveState() {
   saveLocalState();
-  if (!cloudRef || !cloudReady || cloudApplyingState) return;
+  if (!canSyncCloud()) return;
   cloudRef.set({
     updatedAt: new Date().toISOString(),
     state,
-  }).catch(() => {
+  }).catch((error) => {
+    if (isPermissionDenied(error)) {
+      denyCloudWrite();
+      return;
+    }
     console.warn("Firebase kaydı yapılamadı, yerel kayıt korundu.");
   });
 }
 
+function canSyncCloud() {
+  if (cloudWriteBlocked || !cloudRef || !cloudReady || cloudApplyingState) return false;
+  try {
+    return Boolean(window.firebase?.auth && firebase.auth().currentUser);
+  } catch (error) {
+    return false;
+  }
+}
+
+function isPermissionDenied(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return code === "PERMISSION_DENIED" || code === "permission-denied" || /permission/i.test(code) || /permission/i.test(message);
+}
+
+function denyCloudWrite() {
+  cloudReady = false;
+  cloudWriteBlocked = true;
+  showCloudAuthMessage("Bulut verisine erişim izni yok. Kayıt gönderilmedi.");
+}
+
+function showCloudAuthMessage(text) {
+  const el = document.querySelector("#cloudAuthMessage");
+  if (!el) return;
+  el.hidden = false;
+  el.textContent = text;
+}
+
+function hideCloudAuthMessage() {
+  const el = document.querySelector("#cloudAuthMessage");
+  if (!el) return;
+  el.hidden = true;
+  el.textContent = "";
+}
+
+function applyCloudData(data) {
+  const openDetailId = detailDialog.open ? activeDetailId : null;
+  cloudApplyingState = true;
+  state = migrateState(data.state);
+  activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
+  activeDashboardStat = "";
+  activeDashboardSource = "";
+  saveLocalState();
+  cloudApplyingState = false;
+  render();
+}
+
 function initCloudSync() {
-  if (!window.firebase?.database) return;
+  if (!window.firebase?.database || !window.firebase?.auth) return;
+  if (!firebase.auth().currentUser) return;
   try {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    hideCloudAuthMessage();
+    cloudWriteBlocked = false;
+    cloudReady = false;
+    cloudInitialHandled = false;
+    cloudSeedQueued = false;
+    cloudListenGeneration += 1;
+    const generation = cloudListenGeneration;
     cloudRef = firebase.database().ref(CLOUD_STATE_PATH);
     cloudRef.on("value", (snapshot) => {
+      if (generation !== cloudListenGeneration || cloudWriteBlocked) return;
+      if (!firebase.auth().currentUser) return;
       const data = snapshot.val();
       cloudReady = true;
 
       if (data?.state) {
-        const openDetailId = detailDialog.open ? activeDetailId : null;
-        cloudApplyingState = true;
-        state = migrateState(data.state);
-        activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
-        activeDashboardStat = "";
-        activeDashboardSource = "";
-        saveLocalState();
-        cloudApplyingState = false;
-        render();
-      } else if (!cloudInitialHandled) {
-        saveState();
+        try {
+          applyCloudData(data);
+        } catch (error) {
+          console.warn("Bulut verisi uygulanamadı.", error);
+        }
+        cloudInitialHandled = true;
+        return;
       }
 
-      cloudInitialHandled = true;
-    }, () => {
+      // İzin hatası boş kayıt gibi görünürse yerel durum buluta yazılmasın.
+      if (!cloudInitialHandled && !cloudSeedQueued) {
+        cloudSeedQueued = true;
+        queueMicrotask(() => {
+          cloudSeedQueued = false;
+          if (generation !== cloudListenGeneration || cloudWriteBlocked || cloudInitialHandled) return;
+          if (!canSyncCloud()) return;
+          saveState();
+          cloudInitialHandled = true;
+        });
+      }
+    }, (error) => {
+      if (generation !== cloudListenGeneration) return;
       cloudReady = false;
-      console.warn("Firebase bağlantısı kurulamadı, yerel kayıtla devam ediliyor.");
+      cloudWriteBlocked = true;
+      cloudSeedQueued = false;
+      if (isPermissionDenied(error)) {
+        showCloudAuthMessage("Bulut verisine erişim izni yok. Kayıt gönderilmedi.");
+        return;
+      }
+      const offline = isOfflineAuthError(error) || !navigator.onLine;
+      if (offline) showCloudAuthMessage("İnternet bağlantısı yok");
+      else console.warn("Firebase bağlantısı kurulamadı, yerel kayıtla devam ediliyor.");
     });
   } catch (error) {
     cloudReady = false;
     console.warn("Firebase başlatılamadı, yerel kayıtla devam ediliyor.");
+  }
+}
+
+function stopCloudSync() {
+  cloudListenGeneration += 1;
+  cloudReady = false;
+  cloudWriteBlocked = false;
+  cloudInitialHandled = false;
+  cloudSeedQueued = false;
+  cloudSyncStarted = false;
+  cloudSyncStarting = false;
+  if (cloudRef) {
+    try { cloudRef.off(); } catch (error) {}
+    cloudRef = null;
+  }
+}
+
+function pinPassword(pin) {
+  return "ekzen-pin-" + pin;
+}
+
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function isFourDigitPin(pin) {
+  return /^\d{4}$/.test(pin);
+}
+
+function isOfflineAuthError(error) {
+  const code = String(error?.code || "");
+  return code === "auth/network-request-failed" || code === "auth/timeout" || code === "auth/network-error" || code === "UNAVAILABLE" || code === "unavailable";
+}
+
+function authErrorMessage(error) {
+  const code = String(error?.code || "");
+  if (
+    code === "auth/wrong-password" ||
+    code === "auth/invalid-credential" ||
+    code === "auth/invalid-login-credentials" ||
+    code === "auth/user-not-found" ||
+    code === "auth/invalid-email" ||
+    code === "auth/user-mismatch"
+  ) return "Şifre yanlış";
+  if (code === "auth/too-many-requests") return "Çok fazla deneme, biraz bekleyin";
+  if (isOfflineAuthError(error) || !navigator.onLine) return "İnternet bağlantısı yok";
+  if (code === "auth/weak-password") return "PIN güncellenemedi.";
+  if (code === "auth/requires-recent-login") return "Tekrar giriş yapıp yeniden deneyin.";
+  return "Giriş yapılamadı.";
+}
+
+function setPinError(text) {
+  const el = document.querySelector("#pinError");
+  if (el) el.textContent = text || "";
+}
+
+function setPinChangeError(text) {
+  const el = document.querySelector("#pinChangeError");
+  if (el) el.textContent = text || "";
+}
+
+function currentPinValue() {
+  return onlyDigits(document.querySelector("#pinInput")?.value).slice(0, 4);
+}
+
+function updatePinBoxes() {
+  const value = currentPinValue();
+  const input = document.querySelector("#pinInput");
+  if (input && input.value !== value) input.value = value;
+  document.querySelectorAll("[data-pin-box]").forEach((box, index) => {
+    box.classList.toggle("is-filled", index < value.length);
+    box.classList.toggle("is-active", index === value.length);
+  });
+}
+
+function clearPinEntry() {
+  const input = document.querySelector("#pinInput");
+  if (input) input.value = "";
+  updatePinBoxes();
+}
+
+function revealApp() {
+  const wasLocked = !document.body.classList.contains("is-unlocked");
+  document.body.classList.add("is-unlocked");
+  clearPinEntry();
+  setPinError("");
+  if (!wasLocked) return;
+  try {
+    fillSelects();
+    applySourcePortalMode();
+    setDefaultDates();
+    saveLocalState();
+    render();
+  } catch (error) {
+    console.warn("Ekran çizilemedi.", error);
+  }
+}
+
+function lockApp() {
+  document.body.classList.remove("is-unlocked");
+  clearPinEntry();
+  setPinError("");
+  hideCloudAuthMessage();
+  const input = document.querySelector("#pinInput");
+  if (input) input.focus();
+}
+
+function ensureFirebaseApp() {
+  if (!window.firebase?.initializeApp) return false;
+  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  return true;
+}
+
+function startPinAuth() {
+  lockApp();
+  if (!window.firebase?.auth || !window.firebase?.initializeApp) {
+    setPinError("İnternet bağlantısı yok");
+    return;
+  }
+  try {
+    ensureFirebaseApp();
+    const auth = firebase.auth();
+    const persistence = firebase.auth.Auth?.Persistence?.LOCAL || "local";
+    Promise.resolve(auth.setPersistence(persistence)).then(watchAuthState, watchAuthState);
+  } catch (error) {
+    setPinError("İnternet bağlantısı yok");
+  }
+}
+
+function watchAuthState() {
+  if (!window.firebase?.auth) {
+    setPinError("İnternet bağlantısı yok");
+    return;
+  }
+  firebase.auth().onAuthStateChanged(handleAuthState);
+}
+
+function handleAuthState(user) {
+  const epoch = ++authEpoch;
+  if (!user) {
+    stopCloudSync();
+    lockApp();
+    return;
+  }
+  revealApp();
+  if (cloudSyncStarted || cloudSyncStarting) return;
+  cloudSyncStarting = true;
+  const tokenReady = typeof user.getIdToken === "function" ? user.getIdToken() : Promise.resolve();
+  Promise.resolve(tokenReady).then(() => {
+    cloudSyncStarting = false;
+    if (epoch !== authEpoch || !firebase.auth().currentUser || cloudSyncStarted) return;
+    cloudSyncStarted = true;
+    initCloudSync();
+  }).catch((error) => {
+    cloudSyncStarting = false;
+    if (epoch !== authEpoch) return;
+    showCloudAuthMessage(isOfflineAuthError(error) || !navigator.onLine
+      ? "İnternet bağlantısı yok"
+      : "Oturum doğrulanamadı. Kayıt gönderilmedi.");
+  });
+}
+
+async function submitPinLogin(event) {
+  event?.preventDefault();
+  const pin = currentPinValue();
+  if (!isFourDigitPin(pin)) {
+    setPinError("4 haneli şifre girin.");
+    return;
+  }
+  if (!window.firebase?.auth || !navigator.onLine) {
+    setPinError("İnternet bağlantısı yok");
+    clearPinEntry();
+    return;
+  }
+  const button = document.querySelector("#pinSubmit");
+  if (button) button.disabled = true;
+  setPinError("");
+  try {
+    await firebase.auth().signInWithEmailAndPassword(AUTH_EMAIL, pinPassword(pin));
+    clearPinEntry();
+  } catch (error) {
+    setPinError(authErrorMessage(error));
+    clearPinEntry();
+  } finally {
+    if (button) button.disabled = false;
+    document.querySelector("#pinInput")?.focus();
+  }
+}
+
+function signOutApp() {
+  if (!confirm("Çıkış yapılsın mı?")) return;
+  const auth = window.firebase?.auth?.();
+  stopCloudSync();
+  if (!auth?.signOut) {
+    lockApp();
+    return;
+  }
+  auth.signOut().catch(() => {
+    alert("Çıkış yapılamadı.");
+    if (auth.currentUser) handleAuthState(auth.currentUser);
+  });
+}
+
+function openPinChange() {
+  const dialog = document.querySelector("#pinChangeDialog");
+  const form = document.querySelector("#pinChangeForm");
+  if (!dialog || !form) return;
+  form.reset();
+  setPinChangeError("");
+  if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
+  form.elements.currentPin?.focus();
+}
+
+function closePinChange() {
+  const dialog = document.querySelector("#pinChangeDialog");
+  const form = document.querySelector("#pinChangeForm");
+  form?.reset();
+  setPinChangeError("");
+  if (dialog?.open) dialog.close();
+}
+
+async function submitPinChange(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const currentPin = onlyDigits(form.elements.currentPin.value);
+  const newPin = onlyDigits(form.elements.newPin.value);
+  const confirmPin = onlyDigits(form.elements.confirmPin.value);
+  if (!isFourDigitPin(currentPin) || !isFourDigitPin(newPin)) {
+    setPinChangeError("PIN 4 haneli olmalı.");
+    return;
+  }
+  if (newPin !== confirmPin) {
+    setPinChangeError("Yeni PIN eşleşmiyor.");
+    return;
+  }
+  const user = window.firebase?.auth?.().currentUser;
+  if (!user || !navigator.onLine) {
+    setPinChangeError(navigator.onLine ? "Oturum bulunamadı." : "İnternet bağlantısı yok");
+    return;
+  }
+  const button = form.querySelector("button[type='submit']");
+  if (button) button.disabled = true;
+  setPinChangeError("");
+  try {
+    const credential = firebase.auth.EmailAuthProvider.credential(AUTH_EMAIL, pinPassword(currentPin));
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(pinPassword(newPin));
+    form.reset();
+    closePinChange();
+    alert("PIN güncellendi.");
+  } catch (error) {
+    setPinChangeError(authErrorMessage(error));
+    form.reset();
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -429,6 +762,18 @@ function bindEvents() {
     if (action === "quick-source-filter") applyTopSourceFilter(button.dataset.source);
     if (action === "clear-top-source-filter") applyTopSourceFilter("");
     if (!action) return;
+    if (action === "sign-out") {
+      signOutApp();
+      return;
+    }
+    if (action === "change-pin") {
+      openPinChange();
+      return;
+    }
+    if (action === "close-pin-change") {
+      closePinChange();
+      return;
+    }
     if (isSourcePortal() && [
       "add-source", "edit-source", "delete-source", "add-setting-item", "edit-setting-item", "delete-setting-item", "move-setting-item", "export-backup", "choose-backup",
       "delete-service", "add-cash", "edit-cash", "delete-cash", "change-status", "add-note", "edit-note", "delete-note", "add-photo", "edit-photo", "delete-photo",
@@ -587,6 +932,20 @@ function bindEvents() {
     render();
     switchView("dashboard");
   });
+
+  document.querySelector("#pinForm")?.addEventListener("submit", submitPinLogin);
+  document.querySelector("#pinInput")?.addEventListener("input", updatePinBoxes);
+  document.querySelector("#pinKeypad")?.addEventListener("click", (event) => {
+    const key = event.target.closest("[data-pin-key]")?.dataset.pinKey;
+    if (!key) return;
+    const input = document.querySelector("#pinInput");
+    if (!input) return;
+    const digits = currentPinValue();
+    input.value = key === "back" ? digits.slice(0, -1) : (digits.length >= 4 ? digits : digits + key);
+    updatePinBoxes();
+    input.focus();
+  });
+  document.querySelector("#pinChangeForm")?.addEventListener("submit", submitPinChange);
 }
 
 function fillSelects() {
@@ -3360,6 +3719,13 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("tr-TR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
 }
 
+function formatDisplayDate(value) {
+  if (!value) return "-";
+  const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
+
 function formatDateTime(value) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("tr-TR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
@@ -3675,10 +4041,12 @@ function mobileRenderTechPanel() {
 
   const summary = document.querySelector("#mobileTechSummary");
   if (summary) summary.textContent = `${filterLabel} · ${currentCount} servis`;
-  document.querySelector("#mobileCountRemaining").textContent = counts.remaining;
+  const remainingCounter = document.querySelector("#mobileCountRemaining");
+  if (remainingCounter) remainingCounter.textContent = counts.remaining;
   const newCounter = document.querySelector("#mobileCountNew");
   if (newCounter) newCounter.textContent = counts.new;
-  document.querySelector("#mobileCountDone").textContent = counts.done;
+  const doneCounter = document.querySelector("#mobileCountDone");
+  if (doneCounter) doneCounter.textContent = counts.done;
   mobileRenderDailyCash();
   const activeMobileDate = mobileSelectedDate || isoToday;
   const pickerEl = document.querySelector("#mobileDatePicker");

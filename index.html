@@ -3,10 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.3.11</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.0-native-fix">
+  <title>Ekzen Servis Takip V5.3.12</title>
+  <link rel="stylesheet" href="./styles.css?v=5.3.12">
 </head>
 <body>
+  <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
+    <form id="pinForm" class="pin-card" autocomplete="off">
+      <div class="pin-logo" aria-hidden="true">ET</div>
+      <h1>Ekzen Servis Takip</h1>
+      <p>Devam etmek için 4 haneli şifreyi girin.</p>
+      <div class="pin-boxes">
+        <span class="pin-box is-active" data-pin-box></span>
+        <span class="pin-box" data-pin-box></span>
+        <span class="pin-box" data-pin-box></span>
+        <span class="pin-box" data-pin-box></span>
+        <input id="pinInput" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="4" pattern="[0-9]*" enterkeyhint="go" autofocus aria-label="4 haneli şifre">
+      </div>
+      <div class="pin-keypad" id="pinKeypad" aria-label="Rakam tuşları">
+        <button class="pin-key" type="button" data-pin-key="1">1</button>
+        <button class="pin-key" type="button" data-pin-key="2">2</button>
+        <button class="pin-key" type="button" data-pin-key="3">3</button>
+        <button class="pin-key" type="button" data-pin-key="4">4</button>
+        <button class="pin-key" type="button" data-pin-key="5">5</button>
+        <button class="pin-key" type="button" data-pin-key="6">6</button>
+        <button class="pin-key" type="button" data-pin-key="7">7</button>
+        <button class="pin-key" type="button" data-pin-key="8">8</button>
+        <button class="pin-key" type="button" data-pin-key="9">9</button>
+        <button class="pin-key" type="button" data-pin-key="back" aria-label="Sil">Sil</button>
+        <button class="pin-key" type="button" data-pin-key="0">0</button>
+        <span class="pin-key pin-key-blank" aria-hidden="true"></span>
+      </div>
+      <p id="pinError" class="pin-error" role="alert"></p>
+      <button id="pinSubmit" class="primary-button pin-submit" type="submit">Giriş</button>
+    </form>
+  </section>
+  <div id="cloudAuthMessage" class="cloud-auth-message" role="alert" hidden></div>
   <div class="app-shell admin-shell">
     <main class="workspace">
       <header class="topbar admin-topbar topbar-minimal topbar-fullnav">
@@ -215,6 +246,10 @@
             <button class="secondary-button" type="button" data-action="choose-backup">Yedekten Yükle</button>
             <input id="backupFileInput" type="file" accept="application/json,.json" hidden>
           </div>
+          <div class="backup-actions">
+            <button class="secondary-button" type="button" data-action="change-pin">PIN değiştir</button>
+            <button class="danger-button" type="button" data-action="sign-out">Çıkış yap</button>
+          </div>
           <form id="settingsForm" class="settings-form">
             <label>Firma Adı<input name="companyName" type="text"></label>
             <label>Yetkili<input name="ownerName" type="text"></label>
@@ -287,6 +322,10 @@
       </button>
 
       <button class="mobile-welcome-new-service" type="button" data-mobile-action="open-new-service">⊕ Yeni Fiş Aç</button>
+      <div class="mobile-auth-actions">
+        <button type="button" data-action="change-pin">PIN değiştir</button>
+        <button type="button" data-action="sign-out">Çıkış yap</button>
+      </div>
     </section>
     <header class="mobile-tech-header">
       <div class="mobile-summary-actions mobile-summary-actions-v505" aria-label="Teknisyen iş özeti">
@@ -451,6 +490,32 @@
         </div>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="pinChangeDialog" class="dialog small-dialog">
+    <form method="dialog" class="dialog-shell" id="pinChangeForm" autocomplete="off">
+      <header>
+        <h2>PIN değiştir</h2>
+        <button class="icon-button" type="button" data-action="close-pin-change" title="Kapat">×</button>
+      </header>
+      <div class="dialog-body cash-form-grid">
+        <label class="wide">Mevcut PIN
+          <input name="currentPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]*" required>
+        </label>
+        <label class="wide">Yeni PIN
+          <input name="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]*" required>
+        </label>
+        <label class="wide">Yeni PIN (tekrar)
+          <input name="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]*" required>
+        </label>
+        <p id="pinChangeError" class="pin-change-error wide" role="alert"></p>
+      </div>
+      <footer>
+        <span></span><span></span>
+        <button class="secondary-button" type="button" data-action="close-pin-change">Vazgeç</button>
+        <button class="primary-button" type="submit">Kaydet</button>
+      </footer>
+    </form>
   </dialog>
 
   <dialog id="serviceDialog" class="dialog">
@@ -755,7 +820,8 @@
     })();
   </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.11-kaynak-silme"></script>
+  <script src="./app.js?v=5.3.12"></script>
 </body>
 </html>

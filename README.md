@@ -68,3 +68,10 @@ Ekzen Servis Takip V5.3.0 Native Navigation - yeşil ekran düzeltmeli. V5.2.4.3
 - Eski bir kayıt düzenlenirken silinmiş kaynağı kaybolmaz, kayıtta korunur.
 - Aynı isimde kaynak tekrar eklenince listeye geri döner.
 - Silme onayında eski kayıtların korunduğu yazılır.
+
+## V5.3.12 PIN Girişi
+- Açılışta tam ekran 4 haneli PIN istenir. Doğru PIN, ortak hesapla Firebase Authentication oturumu açar.
+- Oturum açılmadan bulut eşitlemesi başlamaz. İzinsiz okuma, yerel veya boş veriyi buluta yazmaz.
+- Oturum cihazda kalır. PIN kaydedilmez ve yerel kayıtlar silinmez.
+- Ayarlara ve mobil ana sayfaya PIN değiştir ve çıkış yap eklendi.
+- Yanlış PIN, çok fazla deneme ve internet yok uyarıları Türkçe gösterilir.
