@@ -9124,3 +9124,10 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
 #sourceSpecialSettings .source-home-order-buttons{display:flex;gap:6px;flex:none}
 #sourceSpecialSettings .source-home-order-buttons button{min-width:38px;min-height:38px;border:1px solid #cad8e2;border-radius:9px;background:#f3f7fa;color:#1f5260;font-size:20px;cursor:pointer}
 #sourceSpecialSettings .source-home-order-buttons button:active{background:#dceeea}
+
+/* V5.3.70 — restore visible source counter names next to selection checkboxes */
+#settingsView #sourceSpecialSettings .source-home-order-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:12px!important;width:100%!important;box-sizing:border-box!important}
+#settingsView #sourceSpecialSettings .source-home-order-row .source-settings-checkbox{display:flex!important;flex-direction:row!important;justify-content:flex-start!important;align-items:center!important;gap:12px!important;width:auto!important;min-width:0!important;max-width:none!important;white-space:normal!important;text-align:left!important;padding:0!important;margin:0!important;position:static!important}
+#settingsView #sourceSpecialSettings .source-home-order-row .source-settings-checkbox input[type=checkbox]{display:block!important;position:static!important;flex:0 0 22px!important;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;margin:0!important}
+#settingsView #sourceSpecialSettings .source-home-counter-name{display:block!important;position:static!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;color:#1f2937!important;font-size:15px!important;font-weight:700!important;line-height:1.35!important;text-align:left!important;white-space:normal!important;overflow:visible!important;opacity:1!important}
+#settingsView #sourceSpecialSettings .source-home-order-buttons{display:flex!important;position:static!important;align-items:center!important;gap:6px!important}
