@@ -1,4 +1,27 @@
 const STORAGE_KEY = "ekzen-servis-takip-v1";
+const COUNTER_SETTINGS_LOCAL_KEY = "ekzen-counter-settings-v1";
+function loadLocalCounterSettings() {
+  try {
+    const saved=JSON.parse(localStorage.getItem(COUNTER_SETTINGS_LOCAL_KEY)||"null");
+    return saved && typeof saved==="object" ? saved : null;
+  } catch (_) { return null; }
+}
+function persistLocalCounterSettings() {
+  try {
+    localStorage.setItem(COUNTER_SETTINGS_LOCAL_KEY,JSON.stringify({
+      cashSlotSettings:state.settings.cashSlotSettings||[],
+      customCashCounters:state.settings.customCashCounters||[]
+    }));
+    return true;
+  } catch (_) { return false; }
+}
+function restoreLocalCounterSettings() {
+  const saved=loadLocalCounterSettings();
+  if(!saved||!state?.settings)return;
+  if(Array.isArray(saved.cashSlotSettings))state.settings.cashSlotSettings=saved.cashSlotSettings;
+  if(Array.isArray(saved.customCashCounters))state.settings.customCashCounters=saved.customCashCounters;
+}
+
 const CLOUD_STATE_PATH = "servis_takip_v2/state";
 const AUTH_EMAIL = "ekzen-giris@ekzen-teknik.app";
 const FIREBASE_CONFIG = {
@@ -386,6 +409,7 @@ function applyCloudData(data) {
   const openDetailId = detailDialog.open ? activeDetailId : null;
   cloudApplyingState = true;
   state = migrateState(data.state);
+  restoreLocalCounterSettings();
   activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
   activeDashboardStat = "";
   activeDashboardSource = "";
@@ -532,6 +556,7 @@ function clearPinEntry() {
 }
 
 function revealApp() {
+  restoreLocalCounterSettings();
   document.body.classList.remove("auth-checking");
   const wasLocked = !document.body.classList.contains("is-unlocked");
   document.body.classList.add("is-unlocked");
@@ -6424,19 +6449,25 @@ async function saveCustomCounterForm(form) {
     if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}
     list.push(counter);
   }
+  const settingsSaved=persistLocalCounterSettings();
   const localSaved=saveLocalState();
+  if(!settingsSaved && !localSaved){
+    alert("Kaydedilemedi. Cihaz depolama alanını kontrol edin.");
+    return;
+  }
+  renderCustomCashCounterSettings();
+  mobileRenderDailyCash();
   if(!canSyncCloud()){
-    alert(localSaved?"Değişiklik cihazda kaydedildi ancak bulut bağlantısı hazır değil. Sayfayı yenilemeden tekrar deneyin.":"Kaydedilemedi. Cihaz depolama alanını kontrol edin.");
+    alert("Değişiklikler bu cihazda kaydedildi. Bulut eşitlemesi şu anda kullanılamıyor.");
     return;
   }
   try {
     await cloudRef.set({updatedAt:new Date().toISOString(),state});
-    renderCustomCashCounterSettings();
-    mobileRenderDailyCash();
     alert("Değişiklikler kaydedildi.");
   } catch(error) {
+    console.warn("Sayaç ayarları buluta yazılamadı:",error?.code||error?.message||error);
     if(isPermissionDenied(error))denyCloudWrite();
-    alert("Kaydedilemedi. Bulut bağlantısını kontrol edip tekrar deneyin.");
+    alert("Değişiklikler bu cihazda kaydedildi, ancak buluta aktarılamadı ("+(error?.code||"bağlantı hatası")+").");
   }
 }
 document.addEventListener("submit",event=>{
