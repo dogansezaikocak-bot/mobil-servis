@@ -411,12 +411,8 @@ function applyCloudData(data) {
   cloudApplyingState = true;
   state = migrateState(data.state);
   const localCounterBackup=loadLocalCounterSettings();
-  const cloudTimestamp=Date.parse(data.updatedAt||"")||0;
-  const localTimestamp=Date.parse(localCounterBackup?.savedAt||"")||0;
-  if(localCounterBackup && localTimestamp>cloudTimestamp) {
+  if(localCounterBackup) {
     restoreLocalCounterSettings();
-  } else if(localCounterBackup) {
-    try {localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY);} catch (_) {}
   }
   activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
   activeDashboardStat = "";
@@ -6476,7 +6472,8 @@ async function saveCustomCounterForm(form) {
   } catch(error) {
     console.warn("Sayaç ayarları buluta yazılamadı:",error?.code||error?.message||error);
     if(isPermissionDenied(error))denyCloudWrite();
-    alert("Değişiklikler bu cihazda kaydedildi, ancak buluta aktarılamadı ("+(error?.code||"bağlantı hatası")+").");
+    const errorDetail=String(error?.message||error?.code||error||"Bilinmeyen hata").slice(0,350);
+    alert("Cihaza kaydedildi, buluta kaydedilemedi. Firebase hatası: "+errorDetail);
   }
 }
 document.addEventListener("submit",event=>{
