@@ -100,6 +100,7 @@
         </div>
 
         <div class="stat-row" id="dashboardCounters"></div>
+        <div id="desktopHomeCashCards" class="mobile-daily-counter-grid" hidden style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0"></div>
 
         <div id="planList" hidden></div>
       </section>
@@ -256,6 +257,7 @@
             <label>Adres<textarea name="address" rows="3"></textarea></label>
             <button class="primary-button" type="submit">Kaydet</button>
           </form>
+          <div id="homeLayoutSettings" class="custom-counter-settings"></div>
           <div id="customCashCounterSettings" class="custom-counter-settings"></div>
           <div id="settingsLists" class="settings-lists"></div>
         </section>
@@ -317,6 +319,7 @@
         </div>
       </dialog>
 
+      <div id="mobileHomeCashCards" class="mobile-daily-counter-grid" hidden style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 14px"></div>
       <div class="mobile-welcome-counter-grid" aria-label="Günlük servis sayaçları">
         <button type="button" class="mobile-welcome-counter open" data-welcome-target="open">
           <span>Günün İşleri</span>
@@ -874,6 +877,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.47-cash-counter-order"></script>
+  <script src="./app.js?v=5.3.48-home-layout"></script>
 </body>
 </html>
