@@ -884,11 +884,11 @@ function bindEvents() {
       const root=document.querySelector("#sourceSpecialSettings");
       if(!root)return;
       const source=selectedSourceSettingsName,config=sourceSpecialConfig(source);
-      const existing=Array.isArray(config.counterOrder)?config.counterOrder.slice():cashSlotSettings().map(c=>c.id);
+      const existing=Array.isArray(config.counterOrderByDevice?.[activeSourceCounterDeviceTab])?config.counterOrderByDevice[activeSourceCounterDeviceTab].slice():cashSlotSettings().map(c=>c.id);
       const i=existing.indexOf(button.dataset.slot),next=i+Number(button.dataset.direction);
       if(i<0||next<0||next>=existing.length)return;
       [existing[i],existing[next]]=[existing[next],existing[i]];
-      state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:{...config,counterOrder:existing}};
+      state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:{...config,counterOrderByDevice:{...(config.counterOrderByDevice||{}),[activeSourceCounterDeviceTab]:existing}}};
       saveLocalState();renderSourceSpecialSettings();
       if(canSyncCloud())cloudRef.update({"state/settings/sourceSpecialSettings":state.settings.sourceSpecialSettings,updatedAt:new Date().toISOString()}).catch(error=>console.warn("Kaynak sayaç sırası eşitlenemedi",error));
       return;
@@ -2868,6 +2868,7 @@ let activeSettingsTab="settingsSources";
 let activeSourceSettingsTab="counters";
 let activeHomeDeviceTab="mobile";
 let activeSourceHomeDeviceTab="mobile";
+let activeSourceCounterDeviceTab="mobile";
 function showSettingsTab(tab){
  const allowed=["settingsCompany","settingsHome","settingsCounters","settingsSources","settingsListsPanel","settingsSecurity"];
  if(!allowed.includes(tab))return;
@@ -2894,6 +2895,8 @@ function showSourceSettingsTab(tab){
 document.addEventListener("click",event=>{
  const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
  if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
+ const counterDevice=event.target.closest("#sourceSpecialSettings [data-source-counter-device-tab]");
+ if(counterDevice){activeSourceCounterDeviceTab=counterDevice.dataset.sourceCounterDeviceTab;document.querySelectorAll("#sourceSpecialSettings [data-source-counter-device-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.sourceCounterDeviceTab===activeSourceCounterDeviceTab));document.querySelectorAll("#sourceSpecialSettings [data-source-counter-device-panel]").forEach(p=>p.hidden=p.dataset.sourceCounterDevicePanel!==activeSourceCounterDeviceTab);return;}
  const sourceDevice=event.target.closest("#sourceSpecialSettings [data-source-home-device-tab]");
  if(sourceDevice){activeSourceHomeDeviceTab=sourceDevice.dataset.sourceHomeDeviceTab;document.querySelectorAll("#sourceSpecialSettings [data-source-home-device-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.sourceHomeDeviceTab===activeSourceHomeDeviceTab));document.querySelectorAll("#sourceSpecialSettings [data-source-device-panel]").forEach(p=>p.hidden=p.dataset.sourceDevicePanel!==activeSourceHomeDeviceTab);const note=document.querySelector("#sourceSpecialSettings .device-settings-notice strong");if(note)note.textContent=activeSourceHomeDeviceTab==="mobile"?"📱 Telefon":"💻 Mac / Masaüstü";return;}
  const tab=event.target.closest("#settingsView [data-settings-tab]");
@@ -4682,9 +4685,9 @@ function renderSharedCashSlots(items){
  income:"#mobileDailyPageIncome",commission:"#mobileDailyPageCommission",
  material:"#mobileDailyPageMaterial",expense:"#mobileDailyPageExpense"};
  const special=selectedSource?sourceSpecialConfig(selectedSource):{};
- const ordered=cashSlotSettings().slice().sort((a,b)=>{const ids=special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
+ const ordered=cashSlotSettings().slice().sort((a,b)=>{const ids=special.counterOrderByDevice?.mobile||special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
  ordered.forEach((base,index)=>{
-   const override=special.counters?.[base.id]||{};
+   const override=special.countersByDevice?.mobile?.[base.id]||special.counters?.[base.id]||{};
    const c={...base,...override};
    const node=document.querySelector(selectors[c.id]);
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
@@ -4738,8 +4741,8 @@ function renderSourceSpecialSettings(){
   if(!names.includes(selectedSourceSettingsName))selectedSourceSettingsName=names[0]||"";
   const source=selectedSourceSettingsName;
   const config=sourceSpecialConfig(source);
-  const overrides=config.counters||{};
-  const counterOrder=Array.isArray(config.counterOrder)?config.counterOrder:[];
+  const overrides=config.countersByDevice?.[activeSourceCounterDeviceTab]||config.counters||{};
+  const counterOrder=Array.isArray(config.counterOrderByDevice?.[activeSourceCounterDeviceTab])?config.counterOrderByDevice[activeSourceCounterDeviceTab]:(Array.isArray(config.counterOrder)?config.counterOrder:[]);
   const ordered=cashSlotSettings().slice().sort((a,b)=>{
     const ai=counterOrder.indexOf(a.id),bi=counterOrder.indexOf(b.id);
     return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);
@@ -4754,7 +4757,7 @@ function renderSourceSpecialSettings(){
       '<label>Özel ad<input data-special-name value="'+escapeAttr(o.name||"")+'" placeholder="'+escapeAttr(c.name)+'"></label>'+
       '<label>Renk<input data-special-color type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(o.color)?o.color:c.color)+'"></label>'+
       '<label class="source-settings-checkbox"><input data-special-visible type="checkbox" '+(o.visible!==false?"checked":"")+'> Göster</label></div>';
-    }).join("")+'</div><div data-source-settings-panel="home"><h4>Mac ve Telefon Ana Sayfası</h4><p>Bu kaynak seçildiğinde görünecek sayaçları belirleyin.</p>'+
+    }).join("")+'</div></div><div data-source-settings-panel="home"><h4>Mac ve Telefon Ana Sayfası</h4><p>Bu kaynak seçildiğinde görünecek sayaçları belirleyin.</p>'+
     '<nav class="device-settings-tabs"><button type="button" data-source-home-device-tab="mobile" class="'+(activeSourceHomeDeviceTab==='mobile'?'is-active':'')+'">📱 Telefon</button><button type="button" data-source-home-device-tab="desktop" class="'+(activeSourceHomeDeviceTab==='desktop'?'is-active':'')+'">💻 Mac / Masaüstü</button></nav><p class="device-settings-notice">Şu anda: <strong>'+(activeSourceHomeDeviceTab==='mobile'?'📱 Telefon':'💻 Mac / Masaüstü')+'</strong></p>'+ 
     ["desktop","mobile"].map(device=>{
       const chosen=Array.isArray(config.homeLayout?.[device])?config.homeLayout[device]:homeLayout(device);
@@ -4791,7 +4794,7 @@ async function saveSourceSpecialSettings(){
   ["desktop","mobile"].forEach(device=>{
     homeLayoutConfig[device]=[...root.querySelectorAll('[data-special-home="'+device+'"]:checked')].map(el=>el.value);
   });
-  const config={...old,counters,homeLayout:homeLayoutConfig,
+  const config={...old,countersByDevice:{...(old.countersByDevice||{}),[activeSourceCounterDeviceTab]:counters},homeLayout:homeLayoutConfig,
     hakedisNote:root.querySelector("#specialSourceHakedis").value.trim().slice(0,120),
     paymentDays:days,paymentRule:root.querySelector("#specialSourcePaymentRule").value};
   state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:config};
@@ -4835,7 +4838,7 @@ function renderHomeCashCards(device,items){
   root.innerHTML=ids.map(id=>{
     const c=slots.find(x=>x.id===id);
     if(!c)return "";
-    const override=special.counters?.[id]||{};
+    const override=special.countersByDevice?.[device]?.[id]||special.counters?.[id]||{};
     if(override.visible===false)return "";
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
     const value=customCashValue(c,context);
