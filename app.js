@@ -4096,7 +4096,11 @@ function mobileStatusBucket(status) {
 }
 
 function mobileIsDoneService(service) {
-  return isStatus(service.status, "İşlem Tamam") || isClosed(service.status);
+  // Fiş kapatıldığında ödeme bekliyor olsa bile günlük işlerden çıkar.
+  // Tahsilat durumu korunur; yalnızca mobil açık/kapalı fiş sınıflaması değişir.
+  return isStatus(service.status, "İşlem Tamam")
+    || isStatus(service.status, "Ödeme Bekliyor")
+    || isClosed(service.status);
 }
 
 function mobileIsRemainingService(service) {
