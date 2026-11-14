@@ -8957,3 +8957,9 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
  #settingsView .source-settings-tabs{display:grid;grid-template-columns:1fr}
  #settingsView .source-settings-tabs button{text-align:left}
 }
+
+/* V5.3.52 — device identity for layout editing */
+#settingsView .device-settings-tabs{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}
+#settingsView .device-settings-tabs button{flex:1 1 170px;min-height:52px;padding:12px 15px;border:2px solid #dbe5eb;border-radius:13px;background:#fff;color:#315369;font-weight:800;font-size:14px;cursor:pointer}
+#settingsView .device-settings-tabs button.is-active{background:#e4f6f0;color:#086457;border-color:#0e907c;box-shadow:0 2px 9px #0f766e1a}
+#settingsView .device-settings-notice{padding:11px 14px;border-left:4px solid #0e907c;background:#effaf6;border-radius:8px;color:#285d57;font-size:13px}
