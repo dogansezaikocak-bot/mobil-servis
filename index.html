@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.49-settings-redesign">
+  <link rel="stylesheet" href="./styles.css?v=5.3.50-source-settings">
 </head>
 <body class="auth-checking">
   <section id="pinScreen" class="pin-screen" aria-label="Giriş ve oturum kontrolü">
@@ -246,7 +246,7 @@
           <nav class="settings-quick-nav" aria-label="Ayar bölümleri">
             <a href="#settingsCompany">🏢 İşletme</a>
             <a href="#settingsHome">▦ Ana sayfa</a>
-            <a href="#settingsCounters">◉ Sayaçlar</a>
+            <a href="#settingsCounters">◉ Sayaçlar</a><a href="#settingsSources">♧ Kaynağa özel</a>
             <a href="#settingsLists">☷ Listeler</a>
             <a href="#settingsSecurity">🔒 Güvenlik</a>
           </nav>
@@ -269,6 +269,7 @@
             <div class="settings-section-head"><div class="settings-section-icon">◉</div><div><h3>Kasa Sayaçları</h3><p>Renkleri, isimleri, sıralamayı ve hesaplamaları yönetin.</p></div></div>
             <div id="customCashCounterSettings" class="custom-counter-settings"></div>
           </section>
+          <section class="settings-section" id="settingsSources"><div class="settings-section-head"><div class="settings-section-icon">♧</div><div><h3>Kaynağa Özel Ayarlar</h3><p>Her servis kaynağının sayaç, ekran ve mali kurallarını ayrı yönetin.</p></div></div><div id="sourceSpecialSettings" class="custom-counter-settings"></div></section>
           <section class="settings-section" id="settingsSecurity">
             <div class="settings-section-head"><div class="settings-section-icon">🔒</div><div><h3>Güvenlik ve Yedekleme</h3><p>Verilerinizi yedekleyin ve oturumunuzu yönetin.</p></div></div>
             <div class="settings-action-grid">
@@ -898,6 +899,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.48-home-layout"></script>
+  <script src="./app.js?v=5.3.50-source-settings"></script>
 </body>
 </html>
