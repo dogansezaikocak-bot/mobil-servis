@@ -4844,7 +4844,7 @@ function renderHomeCashCards(device,items){
     const value=customCashValue(c,context);
     const pendingDetail=id==="payment" ? '<small class="home-pending-amount">₺'+escapeHtml(new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0))+'</small>' : "";
     const displayValue=id==="payment" ? escapeHtml(String(value)+" fiş") : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
-    return '<div class="mobile-daily-counter" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</div>';
+    return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" aria-label="'+escapeAttr(override.name||c.name)+' ayrıntılarını aç" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
   }).join("");
 }
 
@@ -6481,6 +6481,20 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   }
 
   document.addEventListener("click", (event) => {
+    const addedCashCounter=event.target.closest("#mobileHomeCashCards [data-home-cash-slot]");
+    if(addedCashCounter){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const slot=addedCashCounter.dataset.homeCashSlot;
+      if(slot==="payment"){showList("payment");return;}
+      mobileCashDetailFilter=({income:"income",commission:"commission",material:"material",expense:"all",profit:"all"})[slot]||"all";
+      showCash();
+      if(mobileCashDetailFilter!=="all"){
+        mobileRenderDailyCash();
+        document.querySelector("#mobileCashMovementHeading")?.scrollIntoView({behavior:"smooth",block:"start"});
+      }
+      return;
+    }
     const counter = event.target.closest("#mobileWelcomePage [data-welcome-target]");
     if (counter) {
       event.preventDefault();
