@@ -4842,7 +4842,7 @@ function renderHomeCashCards(device,items){
     if(override.visible===false)return "";
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
     const value=customCashValue(c,context);
-    return '<div class="mobile-daily-counter" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+escapeHtml(c.unit==="count"?String(value):money(value))+'</b></div>';
+    return '<div class="mobile-daily-counter" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+escapeHtml(c.unit==="count"?String(value):(device==="mobile"?new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)))+'</b></div>';
   }).join("");
 }
 
