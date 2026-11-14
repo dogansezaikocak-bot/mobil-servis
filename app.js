@@ -884,7 +884,7 @@ function bindEvents() {
       const root=document.querySelector("#sourceSpecialSettings");
       if(!root)return;
       const source=selectedSourceSettingsName,config=sourceSpecialConfig(source);
-      const existing=Array.isArray(config.counterOrderByDevice?.[activeSourceCounterDeviceTab])?config.counterOrderByDevice[activeSourceCounterDeviceTab].slice():cashSlotSettings().map(c=>c.id);
+      const existing=Array.isArray(config.counterOrderByDevice?.[activeSourceCounterDeviceTab])?config.counterOrderByDevice[activeSourceCounterDeviceTab].slice():allHomeCashSlots().map(c=>c.id);
       const i=existing.indexOf(button.dataset.slot),next=i+Number(button.dataset.direction);
       if(i<0||next<0||next>=existing.length)return;
       [existing[i],existing[next]]=[existing[next],existing[i]];
@@ -901,7 +901,7 @@ function bindEvents() {
       const ids=homeLayout(device);
       const index=ids.indexOf(id);
       if(action==="home-layout-toggle"){
-        if(index>=0)ids.splice(index,1);else if(CASH_SLOT_DEFAULTS.some(x=>x.id===id))ids.push(id);
+        if(index>=0)ids.splice(index,1);else if(allHomeCashSlots().some(x=>x.id===id))ids.push(id);
       }else{
         const next=index+Number(button.dataset.direction);
         if(index<0||next<0||next>=ids.length)return;
@@ -4685,7 +4685,7 @@ function renderSharedCashSlots(items){
  income:"#mobileDailyPageIncome",commission:"#mobileDailyPageCommission",
  material:"#mobileDailyPageMaterial",expense:"#mobileDailyPageExpense"};
  const special=selectedSource?sourceSpecialConfig(selectedSource):{};
- const ordered=cashSlotSettings().slice().sort((a,b)=>{const ids=special.counterOrderByDevice?.mobile||special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
+ const ordered=allHomeCashSlots().slice().sort((a,b)=>{const ids=special.counterOrderByDevice?.mobile||special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
  ordered.forEach((base,index)=>{
    const override=special.countersByDevice?.mobile?.[base.id]||special.counters?.[base.id]||{};
    const c={...base,...override};
@@ -4725,9 +4725,12 @@ function renderSharedCashSlots(items){
 
 
 const HOME_LAYOUT_DEFAULTS={desktop:[],mobile:[]};
+function allHomeCashSlots(){
+ return [...cashSlotSettings(),...customCashCounters().map((c,i)=>({...c,id:"custom-"+i,order:100+i}))];
+}
 function homeLayout(device){
   const raw=state.settings?.homeLayout?.[device];
-  const valid=new Set(CASH_SLOT_DEFAULTS.map(x=>x.id));
+  const valid=new Set(allHomeCashSlots().map(x=>x.id));
   return Array.isArray(raw)?[...new Set(raw.filter(id=>valid.has(id)))]:[];
 }
 
@@ -4737,7 +4740,7 @@ function sourceSpecialConfig(source){
 }
 function renderSourceSpecialSettings(){
   const root=document.querySelector("#sourceSpecialSettings");if(!root)return;
-  const names=settingsList("sources");
+  const names=[...new Set([...settingsList("sources"),...(state.services||[]).map(s=>s.source).filter(Boolean)])];
   if(!names.includes(selectedSourceSettingsName))selectedSourceSettingsName=names[0]||"";
   const source=selectedSourceSettingsName;
   const config=sourceSpecialConfig(source);
@@ -4773,15 +4776,19 @@ function renderSourceSpecialSettings(){
     '<button type="button" class="primary-button" id="saveSpecialSourceSettings">✓ Kaynağın Ayarlarını Kaydet</button><span id="specialSourceSaveStatus" role="status"></span>');
   showSourceSettingsTab(activeSourceSettingsTab);
   root.querySelector("#specialSourcePicker")?.addEventListener("change",e=>{selectedSourceSettingsName=e.target.value;renderSourceSpecialSettings();});
-  root.querySelector("#saveSpecialSourceSettings")?.addEventListener("click",saveSourceSpecialSettings);
+  root.querySelector("#saveSpecialSourceSettings")?.addEventListener("click",event=>{event.preventDefault();saveSourceSpecialSettings();});
 }
 async function saveSourceSpecialSettings(){
   const source=selectedSourceSettingsName;
   const root=document.querySelector("#sourceSpecialSettings");
   if(!source||!root)return;
+  const saveButton=root.querySelector("#saveSpecialSourceSettings");
+  const statusBefore=root.querySelector("#specialSourceSaveStatus");
+  if(saveButton){saveButton.disabled=true;saveButton.textContent="Kaydediliyor…";}
+  if(statusBefore)statusBefore.textContent=" Kaydediliyor…";
   const rate=Number(root.querySelector("#specialSourceRate").value);
   const days=Number(root.querySelector("#specialSourcePaymentDays").value);
-  if(!Number.isFinite(rate)||rate<0||rate>100||!Number.isInteger(days)||days<0||days>365){alert("Pay 0–100, ödeme vadesi 0–365 arasında olmalı.");return;}
+  if(!Number.isFinite(rate)||rate<0||rate>100||!Number.isInteger(days)||days<0||days>365){alert("Pay 0–100, ödeme vadesi 0–365 arasında olmalı.");if(saveButton){saveButton.disabled=false;saveButton.textContent="✓ Kaynağın Ayarlarını Kaydet";}return;}
   const old=sourceSpecialConfig(source);
   const counters={};
   root.querySelectorAll("[data-special-counter]").forEach(row=>{
@@ -4799,9 +4806,10 @@ async function saveSourceSpecialSettings(){
     paymentDays:days,paymentRule:root.querySelector("#specialSourcePaymentRule").value};
   state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:config};
   state.settings.sourceCommissionRates={...(state.settings.sourceCommissionRates||{}),[source]:rate};
-  saveLocalState();
+  const savedLocally=saveLocalState();
   renderSourceSpecialSettings();renderDashboard();mobileRenderDailyCash();
   const status=document.querySelector("#specialSourceSaveStatus");
+  if(status)status.textContent=savedLocally?" ✓ Bu cihaza kaydedildi.":" Yerel kayıt yapılamadı.";
   if(!canSyncCloud()){if(status)status.textContent=" Cihaza kaydedildi; bulut bağlantısı yok.";return;}
   try{
     await cloudRef.update({"state/settings/sourceSpecialSettings":state.settings.sourceSpecialSettings,
@@ -4815,7 +4823,7 @@ function renderHomeLayoutSettings(){
   root.innerHTML='<h3>Ana Sayfa Düzeni</h3><p>Önce hangi cihazı düzenleyeceğinizi seçin. Değişiklik yalnızca seçtiğiniz cihazın ana sayfasına uygulanır.</p><nav class="device-settings-tabs"><button type="button" data-home-device-tab="mobile" class="'+(activeHomeDeviceTab==='mobile'?'is-active':'')+'">📱 Telefon</button><button type="button" data-home-device-tab="desktop" class="'+(activeHomeDeviceTab==='desktop'?'is-active':'')+'">💻 Mac / Masaüstü</button></nav><p class="device-settings-notice">Şu anda: <strong>'+(activeHomeDeviceTab==='mobile'?'📱 Telefon ana sayfası':'💻 Mac ana sayfası')+'</strong></p>'+
     [activeHomeDeviceTab].map(device=>{
       const ids=homeLayout(device);
-      const available=cashSlotSettings();
+      const available=allHomeCashSlots();
       return '<h4>'+(device==="desktop"?"Mac ana sayfası":"Telefon ana sayfası")+'</h4><div class="custom-counter-list">'+
         available.map(c=>{
           const i=ids.indexOf(c.id),selected=i>=0;
@@ -4832,7 +4840,7 @@ function renderHomeCashCards(device,items){
   const root=document.querySelector(device==="desktop"?"#desktopHomeCashCards":"#mobileHomeCashCards");
   if(!root)return;
   const ids=Array.isArray(special.homeLayout?.[device])?special.homeLayout[device]:homeLayout(device);
-  const slots=cashSlotSettings();
+  const slots=allHomeCashSlots();
   const context=customCashContext(items);
   root.hidden=!ids.length;
   root.innerHTML=ids.map(id=>{
