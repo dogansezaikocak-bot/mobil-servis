@@ -2866,6 +2866,8 @@ function customerCashBalance(items = state.cash) {
 
 let activeSettingsTab="settingsSources";
 let activeSourceSettingsTab="counters";
+let activeHomeDeviceTab="mobile";
+let activeSourceHomeDeviceTab="mobile";
 function showSettingsTab(tab){
  const allowed=["settingsCompany","settingsHome","settingsCounters","settingsSources","settingsListsPanel","settingsSecurity"];
  if(!allowed.includes(tab))return;
@@ -2890,6 +2892,10 @@ function showSourceSettingsTab(tab){
  });
 }
 document.addEventListener("click",event=>{
+ const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
+ if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
+ const sourceDevice=event.target.closest("#sourceSpecialSettings [data-source-home-device-tab]");
+ if(sourceDevice){activeSourceHomeDeviceTab=sourceDevice.dataset.sourceHomeDeviceTab;renderSourceSpecialSettings();return;}
  const tab=event.target.closest("#settingsView [data-settings-tab]");
  if(tab){showSettingsTab(tab.dataset.settingsTab);return;}
  const sub=event.target.closest("#sourceSpecialSettings [data-source-settings-tab]");
@@ -4749,9 +4755,10 @@ function renderSourceSpecialSettings(){
       '<label>Renk<input data-special-color type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(o.color)?o.color:c.color)+'"></label>'+
       '<label class="source-settings-checkbox"><input data-special-visible type="checkbox" '+(o.visible!==false?"checked":"")+'> Göster</label></div>';
     }).join("")+'</div><div data-source-settings-panel="home"><h4>Mac ve Telefon Ana Sayfası</h4><p>Bu kaynak seçildiğinde görünecek sayaçları belirleyin.</p>'+
+    '<nav class="device-settings-tabs"><button type="button" data-source-home-device-tab="mobile" class="'+(activeSourceHomeDeviceTab==='mobile'?'is-active':'')+'">📱 Telefon</button><button type="button" data-source-home-device-tab="desktop" class="'+(activeSourceHomeDeviceTab==='desktop'?'is-active':'')+'">💻 Mac / Masaüstü</button></nav><p class="device-settings-notice">Şu anda: <strong>'+(activeSourceHomeDeviceTab==='mobile'?'📱 Telefon':'💻 Mac / Masaüstü')+'</strong></p>'+ 
     ["desktop","mobile"].map(device=>{
       const chosen=Array.isArray(config.homeLayout?.[device])?config.homeLayout[device]:homeLayout(device);
-      return '<div class="source-settings-device"><strong>'+(device==="desktop"?"Mac":"Telefon")+'</strong>'+
+      return '<div class="source-settings-device" data-source-device-panel="'+device+'" '+(device!==activeSourceHomeDeviceTab?'hidden':'')+'><strong>'+(device==="desktop"?"💻 Mac / Masaüstü":"📱 Telefon")+'</strong>'+
       ordered.map(c=>'<label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+c.id+'" '+(chosen.includes(c.id)?"checked":"")+'> '+escapeHtml(overrides[c.id]?.name||c.name)+'</label>').join("")+'</div>';
     }).join("")+
     '</div><div data-source-settings-panel="finance"><h4>Komisyon ve Hakediş</h4><label>'+(isOwnWorkSource(source)?'Kaynağa ayrılan pay (%)':'Bize kalan pay (%)')+'<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
@@ -4802,8 +4809,8 @@ async function saveSourceSpecialSettings(){
 
 function renderHomeLayoutSettings(){
   const root=document.querySelector("#homeLayoutSettings");if(!root)return;
-  root.innerHTML='<h3>Ana Sayfa Düzeni</h3><p>Mac ve telefon ana sayfasına eklemek istediğiniz kasa sayaçlarını ayrı seçin. Oklarla sıralayın. Mevcut ana sayfa bölümleri korunur.</p>'+
-    ["desktop","mobile"].map(device=>{
+  root.innerHTML='<h3>Ana Sayfa Düzeni</h3><p>Önce hangi cihazı düzenleyeceğinizi seçin. Değişiklik yalnızca seçtiğiniz cihazın ana sayfasına uygulanır.</p><nav class="device-settings-tabs"><button type="button" data-home-device-tab="mobile" class="'+(activeHomeDeviceTab==='mobile'?'is-active':'')+'">📱 Telefon</button><button type="button" data-home-device-tab="desktop" class="'+(activeHomeDeviceTab==='desktop'?'is-active':'')+'">💻 Mac / Masaüstü</button></nav><p class="device-settings-notice">Şu anda: <strong>'+(activeHomeDeviceTab==='mobile'?'📱 Telefon ana sayfası':'💻 Mac ana sayfası')+'</strong></p>'+
+    [activeHomeDeviceTab].map(device=>{
       const ids=homeLayout(device);
       const available=cashSlotSettings();
       return '<h4>'+(device==="desktop"?"Mac ana sayfası":"Telefon ana sayfası")+'</h4><div class="custom-counter-list">'+
