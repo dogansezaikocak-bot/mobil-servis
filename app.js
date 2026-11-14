@@ -3343,6 +3343,9 @@ function openSourceForm(name = "") {
     sourceDialog.querySelector("[data-action='delete-source']").style.visibility = "visible";
     document.querySelector("#sourceDialogTitle").textContent = "Kaynak Düzenle";
   }
+  if (!name && sourceForm.elements.commissionRate) {
+    sourceForm.elements.commissionRate.value = "50";
+  }
   sourceDialog.showModal();
 }
 
@@ -3350,6 +3353,10 @@ function saveSource(formData) {
   const data = Object.fromEntries(formData);
   const name = data.name.trim();
   if (!name) return;
+  if (data.commissionRate === "" || !Number.isFinite(Number(data.commissionRate)) || Number(data.commissionRate) < 0 || Number(data.commissionRate) > 100) {
+    alert("Komisyon oranı 0 ile 100 arasında olmalı.");
+    return;
+  }
   if (!state.settings.sourcePhones) state.settings.sourcePhones = {};
   if (!state.settings.sourceCommissionRates) state.settings.sourceCommissionRates = {};
   const oldRate = data.oldName ? sourceCommissionShare(data.oldName) : 50;
