@@ -4447,6 +4447,14 @@ function mobileRenderDailyCash() {
   setText("#mobileDailyPageMaterial", money(totals.material));
   setText("#mobileDailyPageExpense", money(totals.manualExpense));
   setText("#mobileDailyPageProfit", money(profit));
+  const pendingCount = (state.services || []).filter((service) =>
+    matchesPortalSource(service.source) &&
+    (!mobileCashSource || sourceMatches(service.source, mobileCashSource)) &&
+    (isStatus(service.status, "Ödeme Bekliyor") ||
+      ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || "")))
+  ).length;
+  // Bekleyen ödemeler tarih aralığından bağımsızdır.
+  setText("#mobileCashPaymentCount", String(pendingCount));
 
   const label = startDate && endDate && startDate === endDate
     ? (startDate === isoToday ? `Bugün · ${formatDisplayDate(startDate)}` : formatDisplayDate(startDate))
@@ -5946,6 +5954,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  window.ekzenMobileNavigatePayment = () => showList("payment");
+
   function showCash() {
     ensureNativePageShell();
     root.classList.remove("is-welcome-mode", "is-list-mode");
@@ -6103,3 +6113,18 @@ if (ekzenV538CashForm) {
     }, 80);
   });
 }
+
+/* V5.3.20 — Kasa sayacı tıklama davranışları */
+document.addEventListener("click", function(event) {
+  const payment = event.target.closest("#mobileCashPaymentCounter");
+  if (payment) {
+    event.preventDefault();
+    window.ekzenMobileNavigatePayment?.();
+    return;
+  }
+  const profit = event.target.closest("#mobileCashProfitCounter");
+  if (profit) {
+    event.preventDefault();
+    document.querySelector("#mobileDailyCashMovementList")?.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+});
