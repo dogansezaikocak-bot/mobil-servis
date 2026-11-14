@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ekzen Servis Takip V5.3.15</title>
+  <title>Ekzen Servis Takip V5.3.16</title>
   <link rel="stylesheet" href="./styles.css?v=5.3.13">
 </head>
 <body>
@@ -306,6 +306,16 @@
           <span>Kapanan Fişler</span>
           <strong><b id="mobileWelcomeClosedCount">0</b> fiş</strong>
           <small>Kapananları görüntüle</small>
+        </button>
+        <button type="button" class="mobile-welcome-counter payment" data-welcome-target="payment">
+          <span>Ödeme Bekliyor</span>
+          <strong><b id="mobileWelcomePaymentCount">0</b> fiş</strong>
+          <small>Bekleyen ödemeleri görüntüle</small>
+        </button>
+        <button type="button" class="mobile-welcome-counter profit" data-welcome-target="profit">
+          <span>Kazanç</span>
+          <strong><b id="mobileWelcomeProfitCount">₺0</b></strong>
+          <small>Kasa detayını görüntüle</small>
         </button>
       </div>
 
@@ -843,6 +853,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.15-payment-mobile-20261114"></script>
+  <script src="./app.js?v=5.3.16-counters-delete-20261114"></script>
 </body>
 </html>
