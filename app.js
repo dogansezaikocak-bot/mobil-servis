@@ -228,26 +228,37 @@ function normalizeCashCounters(counters) {
   return normalized;
 }
 
+function safeDateIso(value) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(value))) return String(value).slice(0, 10);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  try { return toIsoDate(parsed); } catch (error) { return ""; }
+}
+
 function normalizeStatusHistory(service) {
-  if (Array.isArray(service.statusHistory) && service.statusHistory.length) {
-    return service.statusHistory.map((item) => ({
-      id: item.id || uid(),
-      date: item.date || toIsoDate(new Date(item.at || service.createdAt || new Date())),
-      status: item.status || service.status || "Yeni Kayıt",
-      technician: item.technician || service.technician || "",
-      description: item.description || item.text || "",
-      createdAt: item.createdAt || item.at || new Date().toISOString(),
-    }));
-  }
+  const rawHistory = service?.statusHistory;
+  const history = Array.isArray(rawHistory)
+    ? rawHistory
+    : (rawHistory && typeof rawHistory === "object" ? Object.values(rawHistory) : []);
+  const normalized = history.filter((item) => item && typeof item === "object").map((item) => ({
+    id: item.id || uid(),
+    date: safeDateIso(item.date) || safeDateIso(item.at) || safeDateIso(item.createdAt) || safeDateIso(service?.createdAt) || isoToday,
+    status: item.status || service?.status || "Yeni Kayıt",
+    technician: item.technician || service?.technician || "",
+    description: item.description || item.text || "",
+    createdAt: item.createdAt || item.at || new Date().toISOString(),
+  }));
+  if (normalized.length) return normalized;
 
   return [{
     id: uid(),
-    date: toIsoDate(new Date(service.createdAt || new Date())),
-    status: service.status || "Yeni Kayıt",
-    sortOrder: Number.isFinite(Number(service.sortOrder)) ? Number(service.sortOrder) : 0,
-    technician: service.technician || "",
+    date: safeDateIso(service?.createdAt) || isoToday,
+    status: service?.status || "Yeni Kayıt",
+    sortOrder: Number.isFinite(Number(service?.sortOrder)) ? Number(service.sortOrder) : 0,
+    technician: service?.technician || "",
     description: "İlk kayıt",
-    createdAt: service.createdAt || new Date().toISOString(),
+    createdAt: service?.createdAt || new Date().toISOString(),
   }];
 }
 
@@ -534,13 +545,59 @@ function revealApp() {
   }
 }
 
+function isMobilePinLayout() {
+  return Boolean(window.matchMedia?.("(max-width: 820px)").matches);
+}
+
+function configurePinInputs() {
+  const input = document.querySelector("#pinInput");
+  if (input) {
+    input.readOnly = true;
+    input.setAttribute("readonly", "");
+    input.setAttribute("inputmode", "none");
+    input.setAttribute("autocomplete", "off");
+    input.blur();
+  }
+  const mobile = isMobilePinLayout();
+  document.querySelectorAll("#pinChangeForm input").forEach((field) => {
+    field.readOnly = mobile;
+    if (mobile) {
+      field.setAttribute("readonly", "");
+      field.setAttribute("inputmode", "none");
+      field.blur();
+    } else {
+      field.readOnly = false;
+      field.removeAttribute("readonly");
+      field.setAttribute("inputmode", "numeric");
+    }
+  });
+  const keypad = document.querySelector("#pinChangeKeypad");
+  if (keypad) keypad.hidden = !mobile;
+}
+
+function setPinChangeTarget(input) {
+  document.querySelectorAll("#pinChangeForm input").forEach((field) => field.classList.remove("is-pin-target"));
+  input?.classList.add("is-pin-target");
+}
+
+function activePinChangeInput() {
+  return document.querySelector("#pinChangeForm input.is-pin-target") || document.querySelector("#pinChangeForm [name='currentPin']");
+}
+
+function applyPinChangeKey(key) {
+  const input = activePinChangeInput();
+  if (!input) return;
+  const digits = onlyDigits(input.value).slice(0, 4);
+  input.value = key === "back" ? digits.slice(0, -1) : (digits.length >= 4 ? digits : digits + key);
+  setPinChangeTarget(input);
+}
+
 function lockApp() {
   document.body.classList.remove("is-unlocked");
   clearPinEntry();
   setPinError("");
   hideCloudAuthMessage();
-  const input = document.querySelector("#pinInput");
-  if (input) input.focus();
+  configurePinInputs();
 }
 
 function ensureFirebaseApp() {
@@ -621,7 +678,6 @@ async function submitPinLogin(event) {
     clearPinEntry();
   } finally {
     if (button) button.disabled = false;
-    document.querySelector("#pinInput")?.focus();
   }
 }
 
@@ -645,8 +701,10 @@ function openPinChange() {
   if (!dialog || !form) return;
   form.reset();
   setPinChangeError("");
+  configurePinInputs();
+  setPinChangeTarget(form.elements.currentPin);
   if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
-  form.elements.currentPin?.focus();
+  if (!isMobilePinLayout()) form.elements.currentPin?.focus();
 }
 
 function closePinChange() {
@@ -935,6 +993,9 @@ function bindEvents() {
 
   document.querySelector("#pinForm")?.addEventListener("submit", submitPinLogin);
   document.querySelector("#pinInput")?.addEventListener("input", updatePinBoxes);
+  document.querySelector("#pinScreen")?.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("#pinInput, .pin-boxes")) event.preventDefault();
+  });
   document.querySelector("#pinKeypad")?.addEventListener("click", (event) => {
     const key = event.target.closest("[data-pin-key]")?.dataset.pinKey;
     if (!key) return;
@@ -943,9 +1004,48 @@ function bindEvents() {
     const digits = currentPinValue();
     input.value = key === "back" ? digits.slice(0, -1) : (digits.length >= 4 ? digits : digits + key);
     updatePinBoxes();
-    input.focus();
   });
   document.querySelector("#pinChangeForm")?.addEventListener("submit", submitPinChange);
+  document.querySelector("#pinChangeDialog")?.addEventListener("pointerdown", (event) => {
+    if (!isMobilePinLayout()) return;
+    const label = event.target.closest("#pinChangeForm label");
+    const input = event.target.closest("#pinChangeForm input") || label?.querySelector("input");
+    if (!input) return;
+    event.preventDefault();
+    setPinChangeTarget(input);
+  });
+  document.querySelector("#pinChangeKeypad")?.addEventListener("click", (event) => {
+    const key = event.target.closest("[data-pin-key]")?.dataset.pinKey;
+    if (!key) return;
+    event.preventDefault();
+    applyPinChangeKey(key);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (document.body.classList.contains("is-unlocked")) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const input = document.querySelector("#pinInput");
+    if (!input) return;
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      input.value = currentPinValue().slice(0, -1);
+      updatePinBoxes();
+      return;
+    }
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      const digits = currentPinValue();
+      input.value = digits.length >= 4 ? digits : digits + event.key;
+      updatePinBoxes();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      document.querySelector("#pinForm")?.requestSubmit();
+    }
+  });
+  configurePinInputs();
+  window.addEventListener("resize", configurePinInputs);
+  completeForm?.elements?.source?.addEventListener("change", syncCompleteCommissionField);
 }
 
 function fillSelects() {
@@ -2913,6 +3013,7 @@ function saveStatus(formData) {
   if (!service || !matchesPortalSource(service.source)) return;
   service.status = data.status;
   service.availableDate = data.date || service.availableDate;
+  if (!Array.isArray(service.statusHistory)) service.statusHistory = [];
   service.statusHistory.unshift({
     id: uid(),
     date: data.date,
@@ -3366,9 +3467,9 @@ function updateExistingRecords(listKey, oldValue, newValue) {
   if (serviceField) {
     state.services.forEach((service) => {
       if (service[serviceField] === oldValue) service[serviceField] = newValue;
-      if (listKey === "statuses") {
+      if (listKey === "statuses" && Array.isArray(service.statusHistory)) {
         service.statusHistory.forEach((item) => {
-          if (item.status === oldValue) item.status = newValue;
+          if (item && item.status === oldValue) item.status = newValue;
         });
       }
     });
@@ -3597,10 +3698,10 @@ function serviceHasDate(service, isoDate) {
 function serviceDateCandidates(service) {
   // V5.3.9: Ertelenen servis yalnızca güncel planlama tarihinde görünür.
   // availableDate/visitDate varsa eski kayıt tarihi artık aday tarih değildir.
-  const plannedDate = service.availableDate || service.visitDate || service.date;
+  const plannedDate = service?.availableDate || service?.visitDate || service?.date;
   if (plannedDate) return [String(plannedDate).slice(0, 10)];
-  if (service.createdAt) return [toIsoDate(new Date(service.createdAt))];
-  return [];
+  const created = safeDateIso(service?.createdAt);
+  return created ? [created] : [];
 }
 
 function serviceMainDate(service) {
@@ -3660,11 +3761,19 @@ function canEditPortalRecords() {
   return !isSourcePortal();
 }
 
+function foldTr(value) {
+  return norm(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i");
+}
+
 function sourceKey(source) {
   const value = norm(source);
+  const folded = foldTr(source);
   // Eski kayıtlarda kaynak boş, farklı büyük/küçük harfli veya "kendi iş" gibi kaydedilmiş olabilir.
-  // Bunların hepsi Kendi İşim filtresinde birlikte görünmeli.
-  if (!value || value === "kendi işim" || value === "kendi isim" || value === "kendi iş" || value === "kendı işim" || value === "kendim") return "kendi-isim";
+  // Noktalı/noktasız yazımlar da Kendi İşim ile aynı kaynaktır.
+  if (!folded || folded === "kendi isim" || folded === "kendi is" || folded === "kendim") return "kendi-isim";
   return value;
 }
 
@@ -3674,6 +3783,16 @@ function sourceMatches(actual, expected) {
 
 function isOwnWorkSource(source) {
   return sourceKey(source) === "kendi-isim";
+}
+
+function syncCompleteCommissionField() {
+  const select = completeForm?.elements?.commissionRate;
+  const field = select?.closest("label");
+  if (!select || !field) return;
+  const own = isOwnWorkSource(completeForm.elements.source?.value || "");
+  field.classList.toggle("is-own-work-commission", own);
+  field.hidden = own;
+  if (own) select.value = "0";
 }
 
 function visibleCashTitle(item) {
@@ -3705,13 +3824,23 @@ function addYear(iso) {
 }
 
 function formatServiceCardDate(value) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "-";
+  try {
+    return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  } catch (error) {
+    return "-";
+  }
 }
 
 function formatServiceCardDay(value) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(new Date(value));
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "-";
+  try {
+    return new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(date);
+  } catch (error) {
+    return "-";
+  }
 }
 
 function formatDate(value) {
@@ -3974,6 +4103,57 @@ function mobileIsRemainingService(service) {
   return !mobileIsDoneService(service) && statusGroup(service.status) !== "danger";
 }
 
+let mobileAllDates = false;
+let mobileServiceQuery = "";
+
+function mobilePlanningDate(service) {
+  return serviceDateCandidates(service)[0] || "";
+}
+
+function mobileServiceVisibleOnDate(service, date, bucket) {
+  if (mobileAllDates || !date) return true;
+  const serviceDate = mobilePlanningDate(service);
+  const carries = bucket !== "closed" && bucket !== "done";
+  if (!serviceDate) return carries;
+  if (serviceDate === date) return true;
+  return carries && serviceDate < date && mobileIsRemainingService(service);
+}
+
+function mobileSourceVisible(service, source) {
+  // Kaynak seçilmemişken boş, gizli veya silinmiş kaynaklı servisler de görünür.
+  if (!String(source || "").trim()) return true;
+  return sourceMatches(service?.source, source);
+}
+
+function mobileMatchesServiceQuery(service, query) {
+  const text = norm(query);
+  if (!text) return true;
+  const phoneQuery = digits(query);
+  const name = norm(service?.customerName);
+  const phone = digits(service?.phone);
+  return name.includes(text) || norm(service?.phone).includes(text) || (phoneQuery && phone.includes(phoneQuery));
+}
+
+function syncMobileDateTools() {
+  document.querySelectorAll("[data-mobile-all-dates]").forEach((button) => {
+    button.classList.toggle("is-active", mobileAllDates);
+    button.setAttribute("aria-pressed", mobileAllDates ? "true" : "false");
+  });
+}
+
+function refreshMobileServiceViews() {
+  syncMobileDateTools();
+  const root = document.querySelector("#mobileTechApp");
+  const cashOpen = root?.classList.contains("is-cash-mode");
+  const listOpen = root?.classList.contains("is-list-mode");
+  const welcomeOpen = root?.classList.contains("is-welcome-mode");
+  if (!cashOpen && (listOpen || !welcomeOpen)) {
+    try { window.ekzenMobileOpenClosedV511?.(false); } catch (error) { console.warn("Mobil liste yenilenemedi.", error); }
+    try { window.ekzenMobileStableRender?.(); } catch (error) { console.warn("Mobil kalan listesi yenilenemedi.", error); }
+  }
+  try { window.ekzenUpdateWelcome?.(); } catch (error) { console.warn("Mobil özet yenilenemedi.", error); }
+}
+
 function mobileFilteredServices() {
   let services = sortServices(state.services || []).filter((service) => serviceHasDate(service, mobileSelectedDate || isoToday));
   if (mobileTechFilter === "new") services = services.filter((service) => isStatus(service.status, "Yeni Kayıt"));
@@ -4033,6 +4213,14 @@ function mobileServiceCounts() {
 }
 
 function mobileRenderTechPanel() {
+  try {
+    mobileRenderTechPanelNow();
+  } catch (error) {
+    console.warn("Mobil panel çizilemedi.", error);
+  }
+}
+
+function mobileRenderTechPanelNow() {
   const root = document.querySelector("#mobileTechApp");
   if (!root) return;
   const counts = mobileServiceCounts();
@@ -4168,8 +4356,9 @@ function mobileCloseDailyCashPage() {
 }
 
 function mobileServiceCard(service) {
-  const dateValue = service.availableDate || service.visitDate || service.createdAt?.slice(0, 10) || "";
-  const timeValue = (service.availableTime || service.createdAt?.slice(11, 16) || "").replace("Saat yok", "");
+  const dateValue = mobilePlanningDate(service);
+  const timeValue = String(service.availableTime || service.createdAt?.slice(11, 16) || "").replace("Saat yok", "");
+  const overdue = !mobileAllDates && dateValue && dateValue < (mobileSelectedDate || isoToday) && mobileIsRemainingService(service);
   const phoneClean = digits(service.phone);
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
   const whatsappHref = phoneClean ? `https://wa.me/90${phoneClean.replace(/^0/, "")}` : "#";
@@ -4181,8 +4370,9 @@ function mobileServiceCard(service) {
     <article class="mobile-service-card mobile-status-${bucket}" data-mobile-service-id="${escapeAttr(service.id)}">
       <div class="mobile-card-top" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
         <div class="mobile-date">
-          <b>${escapeHtml(formatServiceCardDate(dateValue))}</b>
+          <b>${escapeHtml(formatDisplayDate(dateValue))}</b>
           <span>${escapeHtml(timeValue || formatServiceCardDay(dateValue))}</span>
+          ${overdue ? `<em class="mobile-overdue-tag">Gecikmiş</em>` : ""}
         </div>
         <span class="mobile-status-pill">${escapeHtml(service.status || "Durum yok")}${paymentModeLabel ? ` · ${escapeHtml(paymentModeLabel)}` : ""}</span>
       </div>
@@ -4240,11 +4430,15 @@ function mobileHideDetailSheet() {
 }
 
 function mobileCloseDetail() {
-  if (history.state?.ekzenMobileDetail) {
-    history.back();
-    return;
-  }
+  const sheet = document.querySelector("#mobileDetailSheet");
+  const wasOpen = Boolean(sheet && !sheet.hasAttribute("hidden"));
   mobileHideDetailSheet();
+  if (wasOpen && history.state?.ekzenMobileDetail) {
+    const next = { ...(history.state || {}) };
+    delete next.ekzenMobileDetail;
+    delete next.serviceId;
+    history.replaceState(next, "");
+  }
 }
 
 window.addEventListener("popstate", () => {
@@ -4617,7 +4811,8 @@ document.addEventListener("keydown", (event) => {
     service.statusHistory = Array.isArray(service.statusHistory) ? service.statusHistory : [];
     service.statusHistory.push({ id: uid(), date: isoToday, status: select.value, technician: service.technician || "", description: "Mobil panelden durum değiştirildi", createdAt: new Date().toISOString() });
     saveState();
-    render();
+    try { render(); } catch (error) { console.warn("Ekran yenilenemedi.", error); }
+    refreshMobileServiceViews();
   });
 
   window.addEventListener("resize", () => { if (isMobileTechViewport()) mobileRenderTechPanel(); });
@@ -4631,7 +4826,7 @@ document.addEventListener("keydown", (event) => {
    2) Günlük Kasa butonu sayaç panelini kesin gösterir.
 */
 (function setupMobileStableListAndCashV352(){
-  const VERSION = "V5.2.0 Beta 2";
+  const VERSION = "V5.3.13";
   let mode = "services";
 
   function selectedDate() {
@@ -4655,7 +4850,7 @@ document.addEventListener("keydown", (event) => {
   }
 
   function serviceMatchesSourceSafe(service, source) {
-    return !source || sourceMatches(service.source, source);
+    return mobileSourceVisible(service, source);
   }
 
   function fillMobileSourcePickerSafe() {
@@ -4678,20 +4873,19 @@ document.addEventListener("keydown", (event) => {
 
   function servicesForMobile(filter, date) {
     const source = selectedSource();
-    let list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date) && serviceMatchesSourceSafe(service, source));
-    if (filter === "done") list = list.filter(isDoneSafe);
-    else if (filter === "new") list = list.filter((service) => isStatus(service.status, "Yeni Kayıt"));
-    else list = list.filter(isRemainingSafe);
+    const bucket = filter === "done" ? "done" : "open";
+    let list = sortServices(state.services || []).filter((service) => mobileServiceVisibleOnDate(service, date, bucket) && serviceMatchesSourceSafe(service, source) && mobileMatchesServiceQuery(service, mobileServiceQuery));
+    if (filter === "done") list = list.filter((service) => !mobileIsRemainingService(service));
+    else if (filter === "new") list = list.filter((service) => isStatus(service.status, "Yeni Kayıt") && mobileIsRemainingService(service));
+    else list = list.filter(mobileIsRemainingService);
     return list;
   }
 
   function countsForMobile(date) {
-    const source = selectedSource();
-    const list = sortServices(state.services || []).filter((service) => serviceMatchesDateSafe(service, date) && serviceMatchesSourceSafe(service, source));
     return {
-      remaining: list.filter(isRemainingSafe).length,
-      done: list.filter(isDoneSafe).length,
-      new: list.filter((service) => isStatus(service.status, "Yeni Kayıt")).length,
+      remaining: servicesForMobile("remaining", date).length,
+      done: servicesForMobile("done", date).length,
+      new: servicesForMobile("new", date).length,
     };
   }
 
@@ -4737,11 +4931,17 @@ document.addEventListener("keydown", (event) => {
     forceShow(list, "grid");
     forceShow(newButton, "block");
 
+    syncMobileDateTools();
     const services = servicesForMobile(mobileTechFilter || "remaining", date);
+    const emptyLabel = mobileServiceQuery
+      ? "Aramaya uygun servis yok."
+      : (mobileAllDates
+        ? `Tüm tarihlerde ${mobileTechFilter === "done" ? "kapanan" : "kalan"} servis yok.`
+        : `Bu listede ${mobileTechFilter === "done" ? "kapanan" : "kalan"} servis yok.`);
     if (list) {
       list.innerHTML = services.length
         ? services.map(mobileServiceCard).join("")
-        : `<div class="mobile-empty">Bu tarih için ${mobileTechFilter === "done" ? "biten" : "kalan"} servis yok.</div>`;
+        : `<div class="mobile-empty">${emptyLabel}</div>`;
     }
   }
 
@@ -4809,6 +5009,7 @@ document.addEventListener("keydown", (event) => {
     if (action === "today-date") {
       event.preventDefault();
       event.stopImmediatePropagation();
+      mobileAllDates = false;
       const picker = document.querySelector("#mobileDatePicker");
       if (picker) picker.value = isoToday;
       mobileSelectedDate = isoToday;
@@ -4841,8 +5042,10 @@ document.addEventListener("keydown", (event) => {
     const picker = event.target.closest("#mobileDatePicker");
     if (!picker) return;
     event.stopImmediatePropagation();
+    mobileAllDates = false;
     mobileSelectedDate = picker.value || isoToday;
     renderMobileServicesStable();
+    window.ekzenUpdateWelcome?.();
   }, true);
 
   const oldRender = render;
@@ -4888,6 +5091,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.source.value = existingCash?.source || service.source || "";
   keepSelectValue(completeForm.elements.source, existingCash?.source || service.source);
   completeForm.elements.workNote.value = existingNote?.text || "";
+  syncCompleteCommissionField();
   completeDialog.showModal();
 }
 
@@ -4916,7 +5120,8 @@ function completeServiceFromForm(formData) {
   const amount = paymentModeForcesZero(paymentMode) ? 0 : rawAmount;
   const materialCost = Number(data.materialCost) || 0;
   const otherExpense = Number(data.otherExpense) || 0;
-  const commissionRate = Number(data.commissionRate) || 0;
+  const sourceName = data.source || service.source || "";
+  const commissionRate = isOwnWorkSource(sourceName) ? 0 : (Number(data.commissionRate) || 0);
   const closeDate = serviceMainDate(service) || primary?.date || isoToday;
   const cashItem = {
     ...(primary || {}),
@@ -4930,7 +5135,7 @@ function completeServiceFromForm(formData) {
     commission50: commissionRate > 0,
     commissionRate,
     collectedBy: data.collectedBy === "source" ? "source" : "me",
-    source: data.source || service.source || "",
+    source: sourceName,
     serviceId: service.id,
   };
 
@@ -4941,7 +5146,7 @@ function completeServiceFromForm(formData) {
   service.status = serviceStatusForPaymentMode(paymentMode);
   service.paymentStatus = paymentMode === "Tahsilat Yapıldı" && amount > 0 ? "Ödendi" : paymentMode;
   service.price = amount;
-  service.source = data.source || service.source || "";
+  service.source = sourceName;
   service.notes = Array.isArray(service.notes) ? service.notes : [];
   const note = serviceCloseNote(service);
   if (note) {
@@ -4953,7 +5158,7 @@ function completeServiceFromForm(formData) {
   }
   service.statusHistory = Array.isArray(service.statusHistory) ? service.statusHistory : [];
   const closeStatus = serviceStatusForPaymentMode(paymentMode);
-  const lastClose = service.statusHistory.find((item) => (isStatus(item.status, "İşlem Tamam") || isStatus(item.status, "Ödeme Bekliyor")) && String(item.description || "").includes("Fiş kapatıldı"));
+  const lastClose = service.statusHistory.find((item) => item && (isStatus(item.status, "İşlem Tamam") || isStatus(item.status, "Ödeme Bekliyor")) && String(item.description || "").includes("Fiş kapatıldı"));
   const desc = `Fiş kapatıldı (${paymentMode}) - ${workNote}`;
   if (lastClose) {
     lastClose.date = closeDate;
@@ -4965,8 +5170,13 @@ function completeServiceFromForm(formData) {
   }
 
   saveState();
-  completeDialog.close();
-  render();
+  if (completeDialog?.open) completeDialog.close();
+  try {
+    render();
+  } catch (error) {
+    console.warn("Ekran yenilenemedi.", error);
+  }
+  refreshMobileServiceViews();
 }
 
 document.addEventListener("click", function(event) {
@@ -4985,6 +5195,7 @@ document.addEventListener("click", function(event) {
 /* V3.6.4 - Mobil fiş kapatma sihirbazı: fişi kapatma alanları sırayla sorulur */
 let mobileCloseServiceData = {};
 let mobileCloseServiceIndex = 0;
+let mobileCloseServiceKey = "workNote";
 const mobileCloseServiceSteps = [
   { key: "workNote", label: "Yapılan İşlem", type: "textarea", placeholder: "Örn: Pompa temizlendi, test edildi.", required: true },
   { key: "amount", label: "Tahsil Edilen Tutar", type: "number", placeholder: "0", required: true },
@@ -5013,11 +5224,18 @@ function mobileCloseExistingData(service) {
   };
 }
 
+function mobileCloseSteps() {
+  return mobileCloseServiceSteps.filter((step) => step.key !== "commissionRate" || !isOwnWorkSource(mobileCloseServiceData.source));
+}
+
 function openMobileCloseServiceWizard(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
   mobileCloseServiceData = mobileCloseExistingData(service);
   mobileCloseServiceIndex = 0;
+  mobileCloseServiceKey = "workNote";
+  delete mobileCloseServiceData.commissionAnswered;
+  if (isOwnWorkSource(mobileCloseServiceData.source)) mobileCloseServiceData.commissionRate = "0";
   let overlay = document.querySelector("#mobileCloseServiceWizard");
   if (!overlay) {
     overlay = document.createElement("div");
@@ -5044,8 +5262,13 @@ function mobileCloseStepOptions(step) {
 function renderMobileCloseServiceStep() {
   const overlay = document.querySelector("#mobileCloseServiceWizard");
   if (!overlay) return;
-  const step = mobileCloseServiceSteps[mobileCloseServiceIndex];
-  const progress = `${mobileCloseServiceIndex + 1}/${mobileCloseServiceSteps.length}`;
+  const steps = mobileCloseSteps();
+  let index = steps.findIndex((step) => step.key === mobileCloseServiceKey);
+  if (index < 0) index = 0;
+  mobileCloseServiceIndex = index;
+  mobileCloseServiceKey = steps[index].key;
+  const step = steps[index];
+  const progress = `${index + 1}/${steps.length}`;
   const value = mobileCloseServiceData[step.key] ?? "";
   let field = "";
   if (step.type === "textarea") {
@@ -5068,15 +5291,15 @@ function renderMobileCloseServiceStep() {
         <p class="mobile-close-wizard-hint">${mobileCloseServiceIndex === 0 ? "Bu alan zorunlu. Müşteriye yapılan işi kısa ve net yaz." : "İleri diyerek sıradaki bilgiyi gir."}</p>
       </div>
       <footer>
-        <button type="button" class="secondary" data-mobile-close-wizard="back" ${mobileCloseServiceIndex === 0 ? "disabled" : ""}>Geri</button>
-        <button type="button" class="primary" data-mobile-close-wizard="next">${mobileCloseServiceIndex === mobileCloseServiceSteps.length - 1 ? "Fişi Kapat" : "İleri"}</button>
+        <button type="button" class="secondary" data-mobile-close-wizard="back" ${index === 0 ? "disabled" : ""}>Geri</button>
+        <button type="button" class="primary" data-mobile-close-wizard="next">${index === steps.length - 1 ? "Fişi Kapat" : "İleri"}</button>
       </footer>
     </section>`;
   setTimeout(() => document.querySelector("#mobileCloseWizardField")?.focus({ preventScroll: true }), 60);
 }
 
 function saveMobileCloseCurrentStep() {
-  const step = mobileCloseServiceSteps[mobileCloseServiceIndex];
+  const step = mobileCloseSteps()[mobileCloseServiceIndex];
   const field = document.querySelector("#mobileCloseWizardField");
   if (!step || !field) return false;
   const value = String(field.value ?? "").trim();
@@ -5086,10 +5309,12 @@ function saveMobileCloseCurrentStep() {
     return false;
   }
   mobileCloseServiceData[step.key] = value;
+  if (step.key === "commissionRate") mobileCloseServiceData.commissionAnswered = true;
   return true;
 }
 
 function finishMobileCloseServiceWizard() {
+  if (isOwnWorkSource(mobileCloseServiceData.source)) mobileCloseServiceData.commissionRate = "0";
   const fd = new FormData();
   ["serviceId", "paymentMode", "type", "amount", "collectedBy", "materialCost", "otherExpense", "commissionRate", "source", "workNote"].forEach((key) => {
     fd.append(key, key === "type" ? "income" : (mobileCloseServiceData[key] ?? ""));
@@ -5097,6 +5322,7 @@ function finishMobileCloseServiceWizard() {
   closeMobileCloseServiceWizard();
   mobileCloseDetail();
   completeServiceFromForm(fd);
+  refreshMobileServiceViews();
 }
 
 document.addEventListener("click", function(event) {
@@ -5107,14 +5333,24 @@ document.addEventListener("click", function(event) {
   if (action === "close") return closeMobileCloseServiceWizard();
   if (action === "back") {
     if (!saveMobileCloseCurrentStep()) return;
-    mobileCloseServiceIndex = Math.max(0, mobileCloseServiceIndex - 1);
+    const steps = mobileCloseSteps();
+    const index = Math.max(0, steps.findIndex((step) => step.key === mobileCloseServiceKey));
+    mobileCloseServiceKey = steps[Math.max(0, index - 1)].key;
     renderMobileCloseServiceStep();
     return;
   }
   if (action === "next") {
     if (!saveMobileCloseCurrentStep()) return;
-    if (mobileCloseServiceIndex >= mobileCloseServiceSteps.length - 1) return finishMobileCloseServiceWizard();
-    mobileCloseServiceIndex += 1;
+    const steps = mobileCloseSteps();
+    const index = steps.findIndex((step) => step.key === mobileCloseServiceKey);
+    const sourceChangedToExternal = mobileCloseServiceKey === "source" && !isOwnWorkSource(mobileCloseServiceData.source) && !mobileCloseServiceData.commissionAnswered;
+    if (sourceChangedToExternal) {
+      mobileCloseServiceKey = "commissionRate";
+      renderMobileCloseServiceStep();
+      return;
+    }
+    if (index >= steps.length - 1) return finishMobileCloseServiceWizard();
+    mobileCloseServiceKey = steps[index + 1].key;
     renderMobileCloseServiceStep();
   }
 });
@@ -5129,7 +5365,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
 /* V5.1.1 - Mobil açık/kapalı fiş listesi tek kaynaklı kesin yapı */
 (function setupMobileOpenClosedV511() {
-  const VERSION = "V5.2.0 Beta 2";
+  const VERSION = "V5.3.13";
   let activeBucket = "open";
   let selectedDate = isoToday;
 
@@ -5156,29 +5392,29 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     return [];
   }
 
-  function matchesDate(service) {
-    return serviceDateCandidates(service).includes(selectedDate);
+  function matchesDate(service, bucket) {
+    return mobileServiceVisibleOnDate(service, selectedDate, bucket === "closed" ? "closed" : "open");
   }
 
   function matchesSource(service) {
-    const source = selectedSource();
-    return !source || sourceMatches(service.source, source);
+    return mobileSourceVisible(service, selectedSource());
   }
 
   function isOpenService(service) {
-    return isStatus(service.status, "Yeni Kayıt") || isStatus(service.status, "İşlemde");
+    return mobileIsRemainingService(service);
   }
 
   function isClosedService(service) {
-    return isStatus(service.status, "İşlem Tamam") || isStatus(service.status, "İptal");
+    return !mobileIsRemainingService(service);
   }
 
   function recordsFor(bucket) {
-    const rows = sortServices(state.services || []).filter((service) => matchesSource(service) && matchesDate(service));
+    const rows = sortServices(state.services || []).filter((service) => matchesSource(service) && mobileMatchesServiceQuery(service, mobileServiceQuery) && matchesDate(service, bucket));
     return bucket === "closed" ? rows.filter(isClosedService) : rows.filter(isOpenService);
   }
 
   function formattedDate() {
+    if (mobileAllDates) return "Tüm tarihler";
     if (selectedDate === isoToday) return "Bugün";
     try {
       return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -5201,6 +5437,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     mobileSelectedDate = selectedDate;
     mobileSelectedSource = selectedSource();
     mobileCashModeOpen = false;
+    mobileTechFilter = activeBucket === "closed" ? "done" : "remaining";
+    syncMobileDateTools();
 
     const openRows = recordsFor("open");
     const closedRows = recordsFor("closed");
@@ -5237,7 +5475,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       list.style.setProperty("display", "grid", "important");
       list.innerHTML = visibleRows.length
         ? visibleRows.map(mobileServiceCard).join("")
-        : `<div class="mobile-empty">${formattedDate()} için ${bucketLabel.toLocaleLowerCase("tr-TR")} bulunmuyor.</div>`;
+        : `<div class="mobile-empty">${mobileServiceQuery ? "Aramaya uygun servis yok." : `${formattedDate()} için ${bucketLabel.toLocaleLowerCase("tr-TR")} bulunmuyor.`}</div>`;
     }
 
     const newButton = document.querySelector(".mobile-new-service-bar");
@@ -5275,6 +5513,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     if (today) {
       event.preventDefault();
       event.stopImmediatePropagation();
+      mobileAllDates = false;
       selectedDate = isoToday;
       const picker = document.querySelector("#mobileDatePicker");
       if (picker) picker.value = isoToday;
@@ -5285,6 +5524,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   document.addEventListener("input", (event) => {
     if (!event.target.matches("#mobileDatePicker")) return;
     event.stopImmediatePropagation();
+    mobileAllDates = false;
     const nextDate = String(event.target.value || selectedDate || isoToday).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
     selectedDate = nextDate;
@@ -5296,6 +5536,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   document.addEventListener("change", (event) => {
     if (event.target.matches("#mobileDatePicker")) {
       event.stopImmediatePropagation();
+      mobileAllDates = false;
       selectedDate = String(event.target.value || isoToday).slice(0, 10);
       settle(false);
       if (typeof window.ekzenUpdateWelcome === "function") window.ekzenUpdateWelcome();
@@ -5376,9 +5617,9 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     const date = selectedDate();
     const source = selectedSourceValue();
     return (state.services || []).filter((service) => {
-      const dateMatch = serviceDates(service).includes(date);
-      const sourceMatch = !source || sourceMatches(service.source, source);
-      return dateMatch && sourceMatch;
+      if (!mobileSourceVisible(service, source) || !mobileMatchesServiceQuery(service, mobileServiceQuery)) return false;
+      const bucket = mobileIsRemainingService(service) ? "open" : "closed";
+      return mobileServiceVisibleOnDate(service, date, bucket);
     });
   }
 
@@ -5409,8 +5650,8 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
   function updateWelcome() {
     const rows = dateRows();
-    const openRows = rows.filter((service) => !isClosedWelcomeService(service));
-    const closedRows = rows.filter(isClosedWelcomeService);
+    const openRows = rows.filter((service) => mobileIsRemainingService(service));
+    const closedRows = rows.filter((service) => !mobileIsRemainingService(service));
     const openEl = document.querySelector("#mobileWelcomeOpenCount");
     const closedEl = document.querySelector("#mobileWelcomeClosedCount");
     const textEl = document.querySelector("#mobileWelcomeDateText");
@@ -5436,11 +5677,14 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     if (incomeEl) incomeEl.textContent = money(income);
     if (earningEl) earningEl.textContent = money(earning);
 
-    if (textEl) textEl.textContent = formatWelcomeSummary(selectedDate());
+    if (textEl) textEl.textContent = mobileAllDates ? "Tüm tarihler servis özeti" : formatWelcomeSummary(selectedDate());
     if (dateDisplayEl) {
-      dateDisplayEl.innerHTML = `<span class="mobile-welcome-date-line">${formatWelcomeDate(selectedDate())}</span><span class="mobile-welcome-day-line">${formatWelcomeDay(selectedDate())}</span>`;
+      dateDisplayEl.innerHTML = mobileAllDates
+        ? `<span class="mobile-welcome-date-line">Tüm tarihler</span><span class="mobile-welcome-day-line">Açık fişler gecikmiş olanlarla birlikte</span>`
+        : `<span class="mobile-welcome-date-line">${formatWelcomeDate(selectedDate())}</span><span class="mobile-welcome-day-line">${formatWelcomeDay(selectedDate())}</span>`;
     }
-    if (listDateEl) listDateEl.textContent = selectedDate() === todayIso() ? "Bugün" : formatWelcomeDate(selectedDate());
+    if (listDateEl) listDateEl.textContent = mobileAllDates ? "Tüm tarihler" : (selectedDate() === todayIso() ? "Bugün" : formatWelcomeDate(selectedDate()));
+    syncMobileDateTools();
   }
 
   function syncExistingMobile() {
@@ -5687,6 +5931,22 @@ document.addEventListener("click", (event) => {
   if (cashForm?.elements?.source) cashForm.elements.source.value = mobileCashSource || "";
   const title = document.querySelector("#cashDialogTitle");
   if (title) title.textContent = type === "expense" ? "Gider Ekle" : "Gelir Ekle";
+}, true);
+
+/* V5.3.13 - Mobilde tüm tarihler ve müşteri araması */
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-mobile-all-dates]");
+  if (!toggle) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  mobileAllDates = !mobileAllDates;
+  refreshMobileServiceViews();
+}, true);
+
+document.addEventListener("input", (event) => {
+  if (!event.target.matches("#mobileServiceSearch")) return;
+  mobileServiceQuery = event.target.value || "";
+  refreshMobileServiceViews();
 }, true);
 
 /* Kasa kaydı yapıldıktan sonra mobil kasa açıksa sayaçları/hareketleri yenile. */
