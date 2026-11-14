@@ -880,6 +880,19 @@ function bindEvents() {
       }else alert("Sıralama bu cihazda kaydedildi ancak bulut eşitlemesi kullanılamıyor.");
       return;
     }
+    if(action==="source-counter-move"){
+      const root=document.querySelector("#sourceSpecialSettings");
+      if(!root)return;
+      const source=selectedSourceSettingsName,config=sourceSpecialConfig(source);
+      const existing=Array.isArray(config.counterOrder)?config.counterOrder.slice():cashSlotSettings().map(c=>c.id);
+      const i=existing.indexOf(button.dataset.slot),next=i+Number(button.dataset.direction);
+      if(i<0||next<0||next>=existing.length)return;
+      [existing[i],existing[next]]=[existing[next],existing[i]];
+      state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:{...config,counterOrder:existing}};
+      saveLocalState();renderSourceSpecialSettings();
+      if(canSyncCloud())cloudRef.update({"state/settings/sourceSpecialSettings":state.settings.sourceSpecialSettings,updatedAt:new Date().toISOString()}).catch(error=>console.warn("Kaynak sayaç sırası eşitlenemedi",error));
+      return;
+    }
     if(action==="home-layout-toggle"||action==="home-layout-move"){
       if(isSourcePortal())return;
       const device=button.dataset.device;
@@ -4629,11 +4642,15 @@ function renderSharedCashSlots(items){
  const selectors={profit:"#mobileCashProfitCounter",payment:"#mobileCashPaymentCounter",
  income:"#mobileDailyPageIncome",commission:"#mobileDailyPageCommission",
  material:"#mobileDailyPageMaterial",expense:"#mobileDailyPageExpense"};
- cashSlotSettings().forEach(c=>{
+ const special=selectedSource?sourceSpecialConfig(selectedSource):{};
+ const ordered=cashSlotSettings().slice().sort((a,b)=>{const ids=special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
+ ordered.forEach((base,index)=>{
+   const override=special.counters?.[base.id]||{};
+   const c={...base,...override};
    const node=document.querySelector(selectors[c.id]);
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
    if(!card)return;
-   card.style.order=String(c.order);
+   card.style.order=String(index);
    const hideForOwnWork=isOwnWorkSource(selectedSource) && (c.id==="commission" || c.id==="expense");
    const shouldHide=c.visible===false || hideForOwnWork;
    card.hidden=shouldHide;
@@ -4766,18 +4783,22 @@ function renderHomeLayoutSettings(){
     }).join("");
 }
 function renderHomeCashCards(device,items){
+  const selectedSource=device==="desktop"?activeDashboardSource:(typeof selectedSourceValue==="function"?selectedSourceValue():"");
+  const special=selectedSource?sourceSpecialConfig(selectedSource):{};
   const root=document.querySelector(device==="desktop"?"#desktopHomeCashCards":"#mobileHomeCashCards");
   if(!root)return;
-  const ids=homeLayout(device);
+  const ids=Array.isArray(special.homeLayout?.[device])?special.homeLayout[device]:homeLayout(device);
   const slots=cashSlotSettings();
   const context=customCashContext(items);
   root.hidden=!ids.length;
   root.innerHTML=ids.map(id=>{
     const c=slots.find(x=>x.id===id);
     if(!c)return "";
-    const color=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
+    const override=special.counters?.[id]||{};
+    if(override.visible===false)return "";
+    const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
     const value=customCashValue(c,context);
-    return '<div class="mobile-daily-counter" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(c.name)+'</span><b style="color:#fff">'+escapeHtml(c.unit==="count"?String(value):money(value))+'</b></div>';
+    return '<div class="mobile-daily-counter" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+escapeHtml(c.unit==="count"?String(value):money(value))+'</b></div>';
   }).join("");
 }
 
