@@ -4569,7 +4569,7 @@ const CASH_SLOT_DEFAULTS=[
 ];
 function cashSlotSettings(){
  if(!Array.isArray(state.settings.cashSlotSettings))state.settings.cashSlotSettings=[];
- return CASH_SLOT_DEFAULTS.map(def=>({...def,...(state.settings.cashSlotSettings.find(c=>c.id===def.id)||{})}));
+ return CASH_SLOT_DEFAULTS.map(def=>{const saved=state.settings.cashSlotSettings.find(c=>c?.id===def.id)||{};return {...def,...saved,visible:saved.visible!==false};});
 }
 function renderSharedCashSlots(items){
  const grid=document.querySelector("#mobileCashProfitCounter")?.parentElement;
@@ -6445,7 +6445,7 @@ async function saveCustomCounterForm(form) {
     if(!def){alert("Sayaç bulunamadı.");return;}
     state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];
     const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);
-    const updated={...counter,id:slot,terms:terms.length?terms:def.terms,visible:def.visible};
+    const updated={...counter,id:slot,terms:terms.length?terms:def.terms,visible:def.visible!==false};
     if(i<0)state.settings.cashSlotSettings.push(updated);
     else state.settings.cashSlotSettings[i]=updated;
   } else if(old)list[index]=counter;
@@ -6466,7 +6466,8 @@ async function saveCustomCounterForm(form) {
     return;
   }
   try {
-    await cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings||[],"state/settings/customCashCounters":state.settings.customCashCounters||[],updatedAt:new Date().toISOString()});
+    state.settings.cashSlotSettings=(state.settings.cashSlotSettings||[]).map(item=>({...item,visible:item?.visible!==false}));
+    await cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings,"state/settings/customCashCounters":state.settings.customCashCounters||[],updatedAt:new Date().toISOString()});
     try { localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY); } catch (_) {}
     alert("Değişiklikler kaydedildi ve telefonla eşitlendi.");
   } catch(error) {
