@@ -4854,7 +4854,7 @@ function renderHomeCashCards(device,items){
     const value=customCashValue(c,context);
     const pendingDetail=id==="payment" ? '<small class="home-pending-amount">₺'+escapeHtml(new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0))+'</small>' : "";
     const displayValue=id==="payment" ? escapeHtml(String(value)+" fiş") : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
-    return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" aria-label="'+escapeAttr(override.name||c.name)+' ayrıntılarını aç" style="background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
+    return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" aria-label="'+escapeAttr(override.name||c.name)+' ayrıntılarını aç" style="'+(device==='mobile'?'background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;':'')+'min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
   }).join("");
 }
 
