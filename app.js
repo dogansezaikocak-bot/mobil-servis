@@ -4859,7 +4859,7 @@ function renderSourceSpecialSettings(){
       return '<div class="source-settings-device" data-source-device-panel="'+device+'" '+(device!==activeSourceHomeDeviceTab?'hidden':'')+'><strong>'+(device==="desktop"?"💻 Mac / Masaüstü":"📱 Telefon")+'</strong>'+
       '<p class="source-home-order-hint">İşaretlediğiniz sayaçları ↑ ↓ düğmeleriyle sıralayın. Sıralama yalnızca bu kaynak ve cihaz için geçerlidir.</p><div class="source-home-order-list" data-source-home-order="'+device+'">'+
       [...ordered].sort((a,b)=>{const ai=chosen.indexOf(a.id),bi=chosen.indexOf(b.id);return (ai<0?1000+a.order:ai)-(bi<0?1000+b.order:bi);}).map(c=>
-        '<div class="source-home-order-row"><input class="source-home-checkbox" type="checkbox" data-special-home="'+device+'" value="'+escapeAttr(c.id)+'" '+(chosen.includes(c.id)?"checked":"")+' aria-label="'+escapeAttr(overrides[c.id]?.name||c.name)+'"><span class="source-home-counter-name">'+escapeHtml(overrides[c.id]?.name||c.name)+'</span>'+
+        '<div class="source-home-order-row"><input class="source-home-checkbox" type="checkbox" data-special-home="'+device+'" value="'+escapeAttr(c.id)+'" '+(chosen.includes(c.id)?"checked":"")+' aria-label="'+escapeAttr(overrides[c.id]?.name||c.name)+'"><label class="source-home-name-field"><span class="source-home-counter-name">'+escapeHtml(c.name)+'</span><input class="source-home-name-input" type="text" maxlength="45" data-source-home-name="'+device+'" data-slot="'+escapeAttr(c.id)+'" value="'+escapeAttr((config.countersByDevice?.[device]?.[c.id]?.name)||config.counters?.[c.id]?.name||"")+'" placeholder="Özel sayaç adı" aria-label="'+escapeAttr(c.name)+' özel adı"></label>'+
         '<span class="source-home-order-buttons"><button type="button" data-source-home-move="-1" aria-label="Yukarı taşı">↑</button><button type="button" data-source-home-move="1" aria-label="Aşağı taşı">↓</button></span></div>'
       ).join("")+'</div></div>';
     }).join("")+
@@ -4893,10 +4893,19 @@ async function saveSourceSpecialSettings(){
       color:row.querySelector("[data-special-color]").value,
       visible:row.querySelector("[data-special-visible]").checked};
   });
+  // Save names independently for Mac and phone without overwriting the other device.
+  const perDeviceCounters={...(old.countersByDevice||{}),[activeSourceCounterDeviceTab]:counters};
+  const nameDevice=activeSourceHomeDeviceTab;
+  const deviceCounters={...(perDeviceCounters[nameDevice]||{})};
+  root.querySelectorAll('[data-source-home-name="'+nameDevice+'"]').forEach(input=>{
+    const id=input.dataset.slot;
+    deviceCounters[id]={...(deviceCounters[id]||{}),name:input.value.trim().slice(0,45)};
+  });
+  perDeviceCounters[nameDevice]=deviceCounters;
   const homeLayoutConfig={...(old.homeLayout||{})};
   const activeDevice=activeSourceHomeDeviceTab;
   homeLayoutConfig[activeDevice]=[...root.querySelectorAll('[data-special-home="'+activeDevice+'"]:checked')].map(el=>el.value);
-  const config={...old,countersByDevice:{...(old.countersByDevice||{}),[activeSourceCounterDeviceTab]:counters},homeLayout:homeLayoutConfig,
+  const config={...old,countersByDevice:perDeviceCounters,homeLayout:homeLayoutConfig,
     hakedisNote:root.querySelector("#specialSourceHakedis").value.trim().slice(0,120),
     paymentDays:days,paymentRule:root.querySelector("#specialSourcePaymentRule").value};
   state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:config};
