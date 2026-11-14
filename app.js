@@ -4186,7 +4186,13 @@ function mobileDateFilterMatch(service, date, bucket) {
 
 function mobileDateRangeLabel() {
   if (mobileAllDates) return "Tüm zamanlar";
-  if (mobileRangeStart && mobileRangeEnd) return mobileRangeStart === mobileRangeEnd ? mobileRangeStart : mobileRangeStart + " – " + mobileRangeEnd;
+  const readable = (value) => {
+    if (!value) return "";
+    const date = new Date(`${value}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("tr-TR", {day:"numeric",month:"long",year:"numeric"}).format(date);
+  };
+  if (mobileRangeStart && mobileRangeEnd) return mobileRangeStart === mobileRangeEnd
+    ? readable(mobileRangeStart) : readable(mobileRangeStart) + " – " + readable(mobileRangeEnd);
   return "";
 }
 
@@ -4463,6 +4469,18 @@ function mobileRenderDailyCash() {
   ).length;
   // Bekleyen ödemeler tarih aralığından bağımsızdır.
   setText("#mobileCashPaymentCount", String(pendingCount));
+  const pendingServices = (state.services || []).filter((service) =>
+    matchesPortalSource(service.source) &&
+    (!mobileCashSource || sourceMatches(service.source, mobileCashSource)) &&
+    (isStatus(service.status, "Ödeme Bekliyor") ||
+      ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || "")))
+  );
+  const pendingAmount = pendingServices.reduce((total, service) => {
+    const primary = primaryCashForService(service.id);
+    const amount = Number(primary?.amount ?? service.price ?? 0);
+    return total + (Number.isFinite(amount) ? Math.max(0, amount) : 0);
+  }, 0);
+  setText("#mobileCashPaymentAmount", money(pendingAmount));
 
   const label = startDate && endDate && startDate === endDate
     ? (startDate === isoToday ? `Bugün · ${formatDisplayDate(startDate)}` : formatDisplayDate(startDate))
@@ -5843,7 +5861,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
 
     if (textEl) textEl.textContent = mobileAllDates ? "Tüm tarihler servis özeti" : mobileRangeStart && mobileRangeEnd ? mobileDateRangeLabel() + " servis özeti" : formatWelcomeSummary(selectedDate());
     if (dateDisplayEl) {
-      dateDisplayEl.innerHTML = mobileRangeStart && mobileRangeEnd ? `<span class="mobile-welcome-date-line">${escapeHtml(mobileDateRangeLabel())}</span><span class="mobile-welcome-day-line">Seçili tarih aralığı</span>` : mobileAllDates
+      dateDisplayEl.innerHTML = mobileRangeStart && mobileRangeEnd ? `<span class="mobile-welcome-date-line">${escapeHtml(mobileDateRangeLabel())}</span><span class="mobile-welcome-day-line">${mobileRangeStart === mobileRangeEnd ? formatWelcomeDay(mobileRangeStart) : "Seçili tarih aralığı"}</span>` : mobileAllDates
         ? `<span class="mobile-welcome-date-line">Tüm tarihler</span><span class="mobile-welcome-day-line">Açık fişler gecikmiş olanlarla birlikte</span>`
         : `<span class="mobile-welcome-date-line">${formatWelcomeDate(selectedDate())}</span><span class="mobile-welcome-day-line">${formatWelcomeDay(selectedDate())}</span>`;
     }
