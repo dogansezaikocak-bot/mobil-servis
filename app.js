@@ -4963,12 +4963,13 @@ function mobileSaveDelayDate(serviceId) {
 
 
 const mobileNewServiceSteps = [
-  { key: "customerName", label: "İsim Soyisim", type: "text", placeholder: "Müşteri adı soyadı", required: true },
-  { key: "phone", label: "Telefon", type: "tel", placeholder: "05xx xxx xx xx", required: true },
-  { key: "address", label: "Adres", type: "textarea", placeholder: "Mahalle, sokak, bina, daire", required: true },
-  { key: "fault", label: "Şikayet", type: "textarea", placeholder: "Örn: çalışmıyor, su akıtıyor", required: true },
-  { key: "device", label: "Cihaz Türü", type: "select", optionsKey: "devices", required: true },
-  { key: "brand", label: "Marka", type: "select", optionsKey: "brands", required: true },
+  { key: "customerName", label: "İsim Soyisim", type: "text", placeholder: "Müşteri adı soyadı", required: false },
+  { key: "phone", label: "Telefon", type: "tel", placeholder: "05xx xxx xx xx", required: false },
+  { key: "address", label: "Adres", type: "textarea", placeholder: "Mahalle, sokak, bina, daire", required: false },
+  { key: "locationUrl", label: "WhatsApp Konumu", type: "url", placeholder: "WhatsApp konum bağlantısını yapıştır (isteğe bağlı)", required: false },
+  { key: "fault", label: "Şikayet", type: "textarea", placeholder: "Örn: çalışmıyor, su akıtıyor", required: false },
+  { key: "device", label: "Cihaz Türü", type: "select", optionsKey: "devices", required: false },
+  { key: "brand", label: "Marka", type: "select", optionsKey: "brands", required: false },
   { key: "model", label: "Model", type: "text", placeholder: "Varsa model yaz", required: false },
 ];
 let mobileNewServiceData = {};
@@ -5037,8 +5038,8 @@ function mobileWizardCurrentValue() {
 function mobileWizardNext() {
   const step = mobileNewServiceSteps[mobileNewServiceIndex];
   const value = mobileWizardCurrentValue();
-  if (step.required && !value) {
-    alert(`${step.label} boş kalmasın.`);
+  if (step.key === "locationUrl" && value && !safeServiceLocationUrl(value)) {
+    alert("Google Haritalar veya Apple Haritalar bağlantısı yapıştırın ya da boş geçin.");
     return;
   }
   mobileNewServiceData[step.key] = value;
@@ -5056,6 +5057,7 @@ function saveMobileWizardService() {
     customerName: mobileNewServiceData.customerName || "",
     phone: mobileNewServiceData.phone || "",
     address: mobileNewServiceData.address || "",
+    locationUrl: safeServiceLocationUrl(mobileNewServiceData.locationUrl),
     fault: mobileNewServiceData.fault || "",
     device: mobileNewServiceData.device || "",
     brand: mobileNewServiceData.brand || "",
