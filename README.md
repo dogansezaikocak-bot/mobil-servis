@@ -59,3 +59,12 @@ Ekzen Servis Takip V5.3.0 Native Navigation - yeşil ekran düzeltmeli. V5.2.4.3
 - Ana sayfadaki servis sayaçları artık servis listesiyle aynı tarih kuralını kullanır.
 - Ertelenen servis eski günün sayaç adedinden hemen düşer.
 - Servis yalnızca yeni planlanan tarihin sayacına dahil olur.
+
+## V5.3.11 Kaynak Silme Düzeltmesi
+- Kaynaklar listesinden silinen kaynak (ör. `Sedef Teknik`) sayfa yenilenince veya bulut eşitlemesinde artık geri gelmez.
+- Silinen kaynaklar ayarlarda `hiddenSources` listesinde tutulur ve Firebase ile diğer ayarlar gibi eşitlenir.
+- Kaynak filtreleri, seçim listeleri ve mobil kasa kaynak listesi silinen kaynağı göstermez.
+- Kaynak silmek artık eski servis ve kasa kayıtlarını değiştirmez; eski kayıtlarda kaynak adı, toplamlar ve geçmiş aynen kalır.
+- Eski bir kayıt düzenlenirken silinmiş kaynağı kaybolmaz, kayıtta korunur.
+- Aynı isimde kaynak tekrar eklenince listeye geri döner.
+- Silme onayında eski kayıtların korunduğu yazılır.
