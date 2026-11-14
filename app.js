@@ -4404,6 +4404,14 @@ let mobileCashRangeEnd = "";
 let mobileCashSource = "";
 let mobileCashRangeMode = "today";
 let mobileCashRangeInitialized = false;
+let mobileCashDetailFilter = "all";
+function mobileCashMovementCategory(item) {
+  if (item.autoCommissionExpense) return "commission";
+  if (item.autoMaterialExpense) return "material";
+  if (item.type === "income") return "income";
+  return "expense";
+}
+
 
 function mobileCashDefaultToday() {
   mobileCashRangeStart = mobileSelectedDate || isoToday;
@@ -4469,13 +4477,21 @@ function mobileRenderDailyCash() {
 
   const movementList = document.querySelector("#mobileDailyCashMovementList");
   const movementCount = document.querySelector("#mobileDailyCashMovementCount");
-  if (movementCount) movementCount.textContent = `${items.length} işlem`;
+  const visibleItems = mobileCashDetailFilter === "all"
+    ? items
+    : items.filter((item) => mobileCashMovementCategory(item) === mobileCashDetailFilter && affectsRealCash(item));
+  if (movementCount) movementCount.textContent = `${visibleItems.length} işlem`;
+  const movementHeading = document.querySelector("#mobileCashMovementHeading");
+  const detailNames = {all:"Para Hareketleri",income:"Hasılat Hareketleri",commission:"Komisyon Giderleri",material:"Malzeme Giderleri",expense:"Diğer Giderler"};
+  if (movementHeading) movementHeading.textContent = detailNames[mobileCashDetailFilter] || "Para Hareketleri";
+  const resetButton = document.querySelector("#mobileCashDetailReset");
+  if (resetButton) resetButton.hidden = mobileCashDetailFilter === "all";
   if (movementList) {
-    const rows = [...items].sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const rows = [...visibleItems].sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     movementList.innerHTML = rows.length ? rows.map((item) => {
       const amount = Number(item.amount || item.total || item.value || 0);
       const type = norm(item.type || item.kind || item.category || "");
-      const isOut = type.includes("gider") || type.includes("komisyon") || type.includes("malzeme") || amount < 0;
+      const isOut = mobileCashMovementCategory(item) !== "income" || amount < 0;
       const title = item.description || item.note || item.title || item.category || item.type || (isOut ? "Gider" : "Tahsilat");
       const source = cashItemSource(item) || "Kasa";
       const d = String(item.date || "").slice(0,10);
@@ -6122,9 +6138,25 @@ document.addEventListener("click", function(event) {
     window.ekzenMobileNavigatePayment?.();
     return;
   }
+  const category = event.target.closest("[data-cash-detail]");
+  if (category && category.closest("#mobileDailyCashPage")) {
+    event.preventDefault();
+    mobileCashDetailFilter = category.dataset.cashDetail;
+    mobileRenderDailyCash();
+    document.querySelector("#mobileCashMovementHeading")?.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
+  if (event.target.closest("#mobileCashDetailReset")) {
+    event.preventDefault();
+    mobileCashDetailFilter = "all";
+    mobileRenderDailyCash();
+    return;
+  }
   const profit = event.target.closest("#mobileCashProfitCounter");
   if (profit) {
     event.preventDefault();
-    document.querySelector("#mobileDailyCashMovementList")?.scrollIntoView({behavior:"smooth",block:"start"});
+    mobileCashDetailFilter = "all";
+    mobileRenderDailyCash();
+    document.querySelector("#mobileCashMovementHeading")?.scrollIntoView({behavior:"smooth",block:"start"});
   }
 });
