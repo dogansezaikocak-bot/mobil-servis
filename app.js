@@ -3336,7 +3336,7 @@ function openSourceForm(name = "") {
     sourceForm.elements.oldName.value = name;
     sourceForm.elements.name.value = name;
     if (sourceForm.elements.phone) sourceForm.elements.phone.value = sourcePhone(name);
-    if (sourceForm.elements.commissionRate) sourceForm.elements.commissionRate.value = String(sourceCommissionRate(name));
+    if (sourceForm.elements.commissionRate) sourceForm.elements.commissionRate.value = String(100 - sourceCommissionRate(name));
     sourceDialog.querySelector("[data-action='delete-source']").dataset.sourceName = name;
     sourceDialog.querySelector("[data-action='delete-source']").style.visibility = "visible";
     document.querySelector("#sourceDialogTitle").textContent = "Kaynak Düzenle";
@@ -3350,7 +3350,7 @@ function saveSource(formData) {
   if (!name) return;
   if (!state.settings.sourcePhones) state.settings.sourcePhones = {};
   if (!state.settings.sourceCommissionRates) state.settings.sourceCommissionRates = {};
-  const oldRate = data.oldName ? sourceCommissionRate(data.oldName) : 50;
+  const oldRate = data.oldName ? 100 - sourceCommissionRate(data.oldName) : 50;
   if (data.oldName) {
     updateSettingItem("sources", data.oldName, name);
     if (data.oldName !== name) {
@@ -3753,8 +3753,8 @@ function sourceCommissionRate(source) {
   if (isOwnWorkSource(source)) return 0;
   const rates = state.settings?.sourceCommissionRates || {};
   const match = Object.keys(rates).find((name) => sourceMatches(name, source));
-  const rate = match ? Number(rates[match]) : 50;
-  return Number.isFinite(rate) ? Math.min(100, Math.max(0, rate)) : 50;
+  const sourceShare = match ? Number(rates[match]) : 50;
+  return Number.isFinite(sourceShare) ? 100 - Math.min(100, Math.max(0, sourceShare)) : 50;
 }
 
 function sourcePhone(source) {
@@ -3826,8 +3826,8 @@ function syncCompleteCommissionField() {
   if (!select || !field) return;
   const own = isOwnWorkSource(completeForm.elements.source?.value || "");
   field.classList.toggle("is-own-work-commission", own);
-  field.hidden = own;
-  if (own) select.value = "0";
+  field.hidden = true;
+  select.value = String(sourceCommissionRate(completeForm.elements.source?.value || ""));
 }
 
 function visibleCashTitle(item) {
@@ -5787,7 +5787,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       return cashIsPosted(item)
         && matchesPortalSource(itemSource)
         && (!source || sourceMatches(itemSource, source))
-        && itemDate === selectedDate();
+        && (mobileAllDates || dateInRange(itemDate, mobileRangeStart || selectedDate(), mobileRangeEnd || selectedDate()));
     });
     const serviceTotals = serviceOnlyCashBreakdown(cashItems);
     const income = Number(serviceTotals.income || 0);
