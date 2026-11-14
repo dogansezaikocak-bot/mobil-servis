@@ -2971,6 +2971,18 @@ function showSourceSettingsTab(tab){
  });
 }
 document.addEventListener("click",event=>{
+ const moveHome=event.target.closest("#sourceSpecialSettings [data-source-home-move]");
+ if(moveHome){
+   event.preventDefault();
+   const row=moveHome.closest(".source-home-order-row");
+   const list=row?.parentElement;
+   const direction=Number(moveHome.dataset.sourceHomeMove);
+   if(row&&list){
+     if(direction<0&&row.previousElementSibling)list.insertBefore(row,row.previousElementSibling);
+     else if(direction>0&&row.nextElementSibling)list.insertBefore(row.nextElementSibling,row);
+   }
+   return;
+ }
  const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
  if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
  const counterDevice=event.target.closest("#sourceSpecialSettings [data-source-counter-device-tab]");
@@ -4845,7 +4857,11 @@ function renderSourceSpecialSettings(){
     ["desktop","mobile"].map(device=>{
       const chosen=Array.isArray(config.homeLayout?.[device])?config.homeLayout[device]:homeLayout(device);
       return '<div class="source-settings-device" data-source-device-panel="'+device+'" '+(device!==activeSourceHomeDeviceTab?'hidden':'')+'><strong>'+(device==="desktop"?"💻 Mac / Masaüstü":"📱 Telefon")+'</strong>'+
-      ordered.map(c=>'<label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+c.id+'" '+(chosen.includes(c.id)?"checked":"")+'> '+escapeHtml(overrides[c.id]?.name||c.name)+'</label>').join("")+'</div>';
+      '<p class="source-home-order-hint">İşaretlediğiniz sayaçları ↑ ↓ düğmeleriyle sıralayın. Sıralama yalnızca bu kaynak ve cihaz için geçerlidir.</p><div class="source-home-order-list" data-source-home-order="'+device+'">'+
+      [...ordered].sort((a,b)=>{const ai=chosen.indexOf(a.id),bi=chosen.indexOf(b.id);return (ai<0?1000+a.order:ai)-(bi<0?1000+b.order:bi);}).map(c=>
+        '<div class="source-home-order-row"><label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+escapeAttr(c.id)+'" '+(chosen.includes(c.id)?"checked":"")+'> '+escapeHtml(overrides[c.id]?.name||c.name)+'</label>'+
+        '<span class="source-home-order-buttons"><button type="button" data-source-home-move="-1" aria-label="Yukarı taşı">↑</button><button type="button" data-source-home-move="1" aria-label="Aşağı taşı">↓</button></span></div>'
+      ).join("")+'</div></div>';
     }).join("")+
     '</div><div data-source-settings-panel="finance"><h4>Komisyon ve Hakediş</h4><label>'+(isOwnWorkSource(source)?'Kaynağa ayrılan pay (%)':'Bize kalan pay (%)')+'<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
     '<p>Bu oran yeni fişlerde varsayılan pay olarak kullanılır. Eski fişlerin kaydedilmiş oranları korunur.</p>'+
