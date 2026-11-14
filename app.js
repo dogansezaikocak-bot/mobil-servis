@@ -4859,7 +4859,7 @@ function renderSourceSpecialSettings(){
       return '<div class="source-settings-device" data-source-device-panel="'+device+'" '+(device!==activeSourceHomeDeviceTab?'hidden':'')+'><strong>'+(device==="desktop"?"💻 Mac / Masaüstü":"📱 Telefon")+'</strong>'+
       '<p class="source-home-order-hint">İşaretlediğiniz sayaçları ↑ ↓ düğmeleriyle sıralayın. Sıralama yalnızca bu kaynak ve cihaz için geçerlidir.</p><div class="source-home-order-list" data-source-home-order="'+device+'">'+
       [...ordered].sort((a,b)=>{const ai=chosen.indexOf(a.id),bi=chosen.indexOf(b.id);return (ai<0?1000+a.order:ai)-(bi<0?1000+b.order:bi);}).map(c=>
-        '<div class="source-home-order-row"><label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+escapeAttr(c.id)+'" '+(chosen.includes(c.id)?"checked":"")+'><span class="source-home-counter-name">'+escapeHtml(overrides[c.id]?.name||c.name)+'</span></label>'+
+        '<div class="source-home-order-row"><input class="source-home-checkbox" type="checkbox" data-special-home="'+device+'" value="'+escapeAttr(c.id)+'" '+(chosen.includes(c.id)?"checked":"")+' aria-label="'+escapeAttr(overrides[c.id]?.name||c.name)+'"><span class="source-home-counter-name">'+escapeHtml(overrides[c.id]?.name||c.name)+'</span>'+
         '<span class="source-home-order-buttons"><button type="button" data-source-home-move="-1" aria-label="Yukarı taşı">↑</button><button type="button" data-source-home-move="1" aria-label="Aşağı taşı">↓</button></span></div>'
       ).join("")+'</div></div>';
     }).join("")+
