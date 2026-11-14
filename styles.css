@@ -9087,3 +9087,6 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
 #mobileHomeCashCards button.home-cash-action{font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer;touch-action:manipulation}
 #mobileHomeCashCards button.home-cash-action:active{filter:brightness(.94)}
 #mobileHomeCashCards button.home-cash-action:focus-visible{outline:3px solid #0f766e;outline-offset:3px}
+
+/* V5.3.62 — fixed desktop financial cards retired; keep sourceMetrics node for calculations */
+#dashboardView .dashboard-band:has(#sourceMetrics){display:none!important}
