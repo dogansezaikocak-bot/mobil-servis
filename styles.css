@@ -9077,3 +9077,8 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
     font-variant-numeric:tabular-nums;
   }
 }
+
+/* V5.3.59 — pending-payment card shows both count and monetary total */
+#mobileHomeCashCards .mobile-daily-counter:has(.home-pending-amount){justify-content:space-between!important}
+#mobileHomeCashCards .mobile-daily-counter:has(.home-pending-amount) b{font-size:clamp(22px,6vw,32px)!important;white-space:nowrap!important}
+#mobileHomeCashCards .home-pending-amount{display:block!important;font-size:clamp(18px,5vw,25px)!important;font-weight:900!important;color:#fff!important;line-height:1.1!important;white-space:nowrap!important}
