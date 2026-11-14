@@ -162,6 +162,7 @@ function migrateState(oldState) {
       hiddenSources,
       cities: uniqueValues(oldState.settings?.cities || cities),
       sourcePhones: { ...(oldState.settings?.sourcePhones || {}) },
+      sourceCommissionRates: { ...(oldState.settings?.sourceCommissionRates || {}) },
     },
     cash: oldState.cash || [],
     services: oldState.services || [],
@@ -3055,7 +3056,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.amount.value = service.price && Number(service.price) > 0 ? String(service.price) : "";
   completeForm.elements.materialCost.value = "";
   if (completeForm.elements.otherExpense) completeForm.elements.otherExpense.value = "";
-  completeForm.elements.commissionRate.value = "50";
+  completeForm.elements.commissionRate.value = String(sourceCommissionRate(service.source));
   if (completeForm.elements.collectedBy) completeForm.elements.collectedBy.value = "me";
   completeForm.elements.source.value = service.source || "";
   keepSelectValue(completeForm.elements.source, service.source);
@@ -3117,7 +3118,7 @@ function completeServiceFromForm(formData) {
   const amount = paymentModeForcesZero(paymentMode) ? 0 : rawAmount;
   const materialCost = Number(data.materialCost) || 0;
   const otherExpense = Number(data.otherExpense) || 0;
-  const commissionRate = Number(data.commissionRate) || 0;
+  const commissionRate = sourceCommissionRate(data.source || service.source);
   const cashType = "income";
   const closeDate = isoToday;
 
@@ -3335,6 +3336,7 @@ function openSourceForm(name = "") {
     sourceForm.elements.oldName.value = name;
     sourceForm.elements.name.value = name;
     if (sourceForm.elements.phone) sourceForm.elements.phone.value = sourcePhone(name);
+    if (sourceForm.elements.commissionRate) sourceForm.elements.commissionRate.value = String(sourceCommissionRate(name));
     sourceDialog.querySelector("[data-action='delete-source']").dataset.sourceName = name;
     sourceDialog.querySelector("[data-action='delete-source']").style.visibility = "visible";
     document.querySelector("#sourceDialogTitle").textContent = "Kaynak Düzenle";
@@ -3347,11 +3349,17 @@ function saveSource(formData) {
   const name = data.name.trim();
   if (!name) return;
   if (!state.settings.sourcePhones) state.settings.sourcePhones = {};
+  if (!state.settings.sourceCommissionRates) state.settings.sourceCommissionRates = {};
+  const oldRate = data.oldName ? sourceCommissionRate(data.oldName) : 50;
   if (data.oldName) {
     updateSettingItem("sources", data.oldName, name);
-    if (data.oldName !== name) delete state.settings.sourcePhones[data.oldName];
+    if (data.oldName !== name) {
+      delete state.settings.sourcePhones[data.oldName];
+      delete state.settings.sourceCommissionRates[data.oldName];
+    }
   } else addSettingValue("sources", name);
   const phone = (data.phone || "").trim();
+  state.settings.sourceCommissionRates[name] = Math.min(100, Math.max(0, Number(data.commissionRate ?? oldRate) || 0));
   if (phone) state.settings.sourcePhones[name] = phone;
   else delete state.settings.sourcePhones[name];
   saveState();
@@ -3739,6 +3747,14 @@ function ensureValues(values, requiredValues) {
 function serviceSource(serviceId) {
   const service = state.services.find((item) => item.id === String(serviceId || "").trim());
   return service?.source || "";
+}
+
+function sourceCommissionRate(source) {
+  if (isOwnWorkSource(source)) return 0;
+  const rates = state.settings?.sourceCommissionRates || {};
+  const match = Object.keys(rates).find((name) => sourceMatches(name, source));
+  const rate = match ? Number(rates[match]) : 50;
+  return Number.isFinite(rate) ? Math.min(100, Math.max(0, rate)) : 50;
 }
 
 function sourcePhone(source) {
@@ -5256,7 +5272,7 @@ function mobileCloseExistingData(service) {
 }
 
 function mobileCloseSteps() {
-  return mobileCloseServiceSteps.filter((step) => step.key !== "commissionRate" || !isOwnWorkSource(mobileCloseServiceData.source));
+  return mobileCloseServiceSteps.filter((step) => step.key !== "commissionRate");
 }
 
 function openMobileCloseServiceWizard(serviceId) {
@@ -5265,8 +5281,7 @@ function openMobileCloseServiceWizard(serviceId) {
   mobileCloseServiceData = mobileCloseExistingData(service);
   mobileCloseServiceIndex = 0;
   mobileCloseServiceKey = "workNote";
-  delete mobileCloseServiceData.commissionAnswered;
-  if (isOwnWorkSource(mobileCloseServiceData.source)) mobileCloseServiceData.commissionRate = "0";
+  mobileCloseServiceData.commissionRate = String(sourceCommissionRate(mobileCloseServiceData.source));
   let overlay = document.querySelector("#mobileCloseServiceWizard");
   if (!overlay) {
     overlay = document.createElement("div");
@@ -5345,7 +5360,7 @@ function saveMobileCloseCurrentStep() {
 }
 
 function finishMobileCloseServiceWizard() {
-  if (isOwnWorkSource(mobileCloseServiceData.source)) mobileCloseServiceData.commissionRate = "0";
+  mobileCloseServiceData.commissionRate = String(sourceCommissionRate(mobileCloseServiceData.source));
   const fd = new FormData();
   ["serviceId", "paymentMode", "type", "amount", "collectedBy", "materialCost", "otherExpense", "commissionRate", "source", "workNote"].forEach((key) => {
     fd.append(key, key === "type" ? "income" : (mobileCloseServiceData[key] ?? ""));
@@ -5374,12 +5389,6 @@ document.addEventListener("click", function(event) {
     if (!saveMobileCloseCurrentStep()) return;
     const steps = mobileCloseSteps();
     const index = steps.findIndex((step) => step.key === mobileCloseServiceKey);
-    const sourceChangedToExternal = mobileCloseServiceKey === "source" && !isOwnWorkSource(mobileCloseServiceData.source) && !mobileCloseServiceData.commissionAnswered;
-    if (sourceChangedToExternal) {
-      mobileCloseServiceKey = "commissionRate";
-      renderMobileCloseServiceStep();
-      return;
-    }
     if (index >= steps.length - 1) return finishMobileCloseServiceWizard();
     mobileCloseServiceKey = steps[index + 1].key;
     renderMobileCloseServiceStep();
@@ -5440,7 +5449,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
   }
 
   function recordsFor(bucket) {
-    const rows = sortServices(state.services || []).filter((service) => matchesSource(service) && mobileMatchesServiceQuery(service, mobileServiceQuery) && matchesDate(service, bucket));
+    const rows = sortServices(state.services || []).filter((service) => matchesSource(service) && mobileMatchesServiceQuery(service, mobileServiceQuery) && (bucket === "payment" || matchesDate(service, bucket)));
     return bucket === "payment" ? rows.filter((service) => isStatus(service.status, "Ödeme Bekliyor") || ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || ""))) : bucket === "closed" ? rows.filter(isClosedService) : rows.filter(isOpenService);
   }
 
@@ -5487,7 +5496,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
 
-    const bucketLabel = activeBucket === "payment" ? "Ödeme Bekliyor" : activeBucket === "closed" ? "Kapalı Fişler" : "Açık Fişler";
+    const bucketLabel = activeBucket === "payment" ? "Ödeme Bekliyor · Tüm Zamanlar" : activeBucket === "closed" ? "Kapalı Fişler" : "Açık Fişler";
     const title = document.querySelector("#mobileListTitle");
     if (title) title.textContent = `${formattedDate()} · ${bucketLabel}`;
     const summary = document.querySelector("#mobileTechSummary");
@@ -5693,7 +5702,7 @@ mobileFinishService = function mobileFinishServiceV364(serviceId) {
     if (openEl) openEl.textContent = String(openRows.length);
     if (closedEl) closedEl.textContent = String(closedRows.length);
     const paymentEl = document.querySelector("#mobileWelcomePaymentCount");
-    if (paymentEl) paymentEl.textContent = String(rows.filter((service) => isStatus(service.status, "Ödeme Bekliyor") || ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || ""))).length);
+    if (paymentEl) paymentEl.textContent = String((state.services || []).filter((service) => mobileSourceVisible(service, selectedSourceValue()) && (isStatus(service.status, "Ödeme Bekliyor") || ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || "")))).length);
 
     const source = selectedSourceValue();
     const cashItems = (state.cash || []).filter((item) => {
