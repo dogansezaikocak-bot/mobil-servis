@@ -8936,3 +8936,24 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
 #settingsView #saveSpecialSourceSettings{margin:18px 0 0;padding:12px 18px;border-radius:12px}
 #settingsView #specialSourceSaveStatus{margin-left:12px;font-weight:700;color:#0f766e}
 @media(max-width:800px){#settingsView .source-settings-columns{grid-template-columns:1fr}}
+
+/* V5.3.51 — show one settings area at a time */
+#settingsView [hidden],#sourceSpecialSettings [hidden]{display:none!important}
+#settingsView .settings-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#settingsView .settings-tabs button{display:flex;align-items:center;justify-content:center;min-height:56px;padding:12px;border-radius:14px;border:1px solid #d9e6e9;background:#fff;color:#24475a;font-weight:800;cursor:pointer;box-shadow:0 3px 10px #0f172a0a}
+#settingsView .settings-tabs button:hover{border-color:#7abbb0;background:#f0faf6}
+#settingsView .settings-tabs button.is-active{border-color:#0c8274;background:#e2f5ee;color:#065f55;box-shadow:inset 0 0 0 1px #0c8274}
+#settingsView .source-settings-tabs{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0}
+#settingsView .source-settings-tabs button{border:1px solid #cddfe3;border-radius:11px;padding:11px 14px;background:#fff;color:#225267;font-weight:800;cursor:pointer}
+#settingsView .source-settings-tabs button.is-active{background:#0d766c;border-color:#0d766c;color:white}
+#settingsView .source-settings-columns{display:block;max-width:790px}
+#settingsView .source-settings-columns>div{width:100%}
+#settingsView .source-settings-counter{max-width:600px}
+#settingsView .source-settings-columns>div[data-source-settings-panel="finance"]{max-width:520px}
+#settingsView .source-settings-device{max-width:600px}
+@media(max-width:720px){
+ #settingsView .settings-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #settingsView .settings-tabs button{font-size:12px;min-height:52px}
+ #settingsView .source-settings-tabs{display:grid;grid-template-columns:1fr}
+ #settingsView .source-settings-tabs button{text-align:left}
+}
