@@ -4521,14 +4521,10 @@ function renderSharedCashSlots(items){
    if(heading)heading.textContent=c.name;
    const value=customCashValue(c,context);
    if(c.id==="payment"){
-     const count=card.querySelector("#mobileCashPaymentCount");
-     if(count)count.textContent=String(value);
-     const suffix=count?.parentElement;
-     if(suffix)suffix.lastChild.textContent=c.unit==="count"?" fiş":"";
-     if(c.unit==="money"&&suffix)suffix.textContent=money(value);
-     else if(suffix&&!suffix.querySelector("#mobileCashPaymentCount"))suffix.innerHTML='<span id="mobileCashPaymentCount"></span> fiş';
-     const fresh=card.querySelector("#mobileCashPaymentCount");if(fresh)fresh.textContent=String(value);
-     const amount=card.querySelector("#mobileCashPaymentAmount");if(amount)amount.textContent=money(context.pendingAmount);
+     const summary=card.querySelector("b");
+     if(summary)summary.innerHTML=c.unit==="count"?'<span id="mobileCashPaymentCount">'+String(value)+'</span> fiş':escapeHtml(money(value));
+     const amount=card.querySelector("#mobileCashPaymentAmount");
+     if(amount)amount.textContent=money(context.pendingAmount);
    }else if(c.id==="profit"){const val=card.querySelector("#mobileDailyPageProfit");if(val)val.textContent=c.unit==="count"?String(value):money(value);}
    else if(node)node.textContent=c.unit==="count"?String(value):money(value);
  });
@@ -4565,7 +4561,8 @@ function renderCustomCashCounterSettings() {
 function editCustomCounter(index) {
   const c=customCashCounters()[index];if(!c)return;
   const form=document.querySelector("#customCounterForm");if(!form)return;
-  form.elements.index.value=String(index);\n  form.elements.slot.value="";
+  form.elements.index.value=String(index);
+  form.elements.slot.value="";
   form.elements.name.value=c.name||"";
   form.elements.color.value=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
   form.elements.unit.value=c.unit==="count"?"count":"money";
@@ -4576,7 +4573,8 @@ function editCustomCounter(index) {
   form.scrollIntoView({behavior:"smooth",block:"center"});
 }
 function editCashSlot(id){\n const c=cashSlotSettings().find(x=>x.id===id);if(!c)return;\n const form=document.querySelector("#customCounterForm");if(!form)return;\n form.elements.slot.value=id;form.elements.index.value="-1";form.elements.name.value=c.name;form.elements.color.value=c.color;form.elements.unit.value=c.unit;\n form.querySelectorAll("[data-sign]").forEach(el=>{const t=(c.terms||[]).find(t=>t.key===el.dataset.sign);el.value=t?String(t.sign===-1?-1:1):"0";});\n form.scrollIntoView({behavior:"smooth",block:"center"});\n}\nfunction renderCustomCashCounters(items) {
-  const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;\n  renderSharedCashSlots(items);
+  const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;
+  renderSharedCashSlots(items);
   const counters=customCashCounters().filter(c=>c.visible!==false);
   if (!counters.length){root.hidden=true;root.innerHTML="";return;}
   root.hidden=false;
@@ -6348,7 +6346,8 @@ document.addEventListener("submit",event=>{
   const counter={id:old?.id||uid(),name,color:form.elements.color.value,
     unit:form.elements.unit.value==="count"?"count":"money",
     terms,visible:old?.visible!==false};
-  const slot=form.elements.slot.value;\n  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}\n  else if(old)list[index]=counter;
+  const slot=form.elements.slot.value;
+  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}\n  else if(old)list[index]=counter;
   else {if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}list.push(counter);}
   saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();
 });
