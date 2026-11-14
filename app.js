@@ -190,6 +190,7 @@ function migrateState(oldState) {
       cities: uniqueValues(oldState.settings?.cities || cities),
       sourcePhones: { ...(oldState.settings?.sourcePhones || {}) },
       sourceCommissionRates: { ...(oldState.settings?.sourceCommissionRates || {}) },
+      sourceSpecialSettings: oldState.settings?.sourceSpecialSettings && typeof oldState.settings.sourceSpecialSettings==="object" ? oldState.settings.sourceSpecialSettings : {},
     },
     cash: oldState.cash || [],
     services: oldState.services || [],
@@ -2858,6 +2859,7 @@ function renderSettings() {
   renderSettingsLists();
   renderCustomCashCounterSettings();
   renderHomeLayoutSettings();
+  renderSourceSpecialSettings();
 }
 
 function renderSettingsLists() {
@@ -4669,6 +4671,84 @@ function homeLayout(device){
   const valid=new Set(CASH_SLOT_DEFAULTS.map(x=>x.id));
   return Array.isArray(raw)?[...new Set(raw.filter(id=>valid.has(id)))]:[];
 }
+
+let selectedSourceSettingsName="";
+function sourceSpecialConfig(source){
+  return state.settings?.sourceSpecialSettings?.[source]||{};
+}
+function renderSourceSpecialSettings(){
+  const root=document.querySelector("#sourceSpecialSettings");if(!root)return;
+  const names=settingsList("sources");
+  if(!names.includes(selectedSourceSettingsName))selectedSourceSettingsName=names[0]||"";
+  const source=selectedSourceSettingsName;
+  const config=sourceSpecialConfig(source);
+  const overrides=config.counters||{};
+  const counterOrder=Array.isArray(config.counterOrder)?config.counterOrder:[];
+  const ordered=cashSlotSettings().slice().sort((a,b)=>{
+    const ai=counterOrder.indexOf(a.id),bi=counterOrder.indexOf(b.id);
+    return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);
+  });
+  root.innerHTML='<h3>Kaynağa Özel Ayarlar</h3><p>Bir kaynak seçin. Buradaki değişiklikler diğer kaynakları etkilemez. Mevcut fişlerin geçmiş hesapları değiştirilmez.</p>'+
+    '<label class="source-settings-picker">Servis kaynağı<select id="specialSourcePicker">'+names.map(n=>'<option value="'+escapeAttr(n)+'" '+(n===source?"selected":"")+'>'+escapeHtml(n)+'</option>').join("")+'</select></label>'+
+    (!source?'<p>Önce bir servis kaynağı ekleyin.</p>':
+    '<div class="source-settings-columns"><div><h4>Kaynağa Özel Sayaçlar</h4><p>İsim, renk, görünürlük ve sıralama yalnızca seçilen kaynakta geçerlidir.</p>'+
+    ordered.map((c,i)=>{
+      const o=overrides[c.id]||{};
+      return '<div class="source-settings-counter" data-special-counter="'+c.id+'"><div class="source-settings-counter-title"><strong>'+escapeHtml(c.name)+'</strong><span><button type="button" data-action="source-counter-move" data-slot="'+c.id+'" data-direction="-1" '+(i===0?"disabled":"")+'>↑</button><button type="button" data-action="source-counter-move" data-slot="'+c.id+'" data-direction="1" '+(i===ordered.length-1?"disabled":"")+'>↓</button></span></div>'+
+      '<label>Özel ad<input data-special-name value="'+escapeAttr(o.name||"")+'" placeholder="'+escapeAttr(c.name)+'"></label>'+
+      '<label>Renk<input data-special-color type="color" value="'+(/^#[0-9a-fA-F]{6}$/.test(o.color)?o.color:c.color)+'"></label>'+
+      '<label class="source-settings-checkbox"><input data-special-visible type="checkbox" '+(o.visible!==false?"checked":"")+'> Göster</label></div>';
+    }).join("")+'</div><div><h4>Mac ve Telefon Ana Sayfası</h4><p>Bu kaynak seçildiğinde görünecek sayaçları belirleyin.</p>'+
+    ["desktop","mobile"].map(device=>{
+      const chosen=Array.isArray(config.homeLayout?.[device])?config.homeLayout[device]:homeLayout(device);
+      return '<div class="source-settings-device"><strong>'+(device==="desktop"?"Mac":"Telefon")+'</strong>'+
+      ordered.map(c=>'<label class="source-settings-checkbox"><input type="checkbox" data-special-home="'+device+'" value="'+c.id+'" '+(chosen.includes(c.id)?"checked":"")+'> '+escapeHtml(overrides[c.id]?.name||c.name)+'</label>').join("")+'</div>';
+    }).join("")+
+    '<h4>Komisyon ve Hakediş</h4><label>Bize kalan pay (%)<input id="specialSourceRate" type="number" min="0" max="100" step="0.01" value="'+sourceCommissionShare(source)+'"></label>'+
+    '<p>Bu oran yeni fişlerde varsayılan pay olarak kullanılır. Eski fişlerin kaydedilmiş oranları korunur.</p>'+
+    '<label>Hakediş açıklaması<input id="specialSourceHakedis" maxlength="120" value="'+escapeAttr(config.hakedisNote||"")+'" placeholder="Örn. Ay sonunda hesaplaşma"></label>'+
+    '<label>Ödeme vadesi (gün)<input id="specialSourcePaymentDays" type="number" min="0" max="365" value="'+(Number.isInteger(config.paymentDays)?config.paymentDays:0)+'"></label>'+
+    '<label>Ödeme kuralı<select id="specialSourcePaymentRule"><option value="manual" '+(config.paymentRule!=="on-close"?"selected":"")+'>Manuel hesaplaşma</option><option value="on-close" '+(config.paymentRule==="on-close"?"selected":"")+'>Fiş kapanınca hakediş</option></select></label>'+
+    '<p>Ödeme vadesi ve kuralı şimdilik kaynak profilinde saklanır; mevcut tahsilatları veya kasa bakiyesini otomatik değiştirmez.</p></div></div>'+
+    '<button type="button" class="primary-button" id="saveSpecialSourceSettings">✓ Kaynağın Ayarlarını Kaydet</button><span id="specialSourceSaveStatus" role="status"></span>');
+  root.querySelector("#specialSourcePicker")?.addEventListener("change",e=>{selectedSourceSettingsName=e.target.value;renderSourceSpecialSettings();});
+  root.querySelector("#saveSpecialSourceSettings")?.addEventListener("click",saveSourceSpecialSettings);
+}
+async function saveSourceSpecialSettings(){
+  const source=selectedSourceSettingsName;
+  const root=document.querySelector("#sourceSpecialSettings");
+  if(!source||!root)return;
+  const rate=Number(root.querySelector("#specialSourceRate").value);
+  const days=Number(root.querySelector("#specialSourcePaymentDays").value);
+  if(!Number.isFinite(rate)||rate<0||rate>100||!Number.isInteger(days)||days<0||days>365){alert("Pay 0–100, ödeme vadesi 0–365 arasında olmalı.");return;}
+  const old=sourceSpecialConfig(source);
+  const counters={};
+  root.querySelectorAll("[data-special-counter]").forEach(row=>{
+    const id=row.dataset.specialCounter;
+    counters[id]={name:row.querySelector("[data-special-name]").value.trim().slice(0,45),
+      color:row.querySelector("[data-special-color]").value,
+      visible:row.querySelector("[data-special-visible]").checked};
+  });
+  const homeLayoutConfig={};
+  ["desktop","mobile"].forEach(device=>{
+    homeLayoutConfig[device]=[...root.querySelectorAll('[data-special-home="'+device+'"]:checked')].map(el=>el.value);
+  });
+  const config={...old,counters,homeLayout:homeLayoutConfig,
+    hakedisNote:root.querySelector("#specialSourceHakedis").value.trim().slice(0,120),
+    paymentDays:days,paymentRule:root.querySelector("#specialSourcePaymentRule").value};
+  state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:config};
+  state.settings.sourceCommissionRates={...(state.settings.sourceCommissionRates||{}),[source]:rate};
+  saveLocalState();
+  renderSourceSpecialSettings();renderDashboard();mobileRenderDailyCash();
+  const status=document.querySelector("#specialSourceSaveStatus");
+  if(!canSyncCloud()){if(status)status.textContent=" Cihaza kaydedildi; bulut bağlantısı yok.";return;}
+  try{
+    await cloudRef.update({"state/settings/sourceSpecialSettings":state.settings.sourceSpecialSettings,
+      "state/settings/sourceCommissionRates":state.settings.sourceCommissionRates,updatedAt:new Date().toISOString()});
+    if(status)status.textContent=" ✓ Kaydedildi ve eşitlendi.";
+  }catch(error){console.warn("Kaynak ayarları kaydedilemedi",error);if(status)status.textContent=" Cihaza kaydedildi, buluta aktarılamadı.";}
+}
+
 function renderHomeLayoutSettings(){
   const root=document.querySelector("#homeLayoutSettings");if(!root)return;
   root.innerHTML='<h3>Ana Sayfa Düzeni</h3><p>Mac ve telefon ana sayfasına eklemek istediğiniz kasa sayaçlarını ayrı seçin. Oklarla sıralayın. Mevcut ana sayfa bölümleri korunur.</p>'+
