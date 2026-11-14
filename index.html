@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.22-date-payment">
+  <link rel="stylesheet" href="./styles.css?v=5.3.23-cash-order">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -428,6 +428,17 @@
       </section>
 
       <section class="mobile-daily-counter-grid" aria-label="Kasa sayaçları">
+                <button type="button" class="mobile-daily-counter profit mobile-cash-clickable" id="mobileCashProfitCounter" aria-label="Net kazanç ve kasa hareketleri">
+          <span>Net Kazanç</span>
+          <b id="mobileDailyPageProfit">₺0</b>
+          <small>Hasılat - komisyon - malzeme - gider</small>
+        </button>
+        <button type="button" class="mobile-daily-counter payment mobile-cash-clickable" id="mobileCashPaymentCounter" aria-label="Tüm zamanlarda ödeme bekleyen fişleri görüntüle">
+          <span>Ödeme Bekliyor</span>
+          <b><span id="mobileCashPaymentCount">0</span> fiş</b>
+          <strong class="mobile-payment-amount" id="mobileCashPaymentAmount">₺0</strong>
+          <small>Tüm zamanlar · Fişleri görüntüle</small>
+        </button>
         <button type="button" class="mobile-daily-counter income mobile-cash-clickable" data-cash-detail="income" aria-label="income hareketlerini görüntüle">
           <span>Toplam Hasılat</span>
           <b id="mobileDailyPageIncome">₺0</b>
@@ -443,17 +454,6 @@
         <button type="button" class="mobile-daily-counter expense mobile-cash-clickable" data-cash-detail="expense" aria-label="expense hareketlerini görüntüle">
           <span>Diğer Gider</span>
           <b id="mobileDailyPageExpense">₺0</b>
-        </button>
-        <button type="button" class="mobile-daily-counter profit mobile-cash-clickable" id="mobileCashProfitCounter" aria-label="Net kazanç ve kasa hareketleri">
-          <span>Net Kazanç</span>
-          <b id="mobileDailyPageProfit">₺0</b>
-          <small>Hasılat - komisyon - malzeme - gider</small>
-        </button>
-        <button type="button" class="mobile-daily-counter payment mobile-cash-clickable" id="mobileCashPaymentCounter" aria-label="Tüm zamanlarda ödeme bekleyen fişleri görüntüle">
-          <span>Ödeme Bekliyor</span>
-          <b><span id="mobileCashPaymentCount">0</span> fiş</b>
-          <strong class="mobile-payment-amount" id="mobileCashPaymentAmount">₺0</strong>
-          <small>Tüm zamanlar · Fişleri görüntüle</small>
         </button>
       </section>
 
