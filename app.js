@@ -4826,7 +4826,7 @@ function renderSourceSpecialSettings(){
   const config=sourceSpecialConfig(source);
   const overrides=config.countersByDevice?.[activeSourceCounterDeviceTab]||config.counters||{};
   const counterOrder=Array.isArray(config.counterOrderByDevice?.[activeSourceCounterDeviceTab])?config.counterOrderByDevice[activeSourceCounterDeviceTab]:(Array.isArray(config.counterOrder)?config.counterOrder:[]);
-  const ordered=cashSlotSettings().slice().sort((a,b)=>{
+  const ordered=allHomeCashSlots().slice().sort((a,b)=>{
     const ai=counterOrder.indexOf(a.id),bi=counterOrder.indexOf(b.id);
     return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);
   });
@@ -4877,25 +4877,25 @@ async function saveSourceSpecialSettings(){
       color:row.querySelector("[data-special-color]").value,
       visible:row.querySelector("[data-special-visible]").checked};
   });
-  const homeLayoutConfig={};
-  ["desktop","mobile"].forEach(device=>{
-    homeLayoutConfig[device]=[...root.querySelectorAll('[data-special-home="'+device+'"]:checked')].map(el=>el.value);
-  });
+  const homeLayoutConfig={...(old.homeLayout||{})};
+  const activeDevice=activeSourceHomeDeviceTab;
+  homeLayoutConfig[activeDevice]=[...root.querySelectorAll('[data-special-home="'+activeDevice+'"]:checked')].map(el=>el.value);
   const config={...old,countersByDevice:{...(old.countersByDevice||{}),[activeSourceCounterDeviceTab]:counters},homeLayout:homeLayoutConfig,
     hakedisNote:root.querySelector("#specialSourceHakedis").value.trim().slice(0,120),
     paymentDays:days,paymentRule:root.querySelector("#specialSourcePaymentRule").value};
   state.settings.sourceSpecialSettings={...(state.settings.sourceSpecialSettings||{}),[source]:config};
   state.settings.sourceCommissionRates={...(state.settings.sourceCommissionRates||{}),[source]:rate};
   const savedLocally=saveLocalState();
-  renderSourceSpecialSettings();renderDashboard();mobileRenderDailyCash();
+  renderSourceSpecialSettings();
+  try{renderDashboard();mobileRenderDailyCash();}catch(renderError){console.warn("Kaynak ayarı sonrası ekran yenileme hatası",renderError);}
   const status=document.querySelector("#specialSourceSaveStatus");
   if(status)status.textContent=savedLocally?" ✓ Bu cihaza kaydedildi.":" Yerel kayıt yapılamadı.";
-  if(!canSyncCloud()){if(status)status.textContent=" Cihaza kaydedildi; bulut bağlantısı yok.";return;}
+  if(!canSyncCloud()){if(status)status.textContent=savedLocally?" ✓ Bu cihaza kaydedildi; bulut bağlantısı yok.":" ⚠ Kayıt doğrulanamadı; bulut bağlantısı yok.";return;}
   try{
     await cloudRef.update({"state/settings/sourceSpecialSettings":state.settings.sourceSpecialSettings,
       "state/settings/sourceCommissionRates":state.settings.sourceCommissionRates,updatedAt:new Date().toISOString()});
     if(status)status.textContent=" ✓ Kaydedildi ve eşitlendi.";
-  }catch(error){console.warn("Kaynak ayarları kaydedilemedi",error);if(status)status.textContent=" Cihaza kaydedildi, buluta aktarılamadı.";}
+  }catch(error){console.warn("Kaynak ayarları kaydedilemedi",error);if(status)status.textContent=savedLocally?" ⚠ Cihaza kaydedildi, buluta aktarılamadı.":" ⚠ Kaydetme başarısız; buluta aktarılamadı.";}
 }
 
 function renderHomeLayoutSettings(){
