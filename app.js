@@ -975,6 +975,17 @@ function bindEvents() {
     if (action === "print" || action === "print-list") window.print();
     if (action === "print-cash") printCash();
     if (action === "set-cash-list-mode") setCashListMode(button.dataset.mode);
+    const desktopHomeCounter=event.target.closest("#desktopHomeCashCards [data-home-cash-slot]");
+    if(desktopHomeCounter){
+      event.preventDefault();
+      const slot=desktopHomeCounter.dataset.homeCashSlot;
+      if(cashSourceFilter)cashSourceFilter.value=activeDashboardSource||"";
+      switchView("cash");
+      renderCash();
+      if(slot==="expense")openCashCurrentDetail("balance");
+      else if(slot==="payment")openHomePendingPayments();
+      return;
+    }
     if (action === "open-cash-current-detail") openCashCurrentDetail(button.dataset.detailType || "balance");
     if (action === "close-cash-current-detail") closeCashCurrentDetail();
     if (action === "open-ekzen-cash-detail") openEkzenCashDetail(button.dataset.detailType || "turnover");
@@ -2584,6 +2595,17 @@ function closeAccountingCheck() {
 }
 
 
+function openHomePendingPayments(){
+ const dialog=document.querySelector("#cashCurrentDetailDialog");
+ const content=document.querySelector("#cashCurrentDetailContent");
+ const title=document.querySelector("#cashCurrentDetailTitle");
+ if(!dialog||!content||!title)return;
+ const source=activeDashboardSource||(isSourcePortal()?portalSourceName():"");
+ const pending=(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&(isStatus(service.status,"Ödeme Bekliyor")||["Havale Bekleniyor","Sonra Tahsil Edilecek"].includes(String(service.paymentStatus||""))));
+ title.textContent="Ödeme Bekleyen Fişler · "+(source||"Tüm Kaynaklar");
+ content.innerHTML=pending.length?pending.map(service=>'<div class="cash-current-summary"><article><span>'+escapeHtml(service.customerName||service.id||"Fiş")+'</span><b>'+money(Number(primaryCashForService(service.id)?.amount??service.price??0)||0)+'</b></article></div>').join(""):'<p>Ödeme bekleyen fiş yok.</p>';
+ dialog.showModal();
+}
 function openCashCurrentDetail(detailType = "balance") {
   const dialog = document.querySelector("#cashCurrentDetailDialog");
   const content = document.querySelector("#cashCurrentDetailContent");
@@ -4836,6 +4858,33 @@ function renderHomeLayoutSettings(){
         }).join("")+'</div>';
     }).join("");
 }
+function homeCashCounterContext(items,selectedSource){
+ const dated=customCashContext(items);
+ const source=selectedSource||(isSourcePortal()?portalSourceName():"");
+ const allTime=(state.cash||[]).filter(item=>cashIsPosted(item)&&matchesPortalSource(cashItemSource(item))&&(!source||sourceMatches(cashItemSource(item),source)));
+ const current=serviceSourceCounterBreakdown(allTime);
+ const sourceDated=serviceSourceCounterBreakdown(items);
+ const isExternal=Boolean(source)&&!isOwnWorkSource(source);
+ const pending=(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&(isStatus(service.status,"Ödeme Bekliyor")||["Havale Bekleniyor","Sonra Tahsil Edilecek"].includes(String(service.paymentStatus||""))));
+ return {
+  ...dated,
+  remainingPayment:current.remainingPayment,
+  pendingCount:pending.length,
+  pendingAmount:pending.reduce((total,service)=>{const amount=Number(primaryCashForService(service.id)?.amount??service.price??0);return total+(Number.isFinite(amount)?Math.max(0,amount):0);},0),
+  sourceDated,
+  isExternal
+ };
+}
+function homeCashCounterValue(counter,context){
+ if(context.isExternal){
+  if(counter.id==="profit")return context.sourceDated.hakedis;
+  if(counter.id==="commission")return context.sourceDated.ekzenTechnical;
+  if(counter.id==="income")return context.sourceDated.customerMoney;
+  if(counter.id==="material")return context.sourceDated.material;
+ }
+ if(counter.id==="expense")return context.remainingPayment;
+ return customCashValue(counter,context);
+}
 function renderHomeCashCards(device,items){
   const selectedSource=device==="desktop"?activeDashboardSource:(document.querySelector("#mobileSourcePicker")?.value||"");
   const special=selectedSource?sourceSpecialConfig(selectedSource):{};
@@ -4843,7 +4892,7 @@ function renderHomeCashCards(device,items){
   if(!root)return;
   const ids=Array.isArray(special.homeLayout?.[device])?special.homeLayout[device]:homeLayout(device);
   const slots=allHomeCashSlots();
-  const context=customCashContext(items);
+  const context=homeCashCounterContext(items,selectedSource);
   root.hidden=!ids.length;
   root.innerHTML=ids.map(id=>{
     const c=slots.find(x=>x.id===id);
@@ -4851,7 +4900,7 @@ function renderHomeCashCards(device,items){
     const override=special.countersByDevice?.[device]?.[id]||special.counters?.[id]||{};
     if(override.visible===false)return "";
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
-    const value=customCashValue(c,context);
+    const value=homeCashCounterValue(c,context);
     const pendingDetail=id==="payment" ? '<small class="home-pending-amount">₺'+escapeHtml(new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0))+'</small>' : "";
     const displayValue=id==="payment" ? escapeHtml(String(value)+" fiş") : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
     return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" aria-label="'+escapeAttr(override.name||c.name)+' ayrıntılarını aç" style="'+(device==='mobile'?'background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;':'')+'min-width:0;box-sizing:border-box"><span style="color:#fff">'+escapeHtml(override.name||c.name)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
