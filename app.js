@@ -4609,7 +4609,7 @@ function renderCustomCashCounterSettings() {
       <div class="custom-counter-terms"><strong>Hesaplama kalemleri</strong>
         ${CUSTOM_CASH_TERMS.map(([key,label])=>`<label><select data-sign="${key}"><option value="0">Dahil etme</option><option value="1">+ Ekle</option><option value="-1">− Çıkar</option></select> ${label}</label>`).join("")}
       </div>
-      <button class="primary-button" type="submit">Sayacı Kaydet</button>
+      <button id="customCounterSaveButton" class="primary-button" type="button">Sayacı Kaydet</button>\n      <span id="customCounterSaveStatus" role="status" aria-live="polite"></span>
       <button class="secondary-button" type="button" data-action="clear-custom-counter-form">Yeni Sayaç</button>
     </form>`;
 }
@@ -6394,25 +6394,49 @@ document.addEventListener("click", function(event) {
 });
 
 
+function saveCustomCounterForm(form) {
+  if(isSourcePortal()) { alert("Bu ayar yalnızca yönetici hesabında değiştirilebilir."); return; }
+  const field=(name)=>form.querySelector('[name="'+name+'"]');
+  const slot=field("slot")?.value || "";
+  const terms=[...form.querySelectorAll("[data-sign]")].filter(el=>el.value!=="0")
+    .map(el=>({key:el.dataset.sign,sign:Number(el.value)===-1?-1:1}));
+  if(!terms.length && !slot){alert("En az bir hesaplama kalemi seçin.");return;}
+  const name=(field("name")?.value||"").trim();
+  if(!name){alert("Sayaç adı boş olamaz.");return;}
+  const list=customCashCounters();
+  const index=Number(field("index")?.value??-1);
+  const old=Number.isInteger(index)&&index>=0&&index<list.length?list[index]:null;
+  const counter={id:old?.id||uid(),name,color:field("color")?.value||"#2563eb",
+    unit:field("unit")?.value==="count"?"count":"money",
+    terms,visible:old?.visible!==false};
+  if(slot){
+    const def=cashSlotSettings().find(c=>c.id===slot);
+    if(!def){alert("Sayaç bulunamadı.");return;}
+    state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];
+    const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);
+    const updated={...counter,id:slot,terms:terms.length?terms:def.terms,visible:def.visible};
+    if(i<0)state.settings.cashSlotSettings.push(updated);
+    else state.settings.cashSlotSettings[i]=updated;
+  } else if(old)list[index]=counter;
+  else {
+    if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}
+    list.push(counter);
+  }
+  saveState();
+  renderCustomCashCounterSettings();
+  mobileRenderDailyCash();
+  const message=document.querySelector("#customCounterSaveStatus");
+  if(message)message.textContent="Değişiklikler kaydedildi.";
+}
 document.addEventListener("submit",event=>{
   if(event.target.id!=="customCounterForm")return;
   event.preventDefault();
-  if(isSourcePortal())return;
-  const form=event.target;
-  const terms=[...form.querySelectorAll("[data-sign]")].filter(el=>el.value!=="0")
-    .map(el=>({key:el.dataset.sign,sign:Number(el.value)===-1?-1:1}));
-  const slot=form.elements.slot.value;
-  if(!terms.length && !slot){alert("En az bir hesaplama kalemi seçin.");return;}
-  const name=form.elements.name.value.trim();
-  if(!name)return;
-  const list=customCashCounters();
-  const index=Number(form.elements.index.value);
-  const old=Number.isInteger(index)&&index>=0&&index<list.length?list[index]:null;
-  const counter={id:old?.id||uid(),name,color:form.elements.color.value,
-    unit:form.elements.unit.value==="count"?"count":"money",
-    terms,visible:old?.visible!==false};
-  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,terms:terms.length?terms:def.terms,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}
-  else if(old)list[index]=counter;
-  else {if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}list.push(counter);}
-  saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();
+  saveCustomCounterForm(event.target);
+});
+document.addEventListener("click",event=>{
+  const button=event.target.closest("#customCounterSaveButton");
+  if(!button)return;
+  event.preventDefault();
+  const form=button.closest("form");
+  if(form)saveCustomCounterForm(form);
 });
