@@ -2895,7 +2895,7 @@ document.addEventListener("click",event=>{
  const homeDevice=event.target.closest("#homeLayoutSettings [data-home-device-tab]");
  if(homeDevice){activeHomeDeviceTab=homeDevice.dataset.homeDeviceTab;renderHomeLayoutSettings();return;}
  const sourceDevice=event.target.closest("#sourceSpecialSettings [data-source-home-device-tab]");
- if(sourceDevice){activeSourceHomeDeviceTab=sourceDevice.dataset.sourceHomeDeviceTab;renderSourceSpecialSettings();return;}
+ if(sourceDevice){activeSourceHomeDeviceTab=sourceDevice.dataset.sourceHomeDeviceTab;document.querySelectorAll("#sourceSpecialSettings [data-source-home-device-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.sourceHomeDeviceTab===activeSourceHomeDeviceTab));document.querySelectorAll("#sourceSpecialSettings [data-source-device-panel]").forEach(p=>p.hidden=p.dataset.sourceDevicePanel!==activeSourceHomeDeviceTab);const note=document.querySelector("#sourceSpecialSettings .device-settings-notice strong");if(note)note.textContent=activeSourceHomeDeviceTab==="mobile"?"📱 Telefon":"💻 Mac / Masaüstü";return;}
  const tab=event.target.closest("#settingsView [data-settings-tab]");
  if(tab){showSettingsTab(tab.dataset.settingsTab);return;}
  const sub=event.target.closest("#sourceSpecialSettings [data-source-settings-tab]");
