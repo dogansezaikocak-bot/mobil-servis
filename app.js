@@ -4612,6 +4612,8 @@ function renderCustomCashCounterSettings() {
       <button id="customCounterSaveButton" class="primary-button" type="button">Sayacı Kaydet</button>\n      <span id="customCounterSaveStatus" role="status" aria-live="polite"></span>
       <button class="secondary-button" type="button" data-action="clear-custom-counter-form">Yeni Sayaç</button>
     </form>`;
+  const saveButton=root.querySelector("#customCounterSaveButton");
+  if(saveButton)saveButton.onclick=(event)=>{event.preventDefault();event.stopPropagation();saveCustomCounterForm(saveButton.closest("form"));};
 }
 function editCustomCounter(index) {
   const c=customCashCounters()[index];if(!c)return;
@@ -6394,7 +6396,7 @@ document.addEventListener("click", function(event) {
 });
 
 
-function saveCustomCounterForm(form) {
+async function saveCustomCounterForm(form) {
   if(isSourcePortal()) { alert("Bu ayar yalnızca yönetici hesabında değiştirilebilir."); return; }
   const field=(name)=>form.querySelector('[name="'+name+'"]');
   const slot=field("slot")?.value || "";
@@ -6422,11 +6424,20 @@ function saveCustomCounterForm(form) {
     if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}
     list.push(counter);
   }
-  saveState();
-  renderCustomCashCounterSettings();
-  mobileRenderDailyCash();
-  const message=document.querySelector("#customCounterSaveStatus");
-  if(message)message.textContent="Değişiklikler kaydedildi.";
+  const localSaved=saveLocalState();
+  if(!canSyncCloud()){
+    alert(localSaved?"Değişiklik cihazda kaydedildi ancak bulut bağlantısı hazır değil. Sayfayı yenilemeden tekrar deneyin.":"Kaydedilemedi. Cihaz depolama alanını kontrol edin.");
+    return;
+  }
+  try {
+    await cloudRef.set({updatedAt:new Date().toISOString(),state});
+    renderCustomCashCounterSettings();
+    mobileRenderDailyCash();
+    alert("Değişiklikler kaydedildi.");
+  } catch(error) {
+    if(isPermissionDenied(error))denyCloudWrite();
+    alert("Kaydedilemedi. Bulut bağlantısını kontrol edip tekrar deneyin.");
+  }
 }
 document.addEventListener("submit",event=>{
   if(event.target.id!=="customCounterForm")return;
