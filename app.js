@@ -158,7 +158,7 @@ function migrateState(oldState) {
       dashboardCounters: dashboardCountersVersion < 3 ? ensureValues(currentCounters, ["Açık Fişler", "Toplam Servis"]) : currentCounters,
       dashboardCountersVersion: 3,
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
-      customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
+      customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],\n      cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
       sources: withoutHiddenSources(ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]), hiddenSources),
       hiddenSources,
       cities: uniqueValues(oldState.settings?.cities || cities),
@@ -826,7 +826,7 @@ function bindEvents() {
       signOutApp();
       return;
     }
-    if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
+    if(action==="edit-cash-slot"){editCashSlot(button.dataset.slot);return;}\n    if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;}\n    if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
     if (action === "clear-custom-counter-form") { renderCustomCashCounterSettings(); return; }
     if (action === "toggle-custom-counter" || action === "delete-custom-counter") {
       if (isSourcePortal()) return;
@@ -4489,12 +4489,57 @@ function customCashValue(counter,context) {
     return sum+sign*(Number(context[term.key])||0);
   },0);
 }
+
+const CASH_SLOT_DEFAULTS=[
+ {id:"profit",name:"Net Kazanç",color:"#0f766e",unit:"money",terms:[{key:"serviceIncome",sign:1},{key:"commission",sign:-1},{key:"material",sign:-1},{key:"expense",sign:-1}]},
+ {id:"payment",name:"Ödeme Bekliyor",color:"#d97706",unit:"count",terms:[{key:"pendingCount",sign:1}]},
+ {id:"income",name:"Toplam Hasılat",color:"#15803d",unit:"money",terms:[{key:"income",sign:1}]},
+ {id:"commission",name:"Ödenen Komisyon",color:"#b91c1c",unit:"money",terms:[{key:"commission",sign:1}]},
+ {id:"material",name:"Malzeme",color:"#2563eb",unit:"money",terms:[{key:"material",sign:1}]},
+ {id:"expense",name:"Diğer Gider",color:"#2563eb",unit:"money",terms:[{key:"expense",sign:1}]}
+];
+function cashSlotSettings(){
+ if(!Array.isArray(state.settings.cashSlotSettings))state.settings.cashSlotSettings=[];
+ return CASH_SLOT_DEFAULTS.map(def=>({...def,...(state.settings.cashSlotSettings.find(c=>c.id===def.id)||{})}));
+}
+function renderSharedCashSlots(items){
+ const grid=document.querySelector("#mobileCashProfitCounter")?.parentElement;
+ if(!grid)return;
+ const context=customCashContext(items);
+ const selectors={profit:"#mobileCashProfitCounter",payment:"#mobileCashPaymentCounter",
+ income:"#mobileDailyPageIncome",commission:"#mobileDailyPageCommission",
+ material:"#mobileDailyPageMaterial",expense:"#mobileDailyPageExpense"};
+ cashSlotSettings().forEach(c=>{
+   const node=document.querySelector(selectors[c.id]);
+   const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
+   if(!card)return;
+   card.hidden=c.visible===false;
+   card.style.display=c.visible===false?"none":"";
+   card.style.backgroundColor=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"";
+   card.style.color="#fff";
+   const heading=card.querySelector("span");
+   if(heading)heading.textContent=c.name;
+   const value=customCashValue(c,context);
+   if(c.id==="payment"){
+     const count=card.querySelector("#mobileCashPaymentCount");
+     if(count)count.textContent=String(value);
+     const suffix=count?.parentElement;
+     if(suffix)suffix.lastChild.textContent=c.unit==="count"?" fiş":"";
+     if(c.unit==="money"&&suffix)suffix.textContent=money(value);
+     else if(suffix&&!suffix.querySelector("#mobileCashPaymentCount"))suffix.innerHTML='<span id="mobileCashPaymentCount"></span> fiş';
+     const fresh=card.querySelector("#mobileCashPaymentCount");if(fresh)fresh.textContent=String(value);
+     const amount=card.querySelector("#mobileCashPaymentAmount");if(amount)amount.textContent=money(context.pendingAmount);
+   }else if(c.id==="profit"){const val=card.querySelector("#mobileDailyPageProfit");if(val)val.textContent=c.unit==="count"?String(value):money(value);}
+   else if(node)node.textContent=c.unit==="count"?String(value):money(value);
+ });
+}
+
 function renderCustomCashCounterSettings() {
   const root=document.querySelector("#customCashCounterSettings");
   if (!root) return;
   root.innerHTML=`
-    <h3>Özel Sayaç ve Hesaplama Yönetimi</h3>
-    <p>Yeni sayaç oluşturun. Hesaba katılacak kalemleri ve toplama/çıkarma kurallarını seçin. Mevcut kasa kayıtları değişmez.</p>
+    <h3>Ortak Sayaç ve Hesaplama Yönetimi</h3>
+    <p>Sayaç ayarları ortak kaydedilir. Mobil kartların boyutu ve yerleşimi değişmez; sadece isim, renk, görünürlük ve hesaplama güncellenir.</p>\n    <h4>Mevcut mobil kasa sayaçları</h4>\n    <div class="custom-counter-list">${cashSlotSettings().map(c=>`<div class="custom-counter-row"><span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span><strong>${escapeHtml(c.name)}</strong><button type="button" data-action="edit-cash-slot" data-slot="${c.id}">Düzenle</button><button type="button" data-action="toggle-cash-slot" data-slot="${c.id}">${c.visible===false?"Göster":"Gizle"}</button></div>`).join("")}</div>\n    <h4>Ek sayaçlar</h4>
     <div class="custom-counter-list">${customCashCounters().map((c,i)=>`
       <div class="custom-counter-row">
         <span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span>
@@ -4506,7 +4551,7 @@ function renderCustomCashCounterSettings() {
       </div>`).join("")}
     </div>
     <form id="customCounterForm" class="custom-counter-form">
-      <input type="hidden" name="index" value="-1">
+      <input type="hidden" name="index" value="-1">\n      <input type="hidden" name="slot" value="">
       <label>Sayaç adı<input name="name" maxlength="45" required placeholder="Örn. Gerçek Kâr"></label>
       <label>Renk<input name="color" type="color" value="#2563eb"></label>
       <label>Gösterim<select name="unit"><option value="money">Para (₺)</option><option value="count">Adet</option></select></label>
@@ -4520,7 +4565,7 @@ function renderCustomCashCounterSettings() {
 function editCustomCounter(index) {
   const c=customCashCounters()[index];if(!c)return;
   const form=document.querySelector("#customCounterForm");if(!form)return;
-  form.elements.index.value=String(index);
+  form.elements.index.value=String(index);\n  form.elements.slot.value="";
   form.elements.name.value=c.name||"";
   form.elements.color.value=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
   form.elements.unit.value=c.unit==="count"?"count":"money";
@@ -4530,8 +4575,8 @@ function editCustomCounter(index) {
   });
   form.scrollIntoView({behavior:"smooth",block:"center"});
 }
-function renderCustomCashCounters(items) {
-  const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;
+function editCashSlot(id){\n const c=cashSlotSettings().find(x=>x.id===id);if(!c)return;\n const form=document.querySelector("#customCounterForm");if(!form)return;\n form.elements.slot.value=id;form.elements.index.value="-1";form.elements.name.value=c.name;form.elements.color.value=c.color;form.elements.unit.value=c.unit;\n form.querySelectorAll("[data-sign]").forEach(el=>{const t=(c.terms||[]).find(t=>t.key===el.dataset.sign);el.value=t?String(t.sign===-1?-1:1):"0";});\n form.scrollIntoView({behavior:"smooth",block:"center"});\n}\nfunction renderCustomCashCounters(items) {
+  const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;\n  renderSharedCashSlots(items);
   const counters=customCashCounters().filter(c=>c.visible!==false);
   if (!counters.length){root.hidden=true;root.innerHTML="";return;}
   root.hidden=false;
@@ -6303,7 +6348,7 @@ document.addEventListener("submit",event=>{
   const counter={id:old?.id||uid(),name,color:form.elements.color.value,
     unit:form.elements.unit.value==="count"?"count":"money",
     terms,visible:old?.visible!==false};
-  if(old)list[index]=counter;
+  const slot=form.elements.slot.value;\n  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}\n  else if(old)list[index]=counter;
   else {if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}list.push(counter);}
   saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();
 });
