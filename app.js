@@ -145,6 +145,8 @@ function migrateState(oldState) {
   const currentCounters = uniqueValues(uniqueValues(oldState.settings?.dashboardCounters || dashboardCounters)
     .map((name) => isStatus(name, "İptal") ? "Toplam Servis" : name));
   const dashboardCountersVersion = Number(oldState.settings?.dashboardCountersVersion) || 0;
+  // V5.3.11: Silinen kaynaklar ayrı listede tutulur; zorunlu/varsayılan kaynaklar onları geri eklemez.
+  const hiddenSources = uniqueValues(Array.isArray(oldState.settings?.hiddenSources) ? oldState.settings.hiddenSources : Object.values(oldState.settings?.hiddenSources || {}));
   const migrated = {
     company: oldState.company || {},
     settings: {
@@ -154,7 +156,8 @@ function migrateState(oldState) {
       dashboardCounters: dashboardCountersVersion < 3 ? ensureValues(currentCounters, ["Açık Fişler", "Toplam Servis"]) : currentCounters,
       dashboardCountersVersion: 3,
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
-      sources: ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]),
+      sources: withoutHiddenSources(ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]), hiddenSources),
+      hiddenSources,
       cities: uniqueValues(oldState.settings?.cities || cities),
       sourcePhones: { ...(oldState.settings?.sourcePhones || {}) },
     },
@@ -630,6 +633,7 @@ function lockSelectToSource(select, disabled = true) {
 function fillSelect(select, options) {
   if (!select) return;
   const previous = select.value;
+  const keptPrevious = select.selectedOptions?.[0]?.dataset?.keep === "1" ? previous : "";
   select.innerHTML = "";
   options.forEach((option) => {
     const item = document.createElement("option");
@@ -638,6 +642,7 @@ function fillSelect(select, options) {
     select.append(item);
   });
   if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+  else if (keptPrevious) keepSelectValue(select, keptPrevious);
 }
 
 function setDefaultDates() {
@@ -2329,6 +2334,7 @@ function openServiceForm(service) {
     Object.entries(service).forEach(([key, value]) => {
       if (serviceForm.elements[key]) serviceForm.elements[key].value = value || "";
     });
+    keepSelectValue(serviceForm.elements.source, service.source);
     document.querySelector("#serviceDialogTitle").textContent = `Servisi Güncelle (${service.id})`;
     serviceDialog.querySelector("[data-action='delete-service']").style.visibility = "visible";
   }
@@ -2345,6 +2351,7 @@ function openRelatedServiceForm(serviceId) {
   serviceForm.elements.address.value = original.address || "";
   serviceForm.elements.availableTime.value = original.availableTime || "";
   serviceForm.elements.source.value = isSourcePortal() ? portalSourceName() : (original.source || serviceForm.elements.source.value);
+  if (!isSourcePortal()) keepSelectValue(serviceForm.elements.source, original.source);
   serviceForm.elements.brand.value = "";
   serviceForm.elements.device.value = "";
   serviceForm.elements.model.value = "";
@@ -2572,6 +2579,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.commissionRate.value = "50";
   if (completeForm.elements.collectedBy) completeForm.elements.collectedBy.value = "me";
   completeForm.elements.source.value = service.source || "";
+  keepSelectValue(completeForm.elements.source, service.source);
   completeForm.elements.workNote.value = "";
   completeDialog.showModal();
 }
@@ -2693,6 +2701,7 @@ function openCashForm(options = {}) {
       if (key === "commission50") return;
       if (cashForm.elements[key]) cashForm.elements[key].value = value || "";
     });
+    keepSelectValue(cashForm.elements.source, item.source);
     if (cashForm.elements.commissionRate) cashForm.elements.commissionRate.value = String(item.commissionRate !== undefined ? Number(item.commissionRate) : (item.commission50 ? 50 : 0));
     deleteButton.dataset.cashId = options.id;
     deleteButton.style.visibility = "visible";
@@ -2873,9 +2882,8 @@ function saveSource(formData) {
 
 function deleteSource(name) {
   const sourceName = name || sourceForm.elements.oldName.value;
-  if (!sourceName || !confirm(`${sourceName} silinsin mi?`)) return;
-  removeSettingValue("sources", sourceName);
-  if (state.settings.sourcePhones) delete state.settings.sourcePhones[sourceName];
+  if (!sourceName || !confirm(`${sourceName} kaynak listesinden silinsin mi?\n\nEski servis ve kasa kayıtları silinmez; bu kayıtlarda "${sourceName}" yazısı ve toplamlar aynen kalır.`)) return;
+  hideSource(sourceName);
   saveState();
   if (sourceDialog.open) sourceDialog.close();
   render();
@@ -2911,6 +2919,7 @@ function editSettingItem(listKey, oldValue) {
 
 function deleteSettingItem(listKey, value) {
   if (listKey === "cashCounters") return;
+  if (listKey === "sources") return deleteSource(value);
   if (!confirm(`${value} silinsin mi?`)) return;
   removeSettingValue(listKey, value);
   saveState();
@@ -2919,12 +2928,14 @@ function deleteSettingItem(listKey, value) {
 
 function addSettingValue(listKey, value) {
   if (!value) return;
+  if (listKey === "sources") unhideSource(value);
   const list = settingsList(listKey);
   if (!list.includes(value)) state.settings[listKey] = [...list, value];
 }
 
 function updateSettingItem(listKey, oldValue, newValue) {
   if (!newValue) return;
+  if (listKey === "sources") unhideSource(newValue);
   state.settings[listKey] = settingsList(listKey).map((item) => item === oldValue ? newValue : item);
   state.settings[listKey] = uniqueValues(state.settings[listKey]);
   updateExistingRecords(listKey, oldValue, newValue);
@@ -2933,6 +2944,51 @@ function updateSettingItem(listKey, oldValue, newValue) {
 function removeSettingValue(listKey, value) {
   state.settings[listKey] = settingsList(listKey).filter((item) => item !== value);
   updateExistingRecords(listKey, value, "");
+}
+
+// V5.3.11: Kaynak silme yalnızca listeden gizler. Servis ve kasa kayıtlarına dokunulmaz.
+function hiddenSourceList() {
+  if (!state.settings) state.settings = cloneSettings(defaultSettings);
+  if (!Array.isArray(state.settings.hiddenSources)) state.settings.hiddenSources = uniqueValues(Object.values(state.settings.hiddenSources || {}));
+  return state.settings.hiddenSources;
+}
+
+function isHiddenSource(source) {
+  const key = norm(source);
+  return Boolean(key) && hiddenSourceList().some((item) => norm(item) === key);
+}
+
+function withoutHiddenSources(values, hidden) {
+  const hiddenKeys = new Set((hidden || []).map(norm));
+  return (values || []).filter((value) => !hiddenKeys.has(norm(value)));
+}
+
+function hideSource(sourceName) {
+  const key = norm(sourceName);
+  if (!key) return;
+  state.settings.sources = settingsList("sources").filter((item) => norm(item) !== key);
+  if (!isHiddenSource(sourceName)) state.settings.hiddenSources = [...hiddenSourceList(), String(sourceName).trim()];
+  if (state.settings.sourcePhones) {
+    Object.keys(state.settings.sourcePhones).forEach((phoneKey) => {
+      if (norm(phoneKey) === key) delete state.settings.sourcePhones[phoneKey];
+    });
+  }
+}
+
+function unhideSource(sourceName) {
+  const key = norm(sourceName);
+  state.settings.hiddenSources = hiddenSourceList().filter((item) => norm(item) !== key);
+}
+
+// Eski kayıt düzenlenirken listede olmayan (silinmiş) kaynak kaybolmasın.
+function keepSelectValue(select, value) {
+  if (!select || !value) return;
+  if (![...select.options].some((option) => option.value === value)) {
+    const option = new Option(value, value);
+    option.dataset.keep = "1";
+    select.add(option);
+  }
+  select.value = value;
 }
 
 function moveSettingItem(listKey, value, direction) {
@@ -3669,7 +3725,7 @@ function mobileCashPopulateSources() {
     ...settingsList("sources"),
     ...(state.services || []).map((item) => item.source),
     ...(state.cash || []).map((item) => cashItemSource(item))
-  ].filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b), "tr"));
+  ].filter((value) => value && (!isHiddenSource(value) || value === current)))].sort((a,b) => String(a).localeCompare(String(b), "tr"));
   select.innerHTML = `<option value="">Tüm Kaynaklar</option>` + values.map((v) =>
     `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join("");
   select.value = current;
@@ -4462,6 +4518,7 @@ function openCompleteForm(serviceId) {
   completeForm.elements.commissionRate.value = existingCash ? String(Number(existingCash.commissionRate) || 0) : "50";
   if (completeForm.elements.collectedBy) completeForm.elements.collectedBy.value = existingCash?.collectedBy === "source" ? "source" : "me";
   completeForm.elements.source.value = existingCash?.source || service.source || "";
+  keepSelectValue(completeForm.elements.source, existingCash?.source || service.source);
   completeForm.elements.workNote.value = existingNote?.text || "";
   completeDialog.showModal();
 }
