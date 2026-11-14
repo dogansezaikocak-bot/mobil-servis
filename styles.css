@@ -8732,3 +8732,28 @@ body.is-unlocked #pinScreen {
   #mobileCashDetailReset[hidden]{display:none!important}
   #mobileDailyCashPage .mobile-daily-counter:active{transform:scale(.985)}
 }
+
+/* V5.3.22 — Ana sayfa sayaç formatını kasa sayfasında aynen kullan */
+@media(max-width:820px){
+  #mobileDailyCashPage .mobile-daily-counter-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  #mobileDailyCashPage .mobile-daily-counter{
+    min-height:166px!important;border:0!important;border-radius:22px!important;
+    padding:18px 16px!important;box-shadow:0 12px 28px rgba(15,23,42,.10)!important;
+    display:flex!important;flex-direction:column!important;justify-content:space-between!important;
+    gap:5px!important;text-align:left!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter>span{font-size:15px!important;font-weight:900!important}
+  #mobileDailyCashPage .mobile-daily-counter>b{
+    font-size:clamp(25px,7vw,40px)!important;line-height:1!important;
+    font-weight:950!important;letter-spacing:-1px!important;
+  }
+  #mobileDailyCashPage .mobile-daily-counter>small{font-size:11px!important;font-weight:850!important;opacity:.72!important}
+  #mobileDailyCashPage #mobileCashPaymentCounter .mobile-payment-amount{
+    display:block!important;font-size:clamp(17px,5vw,25px)!important;
+    line-height:1.1!important;font-weight:950!important;color:#fff!important;
+    overflow-wrap:anywhere!important;
+  }
+  #mobileDailyCashPage #mobileCashPaymentCounter b span{
+    display:inline!important;font-size:inherit!important;font-weight:inherit!important;color:inherit!important;
+  }
+}
