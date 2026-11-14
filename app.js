@@ -1687,9 +1687,10 @@ function uniqueCustomers() {
 }
 
 function renderSources() {
-  document.querySelector("#sourceList").innerHTML = settingsList("sources").map((source) => `
+  document.querySelector("#sourceList").innerHTML = [...new Set(["Kendi İşim", ...settingsList("sources")])].map((source) => `
     <div class="data-row">
       <strong>${escapeHtml(source)}</strong>
+      <span>Komisyon: %${sourceCommissionShare(source)}</span>
       <span>${state.services.filter((service) => sourceMatches(service.source, source)).length} servis</span>
       <span>${state.cash.filter((item) => sourceMatches(cashItemSource(item), source)).length} kasa hareketi</span>
       <div class="row-actions">
@@ -3330,13 +3331,14 @@ function deletePhoto(serviceId, photoId) {
 function openSourceForm(name = "") {
   sourceForm.reset();
   sourceForm.elements.oldName.value = "";
+  if (sourceForm.elements.commissionRate) sourceForm.elements.commissionRate.value = "50";
   sourceDialog.querySelector("[data-action='delete-source']").style.visibility = "hidden";
   document.querySelector("#sourceDialogTitle").textContent = "Kaynak Ekle";
   if (name) {
     sourceForm.elements.oldName.value = name;
     sourceForm.elements.name.value = name;
     if (sourceForm.elements.phone) sourceForm.elements.phone.value = sourcePhone(name);
-    if (sourceForm.elements.commissionRate) sourceForm.elements.commissionRate.value = String(100 - sourceCommissionRate(name));
+    if (sourceForm.elements.commissionRate) sourceForm.elements.commissionRate.value = String(sourceCommissionShare(name));
     sourceDialog.querySelector("[data-action='delete-source']").dataset.sourceName = name;
     sourceDialog.querySelector("[data-action='delete-source']").style.visibility = "visible";
     document.querySelector("#sourceDialogTitle").textContent = "Kaynak Düzenle";
@@ -3350,7 +3352,7 @@ function saveSource(formData) {
   if (!name) return;
   if (!state.settings.sourcePhones) state.settings.sourcePhones = {};
   if (!state.settings.sourceCommissionRates) state.settings.sourceCommissionRates = {};
-  const oldRate = data.oldName ? 100 - sourceCommissionRate(data.oldName) : 50;
+  const oldRate = data.oldName ? sourceCommissionShare(data.oldName) : 50;
   if (data.oldName) {
     updateSettingItem("sources", data.oldName, name);
     if (data.oldName !== name) {
@@ -3377,6 +3379,7 @@ function deleteSource(name) {
 }
 
 function addSettingItem(listKey) {
+  if (listKey === "sources") return openSourceForm();
   if (listKey === "cashCounters") return;
   const label = settingsLabels[listKey] || "Ayar";
   const value = prompt(`${label} için yeni kayıt`);
@@ -3387,6 +3390,7 @@ function addSettingItem(listKey) {
 }
 
 function editSettingItem(listKey, oldValue) {
+  if (listKey === "sources") return openSourceForm(oldValue);
   if (listKey === "cashCounters") {
     const counter = cashCounterList().find((item) => item.key === oldValue);
     if (!counter) return;
@@ -3749,12 +3753,19 @@ function serviceSource(serviceId) {
   return service?.source || "";
 }
 
-function sourceCommissionRate(source) {
-  if (isOwnWorkSource(source)) return 0;
+function sourceCommissionShare(source) {
   const rates = state.settings?.sourceCommissionRates || {};
   const match = Object.keys(rates).find((name) => sourceMatches(name, source));
-  const sourceShare = match ? Number(rates[match]) : 50;
-  return Number.isFinite(sourceShare) ? 100 - Math.min(100, Math.max(0, sourceShare)) : 50;
+  const fallback = isOwnWorkSource(source) ? 0 : 50;
+  const share = match ? Number(rates[match]) : fallback;
+  return Number.isFinite(share) ? Math.min(100, Math.max(0, share)) : fallback;
+}
+
+function sourceCommissionRate(source) {
+  const share = sourceCommissionShare(source);
+  // Eski kasa hesaplama mantığı: dış kaynakta oran bize kalan pay,
+  // kendi işimde ise kaynak payıdır.
+  return isOwnWorkSource(source) ? share : 100 - share;
 }
 
 function sourcePhone(source) {
