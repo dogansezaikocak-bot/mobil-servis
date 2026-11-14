@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.18-commission-date">
+  <link rel="stylesheet" href="./styles.css?v=5.3.20-cash-counters">
 </head>
 <body>
   <section id="pinScreen" class="pin-screen" aria-label="PIN girişi">
@@ -329,16 +329,6 @@
           <strong><b id="mobileWelcomeClosedCount">0</b> fiş</strong>
           <small>Kapananları görüntüle</small>
         </button>
-        <button type="button" class="mobile-welcome-counter payment" data-welcome-target="payment">
-          <span>Ödeme Bekliyor</span>
-          <strong><b id="mobileWelcomePaymentCount">0</b> fiş</strong>
-          <small>Bekleyen ödemeleri görüntüle</small>
-        </button>
-        <button type="button" class="mobile-welcome-counter profit" data-welcome-target="profit">
-          <span>Kazanç</span>
-          <strong><b id="mobileWelcomeProfitCount">₺0</b></strong>
-          <small>Kasa detayını görüntüle</small>
-        </button>
       </div>
 
       <button type="button" class="mobile-welcome-cash-entry" data-welcome-action="cash" aria-label="Kasa işlemlerini aç">
@@ -454,11 +444,16 @@
           <span>Diğer Gider</span>
           <b id="mobileDailyPageExpense">₺0</b>
         </article>
-        <article class="mobile-daily-counter profit">
+        <button type="button" class="mobile-daily-counter profit mobile-cash-clickable" id="mobileCashProfitCounter" aria-label="Net kazanç ve kasa hareketleri">
           <span>Net Kazanç</span>
           <b id="mobileDailyPageProfit">₺0</b>
           <small>Hasılat - komisyon - malzeme - gider</small>
-        </article>
+        </button>
+        <button type="button" class="mobile-daily-counter payment mobile-cash-clickable" id="mobileCashPaymentCounter" aria-label="Tüm zamanlarda ödeme bekleyen fişleri görüntüle">
+          <span>Ödeme Bekliyor</span>
+          <b><span id="mobileCashPaymentCount">0</span> fiş</b>
+          <small>Tüm zamanlar · Fişleri görüntüle</small>
+        </button>
       </section>
 
       <section class="mobile-cash-transactions" aria-label="Günlük kasa hareketleri">
@@ -876,6 +871,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.19-source-commission-fix"></script>
+  <script src="./app.js?v=5.3.20-cash-counters"></script>
 </body>
 </html>
