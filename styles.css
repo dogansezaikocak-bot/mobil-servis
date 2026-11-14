@@ -8669,3 +8669,20 @@ body.is-unlocked #pinScreen {
   }
   #mobileWelcomePage .mobile-welcome-counter.payment strong b {font-size:42px !important;}
 }
+
+/* V5.3.18: Kazanç, Kapanan Fişler ile aynı renk; tarih filtre penceresi */
+@media(max-width:820px){
+  #mobileWelcomePage .mobile-welcome-counter.profit {
+    background:linear-gradient(145deg,#0f766e,#087f73)!important;
+    color:#fff!important;
+  }
+  #mobileWelcomePage .mobile-welcome-date-card {cursor:pointer!important}
+  #mobileWelcomePage #mobileDatePicker {pointer-events:none!important}
+  #mobileWelcomeDateDialog {max-width:min(94vw,480px);width:94vw;border:0;border-radius:18px;padding:0;max-height:90vh;overflow:auto}
+  #mobileWelcomeDateDialog::backdrop {background:rgba(5,20,26,.55)}
+  #mobileWelcomeDateDialog .dialog-shell {width:100%;max-width:none;box-sizing:border-box}
+  #mobileWelcomeDateDialog .date-preset-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #mobileWelcomeDateDialog .date-preset-list button {min-height:42px}
+  #mobileWelcomeDateDialog .date-custom-inputs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #mobileWelcomeDateDialog .date-custom-inputs input {max-width:100%;min-width:0;box-sizing:border-box}
+}
