@@ -532,6 +532,7 @@ function clearPinEntry() {
 }
 
 function revealApp() {
+  document.body.classList.remove("auth-checking");
   const wasLocked = !document.body.classList.contains("is-unlocked");
   document.body.classList.add("is-unlocked");
   clearPinEntry();
@@ -596,7 +597,7 @@ function applyPinChangeKey(key) {
 }
 
 function lockApp() {
-  document.body.classList.remove("is-unlocked");
+  document.body.classList.remove("is-unlocked", "auth-checking");
   clearPinEntry();
   setPinError("");
   hideCloudAuthMessage();
@@ -611,7 +612,9 @@ function ensureFirebaseApp() {
 
 function startPinAuth() {
   lockApp();
+  document.body.classList.add("auth-checking");
   if (!window.firebase?.auth || !window.firebase?.initializeApp) {
+    document.body.classList.remove("auth-checking");
     setPinError("İnternet bağlantısı yok");
     return;
   }
@@ -621,12 +624,14 @@ function startPinAuth() {
     const persistence = firebase.auth.Auth?.Persistence?.LOCAL || "local";
     Promise.resolve(auth.setPersistence(persistence)).then(watchAuthState, watchAuthState);
   } catch (error) {
+    document.body.classList.remove("auth-checking");
     setPinError("İnternet bağlantısı yok");
   }
 }
 
 function watchAuthState() {
   if (!window.firebase?.auth) {
+    document.body.classList.remove("auth-checking");
     setPinError("İnternet bağlantısı yok");
     return;
   }
