@@ -9043,3 +9043,23 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
     padding:15px 13px!important;
   }
 }
+
+/* V5.3.56 — mobile home added counter typography matches service count */
+@media(max-width:820px){
+  #mobileHomeCashCards .mobile-daily-counter b{
+    display:block!important;
+    margin:0!important;
+    font-size:clamp(36px,10.5vw,48px)!important;
+    font-weight:950!important;
+    line-height:1!important;
+    letter-spacing:-1.5px!important;
+    color:inherit!important;
+    overflow-wrap:anywhere!important;
+    white-space:normal!important;
+  }
+  #mobileHomeCashCards .mobile-daily-counter span{
+    font-size:15px!important;
+    font-weight:900!important;
+    line-height:1.25!important;
+  }
+}
