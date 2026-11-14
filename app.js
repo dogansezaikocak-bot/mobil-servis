@@ -410,10 +410,9 @@ function applyCloudData(data) {
   const openDetailId = detailDialog.open ? activeDetailId : null;
   cloudApplyingState = true;
   state = migrateState(data.state);
-  const localCounterBackup=loadLocalCounterSettings();
-  if(localCounterBackup) {
-    restoreLocalCounterSettings();
-  }
+  // Firebase is authoritative after a successful cloud snapshot.
+  // Do not overlay stale per-device counter settings onto synced settings.
+  try { localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY); } catch (_) {}
   activeDetailId = openDetailId && state.services.some((service) => service.id === openDetailId) ? openDetailId : null;
   activeDashboardStat = "";
   activeDashboardSource = "";
