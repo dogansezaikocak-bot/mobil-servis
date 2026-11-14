@@ -6399,7 +6399,8 @@ document.addEventListener("submit",event=>{
   const form=event.target;
   const terms=[...form.querySelectorAll("[data-sign]")].filter(el=>el.value!=="0")
     .map(el=>({key:el.dataset.sign,sign:Number(el.value)===-1?-1:1}));
-  if(!terms.length){alert("En az bir hesaplama kalemi seçin.");return;}
+  const slot=form.elements.slot.value;
+  if(!terms.length && !slot){alert("En az bir hesaplama kalemi seçin.");return;}
   const name=form.elements.name.value.trim();
   if(!name)return;
   const list=customCashCounters();
@@ -6408,8 +6409,7 @@ document.addEventListener("submit",event=>{
   const counter={id:old?.id||uid(),name,color:form.elements.color.value,
     unit:form.elements.unit.value==="count"?"count":"money",
     terms,visible:old?.visible!==false};
-  const slot=form.elements.slot.value;
-  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}
+  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,terms:terms.length?terms:def.terms,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}
   else if(old)list[index]=counter;
   else {if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}list.push(counter);}
   saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();
