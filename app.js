@@ -6357,7 +6357,8 @@ document.addEventListener("submit",event=>{
     unit:form.elements.unit.value==="count"?"count":"money",
     terms,visible:old?.visible!==false};
   const slot=form.elements.slot.value;
-  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}\n  else if(old)list[index]=counter;
+  if(slot){const def=cashSlotSettings().find(c=>c.id===slot);if(!def)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===slot);const updated={...counter,id:slot,visible:def.visible};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;}
+  else if(old)list[index]=counter;
   else {if(list.length>=30){alert("En fazla 30 özel sayaç oluşturabilirsiniz.");return;}list.push(counter);}
   saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();
 });
