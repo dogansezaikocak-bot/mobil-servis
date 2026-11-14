@@ -893,7 +893,8 @@ function bindEvents() {
     if (action === "show-open-services") showOpenServicesFromTopbar();
     if (action === "show-all-records") showAllRecords();
     if (action === "service-status-filter") {
-      topStatusFilter.value = button.dataset.status || "";
+      topStatusFilter.value = "";
+      serviceQuickStatSelection = button.dataset.status || "";
       activeDashboardStat = "";
       renderServices();
     }
@@ -927,6 +928,7 @@ function bindEvents() {
     event.preventDefault();
     // V4.0.0: Servis listesinde arama yapılınca kaynak/tarih filtresi bozulmasın.
     activeDashboardStat = "";
+    serviceQuickStatSelection = null;
     activeDashboardSource = isSourcePortal() ? portalSourceName() : (topSourceFilter?.value || activeDashboardSource || "");
     renderServices();
   });
@@ -1165,6 +1167,7 @@ function showOpenServicesFromTopbar() {
 function switchView(view) {
   if (view === "ekzenCash") view = "cash";
   if (isSourcePortal() && !["dashboard", "cash", "services"].includes(view)) view = "dashboard";
+  if (view === "services" && currentView !== "services") { serviceQuickStatSelection = "Yeni Kayıt"; if(topStatusFilter)topStatusFilter.value=""; }
   currentView = view;
   Object.entries(views).forEach(([key, element]) => {
     const visible = key === view;
@@ -1442,15 +1445,23 @@ function dashboardCounterCount(label, services) {
   return dashboardCounterBaseServices(label, services).filter((service) => matchesDashboardCounter(service, label)).length;
 }
 
+let serviceQuickStatSelection = "Yeni Kayıt";
 function renderServices() {
-  let services = sortServices(filteredServices());
+  // Counts use the active date/source/search filters, never the selected status card.
+  const allMatching = sortServices(filteredServices({ ignoreStatus: true }));
+  const selectedStatus = topStatusFilter?.value || "";
+  const shown = selectedStatus
+    ? allMatching.filter(s => s.status === selectedStatus)
+    : serviceQuickStatSelection === null
+      ? allMatching
+      : allMatching.filter(s => serviceQuickStatSelection === "" || isStatus(s.status, serviceQuickStatSelection));
   const list = document.querySelector("#serviceList");
-  if (list) list.innerHTML = services.length
-    ? services.map(serviceRow).join("")
+  if (list) list.innerHTML = shown.length
+    ? shown.map(serviceRow).join("")
     : `<p class="empty v420-empty">Servis kaydı bulunamadı.</p>`;
   const resultCount = document.querySelector("#resultCount");
-  if (resultCount) resultCount.textContent = services.length;
-  renderServiceQuickStats(services);
+  if (resultCount) resultCount.textContent = shown.length;
+  renderServiceQuickStats(allMatching);
 }
 
 function renderServiceQuickStats(services) {
@@ -1472,7 +1483,7 @@ function renderServiceQuickStats(services) {
   `).join("");
 }
 
-function filteredServices() {
+function filteredServices({ ignoreStatus = false } = {}) {
   const form = filterForm.elements;
   const query = norm(form.query.value);
   return state.services.filter((service) => {
@@ -1500,7 +1511,7 @@ function filteredServices() {
     const range = serviceDateRangeForCurrentFilter();
     return matchesPortalSource(service.source)
       && (!query || query.split(" ").every((word) => queryText.includes(word)))
-      && (!statusFilter || service.status === statusFilter)
+      && (ignoreStatus || !statusFilter || service.status === statusFilter)
       && dateInRange(serviceMainDate(service), range.start, range.end)
       && (!sourceFilter || sourceMatches(service.source, sourceFilter))
       && (!activeDashboardSource || sourceMatches(service.source, activeDashboardSource))
