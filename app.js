@@ -4096,11 +4096,17 @@ function mobileStatusBucket(status) {
 }
 
 function mobileIsDoneService(service) {
-  // Fiş kapatıldığında ödeme bekliyor olsa bile günlük işlerden çıkar.
-  // Tahsilat durumu korunur; yalnızca mobil açık/kapalı fiş sınıflaması değişir.
-  return isStatus(service.status, "İşlem Tamam")
-    || isStatus(service.status, "Ödeme Bekliyor")
-    || isClosed(service.status);
+  // Kapalı fişleri hem servis durumu hem kapanıştaki ödeme türünden tanı.
+  // Bazı eski kayıtlarda durum güncellenmemiş olsa da ödeme bekleme alanı doludur.
+  if (isStatus(service.status, "Ödeme Bekliyor") || isClosed(service.status)) return true;
+  const payment = String(service.paymentStatus || "").trim();
+  if (payment === "Havale Bekleniyor" || payment === "Sonra Tahsil Edilecek") return true;
+  const lastClosure = (Array.isArray(service.statusHistory) ? service.statusHistory : [])
+    .find((entry) => String(entry?.description || "").includes("Fiş kapatıldı"));
+  return Boolean(lastClosure && (
+    isStatus(lastClosure.status, "Ödeme Bekliyor") ||
+    isStatus(lastClosure.status, "İşlem Tamam")
+  ) && !["Yeni Kayıt", "İşlemde", "Geri Dönen İş"].some((status) => isStatus(service.status, status)));
 }
 
 function mobileIsRemainingService(service) {
