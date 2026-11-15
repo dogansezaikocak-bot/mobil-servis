@@ -182,6 +182,8 @@ function migrateState(oldState) {
       statuses: ensureValues(uniqueValues(oldState.settings?.statuses || statuses), ["Yeni Kayıt", "İşlemde", "Ödeme Bekliyor", "İşlem Tamam", "Geri Dönen İş", "İptal"]),
       dashboardCounters: dashboardCountersVersion < 3 ? ensureValues(currentCounters, ["Açık Fişler", "Toplam Servis"]) : currentCounters,
       dashboardCountersVersion: 3,
+      dashboardCounterCopies: Array.isArray(oldState.settings?.dashboardCounterCopies) ? oldState.settings.dashboardCounterCopies.filter(c=>c && typeof c.name==="string" && typeof c.base==="string").slice(0,40) : [],
+      hiddenDashboardCounters: Array.isArray(oldState.settings?.hiddenDashboardCounters) ? oldState.settings.hiddenDashboardCounters : [],
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
       customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
       cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
@@ -892,6 +894,12 @@ function bindEvents() {
     if (action === "quick-source-filter") applyTopSourceFilter(button.dataset.source);
     if (action === "clear-top-source-filter") applyTopSourceFilter("");
     if (!action) return;
+    if (action === "duplicate-dashboard-counter") { duplicateDashboardCounter(button.dataset.label); return; }
+    if (action === "toggle-dashboard-counter") { toggleDashboardCounter(button.dataset.label); return; }
+    if (action === "rename-dashboard-copy") { renameDashboardCopy(button.dataset.label); return; }
+    if (action === "color-dashboard-copy") { colorDashboardCopy(button.dataset.label); return; }
+    if (action === "delete-dashboard-copy") { deleteDashboardCopy(button.dataset.label); return; }
+    if (action === "move-dashboard-counter") { moveDashboardCounter(button.dataset.label,Number(button.dataset.direction)); return; }
     if (action === "duplicate-cash-counter") { duplicateCashCounter(button.dataset.slot, button.dataset.index); return; }
     if (action === "factory-reset-customizations") { resetEkzenCustomizations(); return; }
     if (action === "sign-out") {
@@ -1542,16 +1550,17 @@ function applyTopSourceFilter(source) {
 }
 
 function renderDashboardCounters(services) {
-  const counters = settingsList("dashboardCounters");
+  const counters = dashboardVisibleCounters();
   document.querySelector("#dashboardCounters").innerHTML = counters.length ? counters.map((label) => `
-    <article class="stat-box is-clickable ${dashboardCounterClass(label)}" data-action="dashboard-stat" data-stat="${escapeAttr(label)}">
-      <span>${escapeHtml(label)}</span>
+    <article class="stat-box is-clickable ${dashboardCounterClass(label)}" style="${dashboardCounterCopies().find(c=>c.name===label)?.color ? `border-color:${dashboardCounterCopies().find(c=>c.name===label).color};--stat-accent:${dashboardCounterCopies().find(c=>c.name===label).color}` : ""}" data-action="dashboard-stat" data-stat="${escapeAttr(label)}">
+      <span>${escapeHtml(dashboardCounterDisplayName(label))}</span>
       <b>${dashboardCounterCount(label, services)}</b>
     </article>
   `).join("") : `<p class="empty">Sayaç bulunamadı.</p>`;
 }
 
 function dashboardCounterClass(label) {
+  label = dashboardCounterBase(label);
   if (isStatus(label, "Bugün")) return "stat-today";
   if (isStatus(label, "Yarın")) return "stat-tomorrow";
   if (isStatus(label, "Açık Fişler")) return "stat-open";
@@ -1562,6 +1571,7 @@ function dashboardCounterClass(label) {
 }
 
 function dashboardCounterBaseServices(label, services) {
+  label = dashboardCounterBase(label);
   // V3.6.1: Yarın ve Açık Fişler sayaçları ana sayfa tarih aralığına takılmasın.
   // Yarın her zaman bugünden yarının açık fişlerini, Açık Fişler ise tüm açık fişleri sayar.
   if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler")) {
@@ -1708,15 +1718,17 @@ function clearServiceSelection() {
 }
 
 function serviceDateRangeForCurrentFilter() {
-  if (isStatus(activeDashboardStat, "Yarın")) {
+  const statBase = dashboardCounterBase(activeDashboardStat);
+  if (isStatus(statBase, "Yarın")) {
     const value = toIsoDate(tomorrow);
     return { start: value, end: value };
   }
-  if (isStatus(activeDashboardStat, "Açık Fişler")) return { start: "", end: "" };
+  if (isStatus(statBase, "Açık Fişler")) return { start: "", end: "" };
   return { start: dashboardStartDate?.value || "", end: dashboardEndDate?.value || (dashboardStartDate?.value || "") };
 }
 
 function dashboardCounterClickRange(stat) {
+  stat = dashboardCounterBase(stat);
   if (isStatus(stat, "Yarın")) {
     const value = toIsoDate(tomorrow);
     return { start: value, end: value };
@@ -1732,6 +1744,7 @@ function matchesDashboardStat(service) {
 }
 
 function matchesDashboardCounter(service, label) {
+  label = dashboardCounterBase(label);
   if (isStatus(label, "Bugün")) return serviceHasDate(service, isoToday) && isActiveDashboardDateStatus(service.status);
   if (isStatus(label, "Yarın")) return serviceHasDate(service, toIsoDate(tomorrow)) && isActiveDashboardDateStatus(service.status);
   if (isStatus(label, "Açık Fişler")) return !isStatus(service.status, "İşlem Tamam") && !isStatus(service.status, "İptal");
@@ -3019,6 +3032,7 @@ function renderSettings() {
     if (form.elements[key]) form.elements[key].value = value || "";
   });
   renderSettingsLists();
+  renderDashboardCounterDesigner();
   renderCustomCashCounterSettings();
   renderHomeLayoutSettings();
   renderSourceSpecialSettings();
@@ -7223,6 +7237,8 @@ async function resetEkzenCustomizations() {
     cashCounters: normalizeCashCounters(null),
     customCashCounters: [],
     cashSlotSettings: [],
+    dashboardCounterCopies: [],
+    hiddenDashboardCounters: [],
     mobileLayoutCustom: {},
     homeLayout: {desktop:[],mobile:[]}
   };
@@ -7261,4 +7277,68 @@ function duplicateCashCounter(slot,index) {
   form.scrollIntoView({behavior:"smooth",block:"center"});
   form.elements.name.focus();
   form.elements.name.select();
+}
+
+/* Dashboard counter copies retain the original stat-box markup and underlying filter. */
+function dashboardCounterCopies(){return Array.isArray(state.settings.dashboardCounterCopies)?state.settings.dashboardCounterCopies:[];}
+function dashboardCounterBase(label){return dashboardCounterCopies().find(c=>c.name===label)?.base||label;}
+function dashboardCounterDisplayName(label){return dashboardCounterCopies().find(c=>c.name===label)?.name||label;}
+function dashboardVisibleCounters(){const hidden=state.settings.hiddenDashboardCounters||[];return settingsList("dashboardCounters").filter(label=>!hidden.includes(label));}
+function renderDashboardCounterDesigner(){
+ const root=document.querySelector("#dashboardCounterDesigner");if(!root)return;
+ const list=settingsList("dashboardCounters"),hidden=state.settings.hiddenDashboardCounters||[];
+ root.innerHTML='<h3>Ana Sayfa Sayaçları</h3><p>Çoğaltılan sayaçlar orijinaliyle aynı ölçüde, aynı hesaplama ve tıklama davranışıyla çalışır. Orijinal sayaç gizlenebilir.</p><div class="custom-counter-list">'+list.map((label,i)=>{
+ const copy=dashboardCounterCopies().find(c=>c.name===label);
+ return '<div class="custom-counter-row"><strong>'+escapeHtml(label)+'</strong><button type="button" data-action="move-dashboard-counter" data-label="'+escapeAttr(label)+'" data-direction="-1" '+(i===0?'disabled':'')+'>↑</button><button type="button" data-action="move-dashboard-counter" data-label="'+escapeAttr(label)+'" data-direction="1" '+(i===list.length-1?'disabled':'')+'>↓</button><button type="button" data-action="duplicate-dashboard-counter" data-label="'+escapeAttr(label)+'">Çoğalt</button>'+(copy?'<button type="button" data-action="rename-dashboard-copy" data-label="'+escapeAttr(label)+'">İsim</button><button type="button" data-action="color-dashboard-copy" data-label="'+escapeAttr(label)+'">Renk</button>':'')+'<button type="button" data-action="toggle-dashboard-counter" data-label="'+escapeAttr(label)+'">'+(hidden.includes(label)?'Göster':'Gizle')+'</button>'+(copy?'<button type="button" data-action="delete-dashboard-copy" data-label="'+escapeAttr(label)+'">Sil</button>':'')+'</div>';
+ }).join("")+'</div>';
+}
+function duplicateDashboardCounter(label){
+ if(isSourcePortal())return;
+ const list=settingsList("dashboardCounters");
+ if(!list.includes(label)||dashboardCounterCopies().length>=40)return;
+ const name=prompt("Yeni sayacın adı",label+" (Kopya)")?.trim();
+ if(!name||list.includes(name)){if(name)alert("Bu isimde sayaç zaten var.");return;}
+ const base=dashboardCounterBase(label);
+ const inherited=dashboardCounterCopies().find(c=>c.name===label);
+ state.settings.dashboardCounterCopies.push({name,base,color:inherited?.color||""});
+ const index=list.indexOf(label);
+ list.splice(index+1,0,name);
+ saveState();render();
+}
+function toggleDashboardCounter(label){
+ if(isSourcePortal())return;
+ const hidden=state.settings.hiddenDashboardCounters||[];
+ state.settings.hiddenDashboardCounters=hidden.includes(label)?hidden.filter(x=>x!==label):[...hidden,label];
+ saveState();render();
+}
+function renameDashboardCopy(label){
+ const c=dashboardCounterCopies().find(x=>x.name===label);if(!c||isSourcePortal())return;
+ const name=prompt("Sayaç adı",label)?.trim();if(!name||name===label)return;
+ if(settingsList("dashboardCounters").includes(name)){alert("Bu isim kullanılıyor.");return;}
+ c.name=name;
+ state.settings.dashboardCounters=state.settings.dashboardCounters.map(x=>x===label?name:x);
+ state.settings.hiddenDashboardCounters=(state.settings.hiddenDashboardCounters||[]).map(x=>x===label?name:x);
+ saveState();render();
+}
+function colorDashboardCopy(label){
+ const c=dashboardCounterCopies().find(x=>x.name===label);if(!c||isSourcePortal())return;
+ const color=prompt("Sayaç kenar rengi (örn. #2563eb)",c.color||"#2563eb");
+ if(color===null)return;
+ if(!/^#[0-9a-fA-F]{6}$/.test(color.trim())){alert("Renk #RRGGBB biçiminde olmalı.");return;}
+ c.color=color.trim();saveState();render();
+}
+function deleteDashboardCopy(label){
+ const c=dashboardCounterCopies().find(x=>x.name===label);if(!c||isSourcePortal())return;
+ if(!confirm(label+" sayacı kaldırılsın mı?"))return;
+ state.settings.dashboardCounterCopies=dashboardCounterCopies().filter(x=>x.name!==label);
+ state.settings.dashboardCounters=settingsList("dashboardCounters").filter(x=>x!==label);
+ state.settings.hiddenDashboardCounters=(state.settings.hiddenDashboardCounters||[]).filter(x=>x!==label);
+ saveState();render();
+}
+function moveDashboardCounter(label,direction){
+ if(isSourcePortal())return;
+ const list=settingsList("dashboardCounters"),i=list.indexOf(label),j=i+direction;
+ if(i<0||j<0||j>=list.length)return;
+ [list[i],list[j]]=[list[j],list[i]];
+ saveState();render();
 }
