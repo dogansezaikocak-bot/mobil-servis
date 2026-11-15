@@ -74,6 +74,7 @@ let cashListMode = "service";
 let cloudRef = null;
 let cloudReady = false;
 let cloudApplyingState = false;
+let lastLocalCloudWriteAt = "";
 let cloudInitialHandled = false;
 let cloudWriteBlocked = false;
 let cloudSyncStarted = false;
@@ -362,8 +363,9 @@ function saveLocalState() {
 function saveState() {
   saveLocalState();
   if (!canSyncCloud()) return;
+  lastLocalCloudWriteAt = new Date().toISOString();
   cloudRef.set({
-    updatedAt: new Date().toISOString(),
+    updatedAt: lastLocalCloudWriteAt,
     state,
   }).catch((error) => {
     if (isPermissionDenied(error)) {
@@ -444,6 +446,10 @@ function initCloudSync() {
       cloudReady = true;
 
       if (data?.state) {
+        if (lastLocalCloudWriteAt && data.updatedAt === lastLocalCloudWriteAt) {
+          cloudInitialHandled = true;
+          return;
+        }
         try {
           applyCloudData(data);
         } catch (error) {
@@ -6935,7 +6941,8 @@ async function saveCustomCounterForm(form) {
   }
   try {
     state.settings.cashSlotSettings=(state.settings.cashSlotSettings||[]).map(item=>({...item,visible:item?.visible!==false}));
-    await cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings,"state/settings/customCashCounters":state.settings.customCashCounters||[],updatedAt:new Date().toISOString()});
+    lastLocalCloudWriteAt = new Date().toISOString();
+    await cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings,"state/settings/customCashCounters":state.settings.customCashCounters||[],updatedAt:lastLocalCloudWriteAt});
     try { localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY); } catch (_) {}
     alert("Değişiklikler kaydedildi ve telefonla eşitlendi.");
   } catch(error) {
