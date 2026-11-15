@@ -4795,8 +4795,8 @@ function renderSharedCashSlots(items){
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
    if(!card)return;
    card.style.order=String(index);
-   const hideForOwnWork=isOwnWorkSource(selectedSource) && (c.id==="commission" || c.id==="expense");
-   const shouldHide=base.visible===false || override.visible===false || hideForOwnWork;
+   // Visibility is controlled by the saved counter settings, not forced by the selected source.
+   const shouldHide=base.visible===false || override.visible===false;
    card.hidden=shouldHide;
    card.style.setProperty("display",shouldHide?"none":"","important");
    const chosenColor=/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb";
