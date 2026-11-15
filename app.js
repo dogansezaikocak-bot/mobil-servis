@@ -2971,21 +2971,29 @@ function customerCashBalance(items = state.cash) {
   return totals.income - totals.material - totals.commission + ownWorkManualTotals.balance;
 }
 
-let activeSettingsTab="settingsSources";
+let activeSettingsTab="settingsCounters";
 let activeSourceSettingsTab="counters";
 let activeHomeDeviceTab="mobile";
 let activeSourceHomeDeviceTab="mobile";
 let activeSourceCounterDeviceTab="mobile";
 function showSettingsTab(tab){
- const allowed=["settingsCompany","settingsHome","settingsCounters","settingsSources","settingsListsPanel","settingsSecurity"];
- if(!allowed.includes(tab))return;
+ const sections=["settingsCompany","settingsHome","settingsCounters","settingsSources","settingsListsPanel","settingsSecurity"];
+ if(!sections.includes(tab))return;
  activeSettingsTab=tab;
+ const group=["settingsHome","settingsCounters","settingsSources"].includes(tab)?"settingsCounters":tab;
  document.querySelectorAll("#settingsView .settings-tabs [data-settings-tab]").forEach(b=>{
-   const active=b.dataset.settingsTab===tab;
+   const active=b.dataset.settingsTab===group;
    b.classList.toggle("is-active",active);
    b.setAttribute("aria-pressed",String(active));
  });
- allowed.forEach(id=>{const node=document.getElementById(id);if(node)node.hidden=id!==tab;});
+ const subnav=document.querySelector("#settingsSubTabs");
+ if(subnav)subnav.hidden=group!=="settingsCounters";
+ document.querySelectorAll("#settingsSubTabs [data-settings-subtab]").forEach(b=>{
+   const active=b.dataset.settingsSubtab===tab;
+   b.classList.toggle("is-active",active);
+   b.setAttribute("aria-pressed",String(active));
+ });
+ sections.forEach(id=>{const node=document.getElementById(id);if(node)node.hidden=id!==tab;});
 }
 function showSourceSettingsTab(tab){
  if(!["counters","home","finance"].includes(tab))return;
@@ -3018,6 +3026,8 @@ document.addEventListener("click",event=>{
  if(counterDevice){activeSourceCounterDeviceTab=counterDevice.dataset.sourceCounterDeviceTab;renderSourceSpecialSettings();return;}
  const sourceDevice=event.target.closest("#sourceSpecialSettings [data-source-home-device-tab]");
  if(sourceDevice){activeSourceHomeDeviceTab=sourceDevice.dataset.sourceHomeDeviceTab;document.querySelectorAll("#sourceSpecialSettings [data-source-home-device-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.sourceHomeDeviceTab===activeSourceHomeDeviceTab));document.querySelectorAll("#sourceSpecialSettings [data-source-device-panel]").forEach(p=>p.hidden=p.dataset.sourceDevicePanel!==activeSourceHomeDeviceTab);const note=document.querySelector("#sourceSpecialSettings .device-settings-notice strong");if(note)note.textContent=activeSourceHomeDeviceTab==="mobile"?"📱 Telefon":"💻 Mac / Masaüstü";return;}
+ const settingsSub=event.target.closest("#settingsView [data-settings-subtab]");
+ if(settingsSub){showSettingsTab(settingsSub.dataset.settingsSubtab);return;}
  const tab=event.target.closest("#settingsView [data-settings-tab]");
  if(tab){showSettingsTab(tab.dataset.settingsTab);return;}
  const sub=event.target.closest("#sourceSpecialSettings [data-source-settings-tab]");
@@ -3041,7 +3051,7 @@ function renderSettings() {
 
 function renderSettingsLists() {
   const container = document.querySelector("#settingsLists");
-  container.innerHTML = Object.entries(settingsLabels).map(([key, label]) => `
+  container.innerHTML = Object.entries(settingsLabels).filter(([key])=>key!=="dashboardCounters" && key!=="cashCounters").map(([key, label]) => `
     <section class="settings-list">
       <header>
         <h3>${escapeHtml(label)}</h3>
