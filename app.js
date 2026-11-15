@@ -2567,7 +2567,7 @@ function serviceSourceCounterBreakdown(items = state.cash) {
     sourceCollectedReceivable,
     manualExpense,
     manualIncome,
-    remainingPayment: hakedis - sourceCollectedReceivable,
+    remainingPayment: hakedis - sourceCollectedReceivable - postedItems.filter(item => item.type === "expense" && !item.serviceId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense && (item.cashPurpose === "source-offset" || (!item.cashPurpose && !isOwnWorkSource(cashItemSource(item)) && Boolean(cashItemSource(item))))).reduce((sum,item)=>sum+(Number(item.amount)||0),0) + postedItems.filter(item => item.type === "income" && !item.serviceId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense && (item.cashPurpose === "source-offset" || (!item.cashPurpose && !isOwnWorkSource(cashItemSource(item)) && Boolean(cashItemSource(item))))).reduce((sum,item)=>sum+(Number(item.amount)||0),0),
   };
 }
 
@@ -3438,6 +3438,7 @@ function openCashForm(options = {}) {
   cashForm.elements.id.value = "";
   cashForm.elements.date.value = isoToday;
   cashForm.elements.type.value = "income";
+  if (cashForm.elements.cashPurpose) cashForm.elements.cashPurpose.value = "operating";
   cashForm.elements.serviceId.value = options.serviceId || "";
   cashForm.elements.source.value = serviceSource(options.serviceId) || (isSourcePortal() ? portalSourceName() : cashSourceFilter.value) || "";
   const deleteButton = cashDialog.querySelector("[data-action='delete-cash']");
@@ -3453,6 +3454,7 @@ function openCashForm(options = {}) {
       if (cashForm.elements[key]) cashForm.elements[key].value = value || "";
     });
     keepSelectValue(cashForm.elements.source, item.source);
+    if (cashForm.elements.cashPurpose) cashForm.elements.cashPurpose.value = item.cashPurpose || (item.type === "expense" && item.source && !isOwnWorkSource(item.source) ? "source-offset" : "operating");
     if (cashForm.elements.commissionRate) cashForm.elements.commissionRate.value = String(item.commissionRate !== undefined ? Number(item.commissionRate) : (item.commission50 ? 50 : 0));
     deleteButton.dataset.cashId = options.id;
     deleteButton.style.visibility = "visible";
@@ -3480,6 +3482,7 @@ function saveCash(formData) {
     title: (data.title || "").trim() || (cashType === "income" ? "Tahsilat" : "Gider"),
     amount: Number(data.amount) || 0,
     description: (data.description || "").trim(),
+    cashPurpose: cashType === "expense" ? (data.cashPurpose === "source-offset" ? "source-offset" : "operating") : (previous?.cashPurpose || ""),
     materialCost,
     otherExpense,
     commission50: commissionRate > 0,
