@@ -5172,6 +5172,7 @@ function mobileServiceCard(service) {
   const bucket = mobileStatusBucket(service.status);
   const deviceTitle = [service.brand, service.device].filter(Boolean).join(" ") || "Cihaz bilgisi yok";
   const paymentModeLabel = servicePaymentModeLabel(service);
+  const receivedTotal = (state.cash || []).filter(item => item.serviceId === service.id && item.type === "income" && !item.parentCashId && !item.autoMaterialExpense && !item.autoCommissionExpense && !item.autoOtherExpense && (normalizePaymentMode(service.paymentStatus || "") === "Ödendi" || normalizePaymentMode(item.title || "") === "Tahsilat Yapıldı")).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
   return `
     <article class="mobile-service-card mobile-status-${bucket}" data-mobile-service-id="${escapeAttr(service.id)}">
       <div class="mobile-card-top" data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
@@ -5184,8 +5185,16 @@ function mobileServiceCard(service) {
       </div>
       <div data-mobile-action="open-detail" data-service-id="${escapeAttr(service.id)}">
         <div class="mobile-device">${escapeHtml(deviceTitle)}</div>
-        <div class="mobile-customer">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</div>
-        <div class="mobile-address">${escapeHtml(service.address || "Adres girilmedi")}</div>
+        <div class="mobile-service-summary-row">
+          <div class="mobile-service-summary-left">
+            <div class="mobile-customer">${escapeHtml(service.customerName || "İsimsiz Müşteri")}</div>
+            <div class="mobile-address">${escapeHtml(service.address || "Adres girilmedi")}</div>
+          </div>
+          <div class="mobile-service-summary-right">
+            <span class="mobile-service-summary-status">${escapeHtml(service.status || "Durum yok")}</span>
+            <strong class="mobile-service-summary-amount">Alınan: ${escapeHtml(formatCurrency(receivedTotal))}</strong>
+          </div>
+        </div>
         <div class="mobile-fault">${escapeHtml(service.fault || "Şikayet yazılmadı")}</div>
       </div>
       <div class="mobile-card-actions">
