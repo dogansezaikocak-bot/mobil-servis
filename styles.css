@@ -9296,3 +9296,37 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
    margin:0!important;
  }
 }
+
+/* V5.3.81 — mobil sayaçlar tam kare; ödeme bekliyor açıklaması kaldırıldı */
+@media(max-width:820px){
+ #mobileDailyCashPage .mobile-daily-counter,
+ #mobileCustomCashCounters .mobile-daily-counter,
+ #mobileHomeCashCards .mobile-daily-counter{
+   aspect-ratio:1 / 1!important;
+   width:100%!important;
+   height:auto!important;
+   min-height:0!important;
+   padding:clamp(10px,3.4vw,16px)!important;
+   grid-template-rows:auto minmax(0,1fr) auto!important;
+   gap:clamp(4px,1.4vw,8px)!important;
+   overflow:hidden!important;
+ }
+ #mobileCashPaymentCounter{
+   grid-template-rows:auto minmax(0,1fr) auto!important;
+   min-height:0!important;
+   row-gap:5px!important;
+ }
+ #mobileCashPaymentCounter>small{display:none!important}
+ #mobileCashPaymentCounter>b{
+   grid-row:2!important;
+   align-self:center!important;
+ }
+ #mobileCashPaymentCounter>.mobile-payment-amount{
+   grid-row:3!important;
+   align-self:end!important;
+   justify-self:start!important;
+   position:static!important;
+   font-size:clamp(15px,4.4vw,23px)!important;
+   line-height:1.2!important;
+ }
+}
