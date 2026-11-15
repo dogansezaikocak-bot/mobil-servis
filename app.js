@@ -1574,7 +1574,7 @@ function dashboardCounterBaseServices(label, services) {
   label = dashboardCounterBase(label);
   // V3.6.1: Yarın ve Açık Fişler sayaçları ana sayfa tarih aralığına takılmasın.
   // Yarın her zaman bugünden yarının açık fişlerini, Açık Fişler ise tüm açık fişleri sayar.
-  if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler")) {
+  if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler") || (settingsList("statuses").some(status => isStatus(status, label)) && !isStatus(label, "Bugün"))) {
     return (state.services || []).filter((service) => matchesPortalSource(service.source)
       && (!activeDashboardSource || sourceMatches(service.source, activeDashboardSource)));
   }
@@ -1734,7 +1734,7 @@ function dashboardCounterClickRange(stat) {
     return { start: value, end: value };
   }
   if (isStatus(stat, "Bugün")) return { start: isoToday, end: isoToday };
-  if (isStatus(stat, "Açık Fişler")) return { start: "", end: "" };
+  if (isStatus(stat, "Açık Fişler") || settingsList("statuses").some(status => isStatus(status, stat))) return { start: "", end: "" };
   return null;
 }
 
