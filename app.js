@@ -5148,19 +5148,30 @@ function mobileRenderDailyCash() {
   if (resetButton) resetButton.hidden = mobileCashDetailFilter === "all";
   if (movementList) {
     const rows = [...visibleItems].sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-    movementList.innerHTML = rows.length ? rows.map((item) => {
-      const amount = Number(item.amount || item.total || item.value || 0);
-      const type = norm(item.type || item.kind || item.category || "");
-      const isOut = mobileCashMovementCategory(item) !== "income" || amount < 0;
-      const title = item.description || item.note || item.title || item.category || item.type || (isOut ? "Gider" : "Tahsilat");
-      const source = cashItemSource(item) || "Kasa";
-      const d = String(item.date || "").slice(0,10);
-      return `<article class="mobile-cash-movement ${isOut ? "out" : "in"}">
-        <div class="mobile-cash-movement-copy">
-          <strong>${escapeHtml(title)}</strong>
-          <span>${escapeHtml(d ? formatDisplayDate(d) : "")} · ${escapeHtml(source)}</span>
-        </div>
-        <b>${isOut ? "−" : "+"}${escapeHtml(money(Math.abs(amount)))}</b>
+    const groups = new Map();
+    rows.forEach((item) => {
+      const service = item.serviceId ? (state.services || []).find(s => String(s.id) === String(item.serviceId)) : null;
+      const key = service ? `service:${service.id}` : `manual:${item.id || rows.indexOf(item)}`;
+      if (!groups.has(key)) groups.set(key, {service, items:[]});
+      groups.get(key).items.push(item);
+    });
+    movementList.innerHTML = rows.length ? [...groups.values()].map(({service,items:groupItems}) => {
+      const name = service?.customerName || groupItems[0].description || groupItems[0].title || "Manuel Kasa Hareketi";
+      const source = cashItemSource(groupItems[0]) || "Kasa";
+      const lines = groupItems.map(item => {
+        const amount = Number(item.amount || item.total || item.value || 0);
+        const isOut = mobileCashMovementCategory(item) !== "income" || amount < 0;
+        const kind = item.autoMaterialExpense ? "Malzeme Gideri" : item.autoCommissionExpense ? "Komisyon Gideri" : item.autoOtherExpense ? "Diğer Gider" : item.type === "income" ? "Tahsilat" : "Gider";
+        const note = String(item.description || item.note || item.title || "").trim();
+        const detail = note && !["tahsilat","malzeme gideri","komisyon gideri","gider"].includes(norm(note)) ? ` · ${note}` : "";
+        const date = String(item.date || "").slice(0,10);
+        return `<div class="mobile-cash-movement-line"><span>${escapeHtml(kind + detail)}<small>${escapeHtml(date ? formatDisplayDate(date) : "")}</small></span><b>${isOut ? "−" : "+"}${escapeHtml(money(Math.abs(amount)))}</b></div>`;
+      }).join("");
+      const clickable = Boolean(service);
+      return `<article class="mobile-cash-service-group${clickable ? " is-clickable" : ""}" ${clickable ? `data-mobile-cash-service-id="${escapeAttr(service.id)}" role="button" tabindex="0" aria-label="${escapeAttr(name)} servis detayını aç"` : ""}>
+        <div class="mobile-cash-service-group-head"><strong>${escapeHtml(name)}</strong>${clickable ? "<span>Servise Git ›</span>" : ""}</div>
+        <div class="mobile-cash-service-group-source">${escapeHtml(source)} · ${groupItems.length} hareket</div>
+        ${lines}
       </article>`;
     }).join("") : `<div class="mobile-cash-empty">Seçilen dönemde kasa hareketi yok.</div>`;
   }
@@ -6972,4 +6983,17 @@ document.addEventListener("click",event=>{
   event.preventDefault();
   const form=button.closest("form");
   if(form)saveCustomCounterForm(form);
+});
+
+/* Mobil kasa hareketinden ilgili servis detayını aç. */
+document.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-mobile-cash-service-id]");
+  if (row) mobileOpenDetail(row.dataset.mobileCashServiceId);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest("[data-mobile-cash-service-id]");
+  if (!row) return;
+  event.preventDefault();
+  mobileOpenDetail(row.dataset.mobileCashServiceId);
 });
