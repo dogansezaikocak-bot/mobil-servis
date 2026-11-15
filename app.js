@@ -184,6 +184,7 @@ function migrateState(oldState) {
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
       customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
       cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
+      mobileLayoutCustom: oldState.settings?.mobileLayoutCustom && typeof oldState.settings.mobileLayoutCustom==="object" ? oldState.settings.mobileLayoutCustom : {},
       homeLayout: {desktop:Array.isArray(oldState.settings?.homeLayout?.desktop)?oldState.settings.homeLayout.desktop:[],mobile:Array.isArray(oldState.settings?.homeLayout?.mobile)?oldState.settings.homeLayout.mobile:[]},
       sources: withoutHiddenSources(ensureValues(sourceNames.length ? sourceNames : [...sources], ["Korkmaz Teknik", "Sedef Teknik", "Kendi İşim"]), hiddenSources),
       hiddenSources,
