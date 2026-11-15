@@ -6631,6 +6631,7 @@ document.addEventListener("change",event=>{
     ensureNativePageShell();
     root.classList.remove("is-welcome-mode", "is-cash-mode");
     root.classList.add("is-list-mode");
+    document.querySelector("#mobileNativePageShell")?.querySelectorAll(".mobile-tech-header,.mobile-list-head").forEach(el=>el.style.removeProperty("display"));
     const serviceList = document.querySelector("#mobileServiceList");
     const globalNewButton = document.querySelector("#mobileNativePageShell .mobile-new-service-bar");
     if (serviceList) {
