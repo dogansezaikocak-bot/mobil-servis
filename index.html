@@ -101,7 +101,7 @@
         </div>
 
         <div class="stat-row" id="dashboardCounters"></div>
-        <div id="desktopHomeCashCards" class="mobile-daily-counter-grid" hidden style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0"></div>
+        <div id="desktopWorkflowCounters" class="mobile-daily-counter-grid" hidden style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0"></div><div id="desktopHomeCashCards" class="mobile-daily-counter-grid" hidden style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0"></div>
 
         <div id="planList" hidden></div>
       </section>
@@ -269,7 +269,7 @@
           </section>
           <section class="settings-section" id="settingsCounters">
             <div class="settings-section-head"><div class="settings-section-icon">◉</div><div><h3>Kasa Sayaçları</h3><p>Renkleri, isimleri, sıralamayı ve hesaplamaları yönetin.</p></div></div>
-            <div id="customCashCounterSettings" class="custom-counter-settings"></div>
+            <div id="customCashCounterSettings" class="custom-counter-settings"></div><div id="workflowCounterSettings" class="custom-counter-settings"></div>
           </section>
           <section class="settings-section" id="settingsSources"><div class="settings-section-head"><div class="settings-section-icon">♧</div><div><h3>Kaynağa Özel Ayarlar</h3><p>Her servis kaynağının sayaç, ekran ve mali kurallarını ayrı yönetin.</p></div></div><div id="sourceSpecialSettings" class="custom-counter-settings"></div></section>
           <section class="settings-section" id="settingsSecurity">
@@ -343,7 +343,7 @@
         </div>
       </dialog>
 
-      <div id="mobileHomeCashCards" class="mobile-daily-counter-grid" hidden style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 14px"></div>
+      <div id="mobileWorkflowCounters" class="mobile-daily-counter-grid" hidden style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 14px"></div><div id="mobileHomeCashCards" class="mobile-daily-counter-grid" hidden style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 14px"></div>
       <div class="mobile-welcome-counter-grid" aria-label="Günlük servis sayaçları">
         <button type="button" class="mobile-welcome-counter open" data-welcome-target="open">
           <span>Günün İşleri</span>
@@ -457,7 +457,7 @@
         </label>
       </section>
 
-      <section id="mobileCustomCashCounters" class="mobile-daily-counter-grid" aria-label="Özel kasa sayaçları" hidden></section>
+      <section id="cashWorkflowCounters" class="mobile-daily-counter-grid" hidden></section><section id="mobileCustomCashCounters" class="mobile-daily-counter-grid" aria-label="Özel kasa sayaçları" hidden></section>
       <section class="mobile-daily-counter-grid" aria-label="Kasa sayaçları">
                 <button type="button" class="mobile-daily-counter profit mobile-cash-clickable" id="mobileCashProfitCounter" aria-label="Net kazanç ve kasa hareketleri">
           <span>Net Kazanç</span>
@@ -910,7 +910,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.104-source-payment-date-fix"></script>
+  <script src="./app.js?v=5.3.105-workflow-counters"></script>
   <script src="./mobile-layout-customizer.js?v=9-home-only"></script>
   <script src="./auto-update.js?v=2"></script>
 <dialog id="mobileSourcePaymentDialog" class="source-payment-dialog">
