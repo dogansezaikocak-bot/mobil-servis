@@ -892,6 +892,7 @@ function bindEvents() {
     if (action === "quick-source-filter") applyTopSourceFilter(button.dataset.source);
     if (action === "clear-top-source-filter") applyTopSourceFilter("");
     if (!action) return;
+    if (action === "duplicate-cash-counter") { duplicateCashCounter(button.dataset.slot, button.dataset.index); return; }
     if (action === "factory-reset-customizations") { resetEkzenCustomizations(); return; }
     if (action === "sign-out") {
       signOutApp();
@@ -5124,13 +5125,13 @@ function renderCustomCashCounterSettings() {
   if (!root) return;
   root.innerHTML=`
     <h3>Ortak Sayaç ve Hesaplama Yönetimi</h3>
-    <p>Sayaç ayarları ortak kaydedilir. Mobil sayaçların sırasını Yukarı / Aşağı düğmeleriyle değiştirebilirsiniz. Değişiklikler telefona eşitlenir.</p>\n    <h4>Mevcut mobil kasa sayaçları</h4>\n    <div class="custom-counter-list">${cashSlotSettings().map((c,i,all)=>`<div class="custom-counter-row"><span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span><strong>${escapeHtml(c.name)}</strong><button type="button" data-action="move-cash-slot" data-slot="${c.id}" data-direction="-1" ${i===0?"disabled":""}>↑ Yukarı</button><button type="button" data-action="move-cash-slot" data-slot="${c.id}" data-direction="1" ${i===all.length-1?"disabled":""}>↓ Aşağı</button><button type="button" data-action="edit-cash-slot" data-slot="${c.id}">Düzenle</button><button type="button" data-action="toggle-cash-slot" data-slot="${c.id}">${c.visible===false?"Göster":"Gizle"}</button></div>`).join("")}</div>\n    <h4>Ek sayaçlar</h4>
+    <p>Sayaç ayarları ortak kaydedilir. Mobil sayaçların sırasını Yukarı / Aşağı düğmeleriyle değiştirebilirsiniz. Değişiklikler telefona eşitlenir.</p>\n    <h4>Mevcut mobil kasa sayaçları</h4>\n    <div class="custom-counter-list">${cashSlotSettings().map((c,i,all)=>`<div class="custom-counter-row"><span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span><strong>${escapeHtml(c.name)}</strong><button type="button" data-action="move-cash-slot" data-slot="${c.id}" data-direction="-1" ${i===0?"disabled":""}>↑ Yukarı</button><button type="button" data-action="move-cash-slot" data-slot="${c.id}" data-direction="1" ${i===all.length-1?"disabled":""}>↓ Aşağı</button><button type="button" data-action="edit-cash-slot" data-slot="${c.id}">Düzenle</button><button type="button" data-action="duplicate-cash-counter" data-slot="${c.id}">Çoğalt</button><button type="button" data-action="toggle-cash-slot" data-slot="${c.id}">${c.visible===false?"Göster":"Gizle"}</button></div>`).join("")}</div>\n    <h4>Ek sayaçlar</h4>
     <div class="custom-counter-list">${customCashCounters().map((c,i)=>`
       <div class="custom-counter-row">
         <span class="custom-counter-dot" style="background:${/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb"}"></span>
         <strong>${escapeHtml(c.name||"Sayaç")}</strong>
         <span>${(c.terms||[]).map(t=>(t.sign===-1?"−":"+")+" "+(CUSTOM_CASH_TERMS.find(x=>x[0]===t.key)?.[1]||"")).join(" ")}</span>
-        <button type="button" data-action="edit-custom-counter" data-index="${i}">Düzenle</button>
+        <button type="button" data-action="edit-custom-counter" data-index="${i}">Düzenle</button><button type="button" data-action="duplicate-cash-counter" data-index="${i}">Çoğalt</button>
         <button type="button" data-action="toggle-custom-counter" data-index="${i}">${c.visible===false?"Göster":"Gizle"}</button>
         <button type="button" data-action="delete-custom-counter" data-index="${i}">Sil</button>
       </div>`).join("")}
@@ -7238,4 +7239,26 @@ async function resetEkzenCustomizations() {
   } catch (error) {
     alert("Buluta kayıt yapılamadı. Hiçbir özelleştirme sıfırlanmadı.");
   }
+}
+
+/* Clone a counter into a new editable draft; saving uses the existing validated workflow. */
+function duplicateCashCounter(slot,index) {
+  if (isSourcePortal()) return;
+  const source = slot ? cashSlotSettings().find(c=>c.id===slot) : customCashCounters()[Number(index)];
+  if (!source) { alert("Kopyalanacak sayaç bulunamadı."); return; }
+  if (customCashCounters().length >= 30) { alert("En fazla 30 ek sayaç oluşturabilirsiniz."); return; }
+  const form = document.querySelector("#customCounterForm");
+  if (!form) return;
+  form.elements.index.value = "-1";
+  form.elements.slot.value = "";
+  form.elements.name.value = (source.name || "Sayaç") + " (Kopya)";
+  form.elements.color.value = /^#[0-9a-fA-F]{6}$/.test(source.color) ? source.color : "#2563eb";
+  form.elements.unit.value = source.unit === "count" ? "count" : "money";
+  form.querySelectorAll("[data-sign]").forEach(el => {
+    const term = (source.terms || []).find(t=>t.key===el.dataset.sign);
+    el.value = term ? String(term.sign===-1?-1:1) : "0";
+  });
+  form.scrollIntoView({behavior:"smooth",block:"center"});
+  form.elements.name.focus();
+  form.elements.name.select();
 }
