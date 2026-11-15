@@ -4572,6 +4572,7 @@ function mobileDatePresetRange(preset) {
   if (preset === "yesterday") return { start: shift(-1), end: shift(-1) };
   if (preset === "tomorrow") return { start: shift(1), end: shift(1) };
   if (preset === "thisWeek") return { start: shift(-((base.getDay()+6)%7)), end: shift(6-((base.getDay()+6)%7)) };
+  if (preset === "lastWeek") return { start: shift(-((base.getDay()+6)%7)-7), end: shift(-((base.getDay()+6)%7)-1) };
   if (preset === "thisMonth") return { start: iso(new Date(base.getFullYear(),base.getMonth(),1)), end: iso(new Date(base.getFullYear(),base.getMonth()+1,0)) };
   return { start: iso(base), end: iso(base) };
 }
