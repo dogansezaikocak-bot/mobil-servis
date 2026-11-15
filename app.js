@@ -6674,6 +6674,9 @@ document.addEventListener("change",event=>{
     ensureNativePageShell();
     root.classList.remove("is-welcome-mode", "is-list-mode");
     root.classList.add("is-cash-mode");
+    // Servis üst menüsü native kasa ekranında hiçbir zaman görünmemeli.
+    const nativeShell = document.querySelector("#mobileNativePageShell");
+    if (nativeShell) nativeShell.querySelectorAll(".mobile-tech-header,.mobile-list-head,#mobileServiceList,.mobile-new-service-bar").forEach(el=>{el.style.setProperty("display","none","important");});
     const openCash = document.querySelector('#mobileTechApp [data-mobile-action="open-daily-cash"]');
     if (openCash) openCash.click();
     openNativePage("cash");
