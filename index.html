@@ -244,13 +244,16 @@
             <div><span class="settings-eyebrow">EKZEN · YÖNETİM PANELİ</span><h2>Ayarlar</h2><p>İşletme bilgilerinizi, ana sayfalarınızı ve sayaçlarınızı tek yerden yönetin.</p></div>
             <div class="settings-hero-symbol" aria-hidden="true">⚙</div>
           </div>
-          <nav class="settings-quick-nav settings-tabs" aria-label="Ayar kategorileri">
+          <nav class="settings-quick-nav settings-tabs" aria-label="Ana ayar kategorileri">
             <button type="button" data-settings-tab="settingsCompany">🏢 İşletme</button>
-            <button type="button" data-settings-tab="settingsHome">▦ Ana Sayfa</button>
-            <button type="button" data-settings-tab="settingsCounters">◉ Sayaçlar</button>
-            <button type="button" data-settings-tab="settingsSources">♧ Kaynağa Özel</button>
-            <button type="button" data-settings-tab="settingsListsPanel">☷ Listeler</button>
-            <button type="button" data-settings-tab="settingsSecurity">🔒 Güvenlik</button>
+            <button type="button" data-settings-tab="settingsListsPanel">🛠 Servis Yönetimi</button>
+            <button type="button" data-settings-tab="settingsCounters">▦ Ekran ve Sayaç Yönetimi</button>
+            <button type="button" data-settings-tab="settingsSecurity">🔒 Güvenlik ve Yedekleme</button>
+          </nav>
+          <nav id="settingsSubTabs" class="settings-quick-nav settings-subtabs" aria-label="Alt ayar bölümleri" hidden>
+            <button type="button" data-settings-subtab="settingsCounters">Sayaçlar</button>
+            <button type="button" data-settings-subtab="settingsHome">Ekran Düzeni</button>
+            <button type="button" data-settings-subtab="settingsSources">Kaynağa Özel</button>
           </nav>
           <section class="settings-section" id="settingsCompany">
             <div class="settings-section-head"><div class="settings-section-icon">🏢</div><div><h3>İşletme Bilgileri</h3><p>Firma adı ve iletişim bilgilerinizi düzenleyin.</p></div></div>
@@ -268,7 +271,7 @@
             <div id="homeLayoutSettings" class="custom-counter-settings"></div>
           </section>
           <section class="settings-section" id="settingsCounters">
-            <div class="settings-section-head"><div class="settings-section-icon">◉</div><div><h3>Kasa Sayaçları</h3><p>Renkleri, isimleri, sıralamayı ve hesaplamaları yönetin.</p></div></div>
+            <div class="settings-section-head"><div class="settings-section-icon">◉</div><div><h3>Tüm Sayaçlar</h3><p>Ana sayfa, kasa ve servis sayaçlarını tek yerden yönetin.</p></div></div>
             <div id="dashboardCounterDesigner" class="custom-counter-settings"></div><div id="customCashCounterSettings" class="custom-counter-settings"></div><div id="workflowCounterSettings" class="custom-counter-settings"></div>
           </section>
           <section class="settings-section" id="settingsSources"><div class="settings-section-head"><div class="settings-section-icon">♧</div><div><h3>Kaynağa Özel Ayarlar</h3><p>Her servis kaynağının sayaç, ekran ve mali kurallarını ayrı yönetin.</p></div></div><div id="sourceSpecialSettings" class="custom-counter-settings"></div></section>
@@ -283,7 +286,7 @@
             </div>
             <div class="settings-list"><h3>Özelleştirmeleri Fabrika Ayarlarına Döndür</h3><p>Önce buluttaki tüm işletme verilerinin JSON yedeği indirilir. Yalnızca sayaç ve ekran özelleştirmeleri sıfırlanır; servis, kasa, müşteri ve kaynak kayıtları korunur. İşlem için yazılı onay gerekir.</p><button class="danger-button" type="button" data-action="factory-reset-customizations">Özelleştirmeleri Sıfırla</button></div>
           </section>
-          <section class="settings-section" id="settingsListsPanel"><div class="settings-section-head settings-list-heading"><div class="settings-section-icon">☷</div><div><h3>Diğer Listeler</h3><p>Markalar, cihazlar, kaynaklar ve diğer sistem listeleri.</p></div></div>
+          <section class="settings-section" id="settingsListsPanel"><div class="settings-section-head settings-list-heading"><div class="settings-section-icon">☷</div><div><h3>Servis Yönetimi</h3><p>Servis durumları, markalar, cihazlar ve kaynaklar.</p></div></div>
           <div id="settingsLists" class="settings-lists"></div></section>
         </section>
       </section>
@@ -911,7 +914,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=20261115-dashboard-clone-3"></script>
+  <script src="./app.js?v=20261115-settings-four-groups-4"></script>
   <script src="./mobile-layout-customizer.js?v=9-home-only"></script>
   <script src="./auto-update.js?v=2"></script>
 <dialog id="mobileSourcePaymentDialog" class="source-payment-dialog">
