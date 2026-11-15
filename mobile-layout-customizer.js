@@ -8,11 +8,13 @@
  const defaults=type=>defs[type].map(([id,name])=>({id,name,visible:true}));
  let settings;
  try{settings=JSON.parse(localStorage.getItem(KEY)||"null")||{};}catch(_){settings={};}
+ if(typeof state!=="undefined"&&state.settings?.mobileLayoutCustom?.home)settings=structuredClone(state.settings.mobileLayoutCustom);
  for(const type of ["home","cash"]){
   const old=Array.isArray(settings[type])?settings[type]:[];
   settings[type]=[...old.filter(x=>defs[type].some(d=>d[0]===x.id)),...defaults(type).filter(x=>!old.some(y=>y.id===x.id))];
  }
- function persist(){try{localStorage.setItem(KEY,JSON.stringify(settings));}catch(e){console.warn("Düzen kaydedilemedi",e);}}
+ function persist(){const status=document.querySelector("#ekzenLayoutSaveStatus");if(status)status.textContent="Kaydedilmemiş değişiklikler var.";}
+ async function saveLayout(){const status=document.querySelector("#ekzenLayoutSaveStatus");const btn=document.querySelector("#ekzenLayoutSave");if(btn)btn.disabled=true;try{state.settings.mobileLayoutCustom=JSON.parse(JSON.stringify(settings));localStorage.setItem(KEY,JSON.stringify(settings));saveLocalState();if(typeof canSyncCloud==="function"&&canSyncCloud()){await cloudRef.set({updatedAt:new Date().toISOString(),state});if(status)status.textContent="✓ Kaydedildi ve bulutla eşitlendi.";}else if(status)status.textContent="✓ Bu cihazda kaydedildi. Bulut bağlantısı yok; diğer cihazlara aktarılmadı.";}catch(error){if(status)status.textContent="⚠ Cihazda kaydedildi; bulut kaydı başarısız: "+(error?.message||"Bağlantı hatası");}finally{if(btn)btn.disabled=false;}}
  function ensureSearch(){
   if(document.querySelector("#ekzenGlobalSearchButton"))return;
   const source=document.querySelector(".mobile-welcome-source-entry");if(!source)return;
@@ -76,7 +78,7 @@
    });
   }
   const reset=document.createElement("button");reset.textContent="Varsayılana döndür";reset.onclick=()=>{settings.home=defaults("home");settings.cash=defaults("cash");persist();render();apply("home");apply("cash");};panel.append(reset);
-  const note=document.createElement("p");note.textContent="Gizlenen menüler ve sayaçlar kayıtları silmez. Düzen bu cihazda saklanır.";panel.append(note);
+  const save=document.createElement("button");save.type="button";save.id="ekzenLayoutSave";save.textContent="✓ Değişiklikleri Kaydet";save.onclick=saveLayout;panel.append(save);const status=document.createElement("p");status.id="ekzenLayoutSaveStatus";status.setAttribute("role","status");status.textContent="Değişiklikleri uygulamak için Kaydet düğmesine basın.";panel.append(status);const note=document.createElement("p");note.textContent="Gizlenen menüler ve sayaçlar kayıtları silmez.";panel.append(note);
  }
  function move(type,i,delta){const arr=settings[type];[arr[i],arr[i+delta]]=[arr[i+delta],arr[i]];persist();render();apply(type);}
  function init(){ensureSearch();apply("home");apply("cash");render();document.addEventListener("click",e=>{if(e.target.closest("[data-home-device-tab]"))setTimeout(render,0);});}
@@ -96,7 +98,7 @@
 #ekzenLayoutSettings input.ekzen-layout-visible{display:inline-block!important;position:static!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;margin:0!important;padding:0!important;transform:none!important;appearance:auto!important;accent-color:#2563eb!important;vertical-align:middle!important}
 @media(max-width:550px){#ekzenLayoutSettings{padding:10px}#ekzenLayoutSettings .ekzen-layout-name{flex-basis:100%!important}}
 `;
- document.head.append(style);
+ style.textContent+="#ekzenLayoutSave{display:block!important;background:#1765bd!important;color:white!important;padding:12px 18px!important;border-radius:9px!important;font-weight:700!important;margin:16px 0 8px!important;min-height:44px!important}#ekzenLayoutSaveStatus{font-size:13px;color:#334155}";document.head.append(style);
  const observer=new MutationObserver(()=>{if(document.querySelector("#homeLayoutSettings")&&!document.querySelector("#homeLayoutSettings #ekzenLayoutSettings"))render();});
  document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#homeLayoutSettings");if(host)observer.observe(host,{childList:true});});
 })();
