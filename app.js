@@ -6644,6 +6644,25 @@ document.addEventListener("change",event=>{
     else if (tab) tab.click();
     updateWelcome();
     openNativePage("list");
+    // Ana sayfadaki sayaç ile açılan liste aynı tarih aralığı, kaynak ve
+    // açık/kapalı tanımını kullanmalı. Sekme tıklaması tek gün filtresine
+    // dönebildiğinden, ana sayfadan gelen kayıtları doğrudan listeye bas.
+    if (bucket === "closed" || bucket === "open") {
+      const source = selectedSourceValue();
+      const matching = sortServices(state.services || []).filter(service => {
+        if (!mobileSourceVisible(service, source) || !mobileMatchesServiceQuery(service, mobileServiceQuery)) return false;
+        const closed = !mobileIsRemainingService(service);
+        return (bucket === "closed" ? closed : !closed) && mobileDateFilterMatch(service, selectedDate(), bucket);
+      });
+      const list = document.querySelector("#mobileServiceList");
+      if (list) {
+        list.hidden = false;
+        list.style.setProperty("display", "grid", "important");
+        list.innerHTML = matching.length ? matching.map(mobileServiceCard).join("") : '<div class="mobile-empty">Seçilen tarih aralığında servis kaydı bulunamadı.</div>';
+      }
+      const summary = document.querySelector("#mobileTechSummary");
+      if (summary) summary.textContent = (bucket === "closed" ? "Kapanan Fişler" : "Günün İşleri") + " · " + matching.length + " fiş";
+    }
     document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
   }
 
