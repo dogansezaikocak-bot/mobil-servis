@@ -68,11 +68,11 @@
    const h=document.createElement("h4");h.textContent=type==="home"?"Ana sayfa menüleri":"Kasa sayfası";panel.append(h);
    settings[type].forEach((entry,i)=>{
     const row=document.createElement("div");row.className="ekzen-layout-row";
-    const name=document.createElement("input");name.value=entry.name;name.setAttribute("aria-label","Menü adı");name.onchange=()=>{entry.name=name.value.trim()||defs[type].find(x=>x[0]===entry.id)[1];persist();apply(type);};
+    const name=document.createElement("input");name.type="text";name.className="ekzen-layout-name";name.value=entry.name;name.setAttribute("aria-label","Menü adı");name.onchange=()=>{entry.name=name.value.trim()||defs[type].find(x=>x[0]===entry.id)[1];persist();apply(type);};
     const up=document.createElement("button");up.textContent="↑";up.disabled=i===0;up.onclick=()=>move(type,i,-1);
     const down=document.createElement("button");down.textContent="↓";down.disabled=i===settings[type].length-1;down.onclick=()=>move(type,i,1);
-    const show=document.createElement("input");show.type="checkbox";show.checked=entry.visible;show.title="Göster / gizle";show.onchange=()=>{entry.visible=show.checked;persist();apply(type);};
-    row.append(name,up,down,show);panel.append(row);
+    const show=document.createElement("input");show.type="checkbox";show.className="ekzen-layout-visible";show.checked=entry.visible;show.title="Göster / gizle";show.onchange=()=>{entry.visible=show.checked;persist();apply(type);};
+    const label=document.createElement("label");label.className="ekzen-layout-check";label.append(show,document.createTextNode("Göster"));row.append(name,up,down,label);panel.append(row);
    });
   }
   const reset=document.createElement("button");reset.textContent="Varsayılana döndür";reset.onclick=()=>{settings.home=defaults("home");settings.cash=defaults("cash");persist();render();apply("home");apply("cash");};panel.append(reset);
@@ -84,6 +84,18 @@
  // Settings and counters can be rerendered by the main application.
  const style=document.createElement("style");
  style.textContent="#ekzenSearchOverlay[hidden]{display:none!important}#ekzenSearchOverlay{position:fixed;inset:0;z-index:2147483000;background:#0009;display:flex;justify-content:center;align-items:flex-start;padding:24px 12px;overflow:auto}.ekzen-search-card{width:min(100%,650px);background:white;color:#1e2530;border-radius:14px;padding:16px}.ekzen-search-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}#ekzenSearchInput{display:block;width:100%;padding:12px;font-size:16px;border:1px solid #aaa;border-radius:8px;background:white;color:#111}#ekzenSearchResults{max-height:65vh;overflow:auto;margin-top:12px}.ekzen-search-result{display:block;width:100%;padding:12px 5px;background:white;color:#222;text-align:left;border:0;border-bottom:1px solid #ddd;overflow-wrap:anywhere}.ekzen-layout-row{display:flex;gap:6px;margin:8px 0;align-items:center}.ekzen-layout-row input:not([type=checkbox]){flex:1;min-width:0}";
+ style.textContent+=`
+#ekzenLayoutSettings{display:block!important;max-width:100%;margin-top:18px;padding:16px;border:1px solid #d9e0e8;border-radius:12px;background:#f8fafc;color:#1e2530}
+#ekzenLayoutSettings[hidden]{display:none!important}
+#ekzenLayoutSettings h3,#ekzenLayoutSettings h4{color:#1e2530;margin:12px 0}
+#ekzenLayoutSettings .ekzen-layout-row{display:flex!important;flex-wrap:wrap;gap:8px;align-items:center;min-height:48px;margin:8px 0;padding:8px;background:#fff;border:1px solid #e2e8f0;border-radius:9px}
+#ekzenLayoutSettings .ekzen-layout-name{display:block!important;flex:1 1 180px!important;min-width:130px!important;width:auto!important;height:40px!important;min-height:40px!important;margin:0!important;padding:8px 10px!important;border:1px solid #aab8c8!important;border-radius:7px!important;background:#fff!important;color:#172033!important;-webkit-text-fill-color:#172033!important;font-size:15px!important;opacity:1!important;visibility:visible!important;appearance:auto!important}
+#ekzenLayoutSettings .ekzen-layout-row>button{display:inline-flex!important;align-items:center;justify-content:center;width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;margin:0!important;padding:0!important;background:#eef2f7!important;border:1px solid #cbd5e1!important;border-radius:7px!important;color:#172033!important;font-size:20px!important;line-height:1!important}
+#ekzenLayoutSettings .ekzen-layout-row>button:disabled{opacity:.35!important}
+#ekzenLayoutSettings .ekzen-layout-check{display:inline-flex!important;align-items:center!important;gap:6px!important;white-space:nowrap;color:#172033!important;font-size:13px!important;cursor:pointer}
+#ekzenLayoutSettings input.ekzen-layout-visible{display:inline-block!important;position:static!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;margin:0!important;padding:0!important;transform:none!important;appearance:auto!important;accent-color:#2563eb!important;vertical-align:middle!important}
+@media(max-width:550px){#ekzenLayoutSettings{padding:10px}#ekzenLayoutSettings .ekzen-layout-name{flex-basis:100%!important}}
+`;
  document.head.append(style);
  const observer=new MutationObserver(()=>{if(document.querySelector("#homeLayoutSettings")&&!document.querySelector("#homeLayoutSettings #ekzenLayoutSettings"))render();});
  document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#homeLayoutSettings");if(host)observer.observe(host,{childList:true});});
