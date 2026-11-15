@@ -6947,7 +6947,7 @@ document.addEventListener("submit", event => {
   const amount = Number(form.elements.amount.value);
   const date = form.elements.date.value;
   const description = form.elements.description.value.trim();
-  if (!source || isOwnWorkSource(source) || !Number.isFinite(amount) || amount <= 0 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+  if (!source || isOwnWorkSource(source) || !Number.isFinite(amount) || amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     alert("Geçerli tutar ve tarih girin."); return;
   }
   const items = (state.cash || []).filter(item => cashIsPosted(item) && sourceMatches(cashItemSource(item), source));
