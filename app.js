@@ -4783,7 +4783,7 @@ function renderSharedCashSlots(items){
  const ordered=allHomeCashSlots().slice().sort((a,b)=>{const ids=special.counterOrderByDevice?.mobile||special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
  ordered.forEach((base,index)=>{
    const override=special.countersByDevice?.mobile?.[base.id]||special.counters?.[base.id]||{};
-   const c={...base,...override};
+   const c={...base,...override,name:String(base.name||"").trim()||base.id};
    const node=document.querySelector(selectors[c.id]);
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
    if(!card)return;
@@ -4796,8 +4796,13 @@ function renderSharedCashSlots(items){
     card.style.setProperty("background",chosenColor,"important");
     card.style.setProperty("background-color",chosenColor,"important");
    card.style.color="#fff";
-   const heading=card.querySelector("span");
-   if(heading)heading.textContent=isExternalSource&&c.id==="commission"?"Ekzen Payı":isExternalSource&&c.id==="expense"?"Kalan Ödeme":c.name;
+   const heading=card.querySelector(":scope > span");
+   if(heading){
+     heading.textContent=c.name;
+     heading.style.setProperty("display","block","important");
+     heading.style.setProperty("visibility","visible","important");
+     heading.style.setProperty("opacity","1","important");
+   }
    let value=customCashValue(c,context);
    if(isExternalSource){
      if(c.id==="profit")value=datedSource.hakedis;
