@@ -79,7 +79,7 @@
   let panel=host.querySelector("#ekzenLayoutSettings");if(!panel){panel=document.createElement("section");panel.id="ekzenLayoutSettings";host.append(panel);} panel.hidden=Boolean(host.querySelector('[data-home-device-tab="desktop"].is-active'));
   panel.replaceChildren();
   const heading=document.createElement("h3");heading.textContent="Mobil Menü ve Kasa Düzeni";panel.append(heading);
-  for(const type of ["home","cash"]){
+  for(const type of ["home"]){
    const h=document.createElement("h4");h.textContent=type==="home"?"Ana sayfa menüleri":"Kasa sayfası";panel.append(h);
    settings[type].forEach((entry,i)=>{
     const row=document.createElement("div");row.className="ekzen-layout-row";
@@ -90,11 +90,11 @@
     const label=document.createElement("label");label.className="ekzen-layout-check";label.append(show,document.createTextNode("Göster"));row.append(name,up,down,label);panel.append(row);
    });
   }
-  const reset=document.createElement("button");reset.textContent="Varsayılana döndür";reset.onclick=()=>{settings.home=defaults("home");settings.cash=defaults("cash");persist();render();apply("home");apply("cash");};panel.append(reset);
+  const reset=document.createElement("button");reset.textContent="Varsayılana döndür";reset.onclick=()=>{settings.home=defaults("home");persist();render();apply("home");};panel.append(reset);
   const save=document.createElement("button");save.type="button";save.id="ekzenLayoutSave";save.textContent="✓ Değişiklikleri Kaydet";save.onclick=saveLayout;panel.append(save);const status=document.createElement("p");status.id="ekzenLayoutSaveStatus";status.setAttribute("role","status");status.textContent="Değişiklikleri uygulamak için Kaydet düğmesine basın.";panel.append(status);const note=document.createElement("p");note.textContent="Gizlenen menüler ve sayaçlar kayıtları silmez.";panel.append(note);
  }
  function move(type,i,delta){const arr=settings[type];[arr[i],arr[i+delta]]=[arr[i+delta],arr[i]];persist();render();apply(type);}
- function init(){ensureSearch();apply("home");apply("cash");render();document.addEventListener("click",e=>{if(e.target.closest("[data-home-device-tab]"))setTimeout(render,0);});}
+ function init(){ensureSearch();apply("home");render();document.addEventListener("click",e=>{if(e.target.closest("[data-home-device-tab]"))setTimeout(render,0);});}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
  // Settings and counters can be rerendered by the main application.
  const style=document.createElement("style");
