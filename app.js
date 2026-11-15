@@ -6907,12 +6907,70 @@ if (ekzenV538CashForm) {
   });
 }
 
+/* Kaynak cari ödemesi: yalnızca tutar, tarih, açıklama. */
+function mobileOpenSourcePayment() {
+  if (isSourcePortal()) return;
+  const source = mobileCashSource || "";
+  if (!source || isOwnWorkSource(source)) {
+    alert("Önce ödeme yapılacak servis kaynağını seçin.");
+    return;
+  }
+  const dialog = document.querySelector("#mobileSourcePaymentDialog");
+  if (!dialog) return;
+  const form = dialog.querySelector("form");
+  form.reset();
+  form.elements.source.value = source;
+  form.elements.date.value = toIsoDate(new Date());
+  dialog.querySelector("[data-payment-source-name]").textContent = source;
+  const items = (state.cash || []).filter(item => cashIsPosted(item) && sourceMatches(cashItemSource(item), source));
+  const remaining = serviceSourceCounterBreakdown(items).remainingPayment;
+  dialog.querySelector("[data-payment-remaining]").textContent = money(remaining);
+  dialog.showModal();
+}
+document.addEventListener("submit", event => {
+  if (event.target.id !== "mobileSourcePaymentForm") return;
+  event.preventDefault();
+  if (isSourcePortal()) return;
+  const form = event.target;
+  const source = form.elements.source.value;
+  const amount = Number(form.elements.amount.value);
+  const date = form.elements.date.value;
+  const description = form.elements.description.value.trim();
+  if (!source || isOwnWorkSource(source) || !Number.isFinite(amount) || amount <= 0 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+    alert("Geçerli tutar ve tarih girin."); return;
+  }
+  const items = (state.cash || []).filter(item => cashIsPosted(item) && sourceMatches(cashItemSource(item), source));
+  const remaining = serviceSourceCounterBreakdown(items).remainingPayment;
+  if (amount > remaining + 0.001) {
+    alert("Ödeme, kaynağın kalan alacağını aşamaz: " + money(remaining)); return;
+  }
+  state.cash.unshift({
+    id:uid(), date, type:"expense", title:"Kaynağa Ödeme",
+    description:description || "Kaynak cari ödemesi",
+    amount, cashPurpose:"source-offset", source, serviceId:"",
+    materialCost:0, otherExpense:0, commission50:false, commissionRate:0
+  });
+  saveState();
+  document.querySelector("#mobileSourcePaymentDialog")?.close();
+  render();
+  mobileRenderDailyCash();
+});
+document.addEventListener("click", event => {
+  if (event.target.closest("#mobileSourcePaymentCancel")) document.querySelector("#mobileSourcePaymentDialog")?.close();
+});
 /* V5.3.20 — Kasa sayacı tıklama davranışları */
 document.addEventListener("click", function(event) {
   const payment = event.target.closest("#mobileCashPaymentCounter");
   if (payment) {
     event.preventDefault();
     window.ekzenMobileNavigatePayment?.();
+    return;
+  }
+  const sourceBalanceCounter = event.target.closest("#mobileDailyPageExpense");
+  if (sourceBalanceCounter && mobileCashSource && !isOwnWorkSource(mobileCashSource)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    mobileOpenSourcePayment();
     return;
   }
   const category = event.target.closest("[data-cash-detail]");
