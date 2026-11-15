@@ -3893,34 +3893,54 @@ function reportShell(title,source,cards,headers,rows){
  report.document.open();report.document.write(html);report.document.close();
 }
 function printCashReport(){
+ const source=isSourcePortal()?portalSourceName():(cashSourceFilter?.value||activeDashboardSource||"");
  const items=filteredCash();
- const totals=cashTotals(items);
- const b=cashBreakdown(items);
+ const totals=cashTotals(items),b=cashBreakdown(items),shares=serviceSourceCounterBreakdown(items);
  const cards=[
   {label:"Toplam Ciro",value:reportMoney(totals.income)},
   {label:"Malzeme",value:reportMoney(b.material)},
   {label:"Komisyon",value:reportMoney(b.commission)},
   {label:"Diğer Giderler",value:reportMoney(b.manualExpense),tone:"bad"},
   {label:"Net Kasa",value:reportMoney(b.balance),tone:"good"},
-  {label:"Para Hareketleri",value:String(items.length)}
+  {label:"Hakediş (Kaynak Payı)",value:reportMoney(shares.hakedis),tone:"good"},
+  {label:"Ekzen Teknik Payı",value:reportMoney(shares.ekzenTechnical)},
+  {label:"Kaynağa Kalan Ödeme",value:reportMoney(shares.remainingPayment),tone:shares.remainingPayment<0?"bad":"good"}
  ];
- const rows=items.slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(item=>
-  '<tr><td>'+escapeHtml(formatDate(item.date||""))+'</td><td>'+escapeHtml(visibleCashTitle(item)||"-")+'<span class="sub">'+(item.type==="expense"?"Gider":"Gelir")+'</span></td><td>'+escapeHtml(cashItemSource(item)||"-")+'</td><td class="num '+(item.type==="expense"?"red":"")+'">'+(item.type==="expense"?"−":"")+escapeHtml(reportMoney(item.amount))+'</td></tr>');
- reportShell("EKZEN · KASA HESAP ÖZETİ",isSourcePortal()?portalSourceName():(cashSourceFilter?.value||activeDashboardSource||"Tüm kaynaklar"),cards,["Tarih","Açıklama / Tür","Kaynak","Tutar"],rows);
+ const rows=items.slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(item=>{
+  const income=item.type==="income",primary=isServicePrimaryIncome(item);
+  const material=primary?Number(item.materialCost)||0:0;
+  const owner=primary?ownerPayAmountForCashItem(item):0;
+  const sourcePay=primary?sourcePayAmountForCashItem(item):0;
+  return '<tr><td>'+escapeHtml(formatDate(item.date||""))+'</td><td>'+escapeHtml(visibleCashTitle(item)||"-")+'<span class="sub">'+(income?"Gelir":"Gider")+'</span></td><td>'+escapeHtml(cashItemSource(item)||"-")+'</td><td class="num '+(income?"":"red")+'">'+(income?"":"−")+escapeHtml(reportMoney(item.amount))+'</td><td class="num">'+(material?escapeHtml(reportMoney(material)):"—")+'</td><td class="num">'+(primary?escapeHtml(reportMoney(owner)):"—")+'</td><td class="num">'+(primary?escapeHtml(reportMoney(sourcePay)):"—")+'</td></tr>';
+ });
+ reportShell("EKZEN · KASA HESAP ÖZETİ",source||"Tüm kaynaklar",cards,["Tarih","Açıklama / Tür","Kaynak","Tutar","Malzeme","Ekzen Payı","Kaynak Payı"],rows);
 }
 function printServiceReport(fromList=false){
  const items=fromList?sortServices(homeServiceDrilldown?(state.services||[]).filter(s=>homeServiceDrilldown.ids.has(String(s.id))&&matchesPortalSource(s.source)):filteredServices({ignoreStatus:false})):sortServices(filteredDashboardServices());
- const counts=(name)=>items.filter(s=>isStatus(s.status,name)).length;
+ const ids=new Set(items.map(s=>String(s.id)));
+ const cash=(state.cash||[]).filter(c=>ids.has(String(c.serviceId||""))&&cashIsPosted(c));
+ const totals=cashTotals(cash),b=cashBreakdown(cash),shares=serviceSourceCounterBreakdown(cash);
+ const pending=items.filter(s=>isStatus(s.status,"Ödeme Bekliyor"));
+ const pendingAmount=pending.reduce((sum,s)=>sum+Math.max(0,Number(primaryCashForService(s.id)?.amount??s.price??0)||0),0);
  const cards=[
   {label:"Toplam Servis",value:String(items.length)},
-  {label:"Yeni Kayıt",value:String(counts("Yeni Kayıt"))},
-  {label:"İşlemde",value:String(counts("İşlemde"))},
-  {label:"Ödeme Bekliyor",value:String(counts("Ödeme Bekliyor")),tone:"bad"},
-  {label:"İşlem Tamam",value:String(counts("İşlem Tamam")),tone:"good"},
-  {label:"Diğer Durumlar",value:String(items.length-counts("Yeni Kayıt")-counts("İşlemde")-counts("Ödeme Bekliyor")-counts("İşlem Tamam"))}
+  {label:"Toplam Ciro (Tahsilat)",value:reportMoney(totals.income)},
+  {label:"Malzeme Gideri",value:reportMoney(b.material)},
+  {label:"Komisyon",value:reportMoney(b.commission)},
+  {label:"Net Kazanç",value:reportMoney(b.balance),tone:"good"},
+  {label:"Hakediş (Kaynak Payı)",value:reportMoney(shares.hakedis)},
+  {label:"Ödeme Bekleyen",value:pending.length+" Servis · "+reportMoney(pendingAmount),tone:"bad"},
+  {label:"Tamamlanan Servis",value:String(items.filter(s=>isStatus(s.status,"İşlem Tamam")).length)}
  ];
- const rows=items.map(s=>'<tr><td>'+escapeHtml(formatDate(serviceMainDate(s)||""))+'</td><td>'+escapeHtml(s.customerName||"-")+'<span class="sub">'+escapeHtml(s.phone||"")+'</span></td><td>'+escapeHtml([s.device,s.brand].filter(Boolean).join(" / ")||"-")+'<span class="sub">'+escapeHtml(s.address||"")+'</span></td><td>'+escapeHtml(s.source||"-")+'</td><td class="num">'+escapeHtml(s.status||"-")+'</td></tr>');
- reportShell("EKZEN · SERVİS RAPORU",activeDashboardSource||(isSourcePortal()?portalSourceName():"Tüm kaynaklar"),cards,["Tarih","Müşteri","Cihaz / Adres","Kaynak","Durum"],rows);
+ const rows=items.map(s=>{
+  const f=serviceCardFinancials(s),primary=primaryCashForService(s.id);
+  const paid=primary&&cashIsPosted(primary)?Number(primary.amount)||0:0;
+  const material=primary&&cashIsPosted(primary)?Number(primary.materialCost)||0:0;
+  const owner=primary&&cashIsPosted(primary)?ownerPayAmountForCashItem(primary):0;
+  const sourcePay=primary&&cashIsPosted(primary)?sourcePayAmountForCashItem(primary):0;
+  return '<tr><td>'+escapeHtml(formatDate(serviceMainDate(s)||""))+'</td><td>'+escapeHtml(s.customerName||s.address||"-")+'<span class="sub">'+escapeHtml([s.device,s.brand].filter(Boolean).join(" / "))+'</span></td><td>'+escapeHtml(s.source||"-")+'<span class="sub">'+escapeHtml(s.status||"-")+'</span></td><td class="num">'+escapeHtml(reportMoney(paid))+'</td><td class="num">'+escapeHtml(reportMoney(material))+'</td><td class="num">'+escapeHtml(reportMoney(owner))+'</td><td class="num">'+escapeHtml(reportMoney(sourcePay))+'</td></tr>';
+ });
+ reportShell("EKZEN · SERVİS VE KASA RAPORU",activeDashboardSource||(isSourcePortal()?portalSourceName():"Tüm kaynaklar"),cards,["Tarih","Servis / Cihaz","Kaynak / Durum","Tahsilat","Malzeme","Ekzen Payı","Kaynak Payı"],rows);
 }
 
 function printCash() { printCashReport(); }
