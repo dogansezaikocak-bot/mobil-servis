@@ -2,10 +2,10 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="ekzen-build" content="2026-11-15-home-counters-2">
+  <meta name="ekzen-build" content="2026-11-15-counter-uniform-3">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
-  <link rel="stylesheet" href="./styles.css?v=5.3.76-service-card">
+  <link rel="stylesheet" href="./styles.css?v=5.3.79-counter-uniform">
 </head>
 <body class="auth-checking">
   <section id="pinScreen" class="pin-screen" aria-label="Giriş ve oturum kontrolü">
@@ -483,18 +483,22 @@
         <button type="button" class="mobile-daily-counter income mobile-cash-clickable" data-cash-detail="income" aria-label="income hareketlerini görüntüle">
           <span>Toplam Hasılat</span>
           <b id="mobileDailyPageIncome">₺0</b>
+          <small>Toplam tahsilat</small>
         </button>
         <button type="button" class="mobile-daily-counter commission mobile-cash-clickable" data-cash-detail="commission" aria-label="commission hareketlerini görüntüle">
           <span>Ödenen Komisyon</span>
           <b id="mobileDailyPageCommission">₺0</b>
+          <small>Ödenen komisyonlar</small>
         </button>
         <button type="button" class="mobile-daily-counter material mobile-cash-clickable" data-cash-detail="material" aria-label="material hareketlerini görüntüle">
           <span>Malzeme</span>
           <b id="mobileDailyPageMaterial">₺0</b>
+          <small>Malzeme giderleri</small>
         </button>
         <button type="button" class="mobile-daily-counter expense mobile-cash-clickable" data-cash-detail="expense" aria-label="expense hareketlerini görüntüle">
           <span>Diğer Gider</span>
           <b id="mobileDailyPageExpense">₺0</b>
+          <small>Diğer giderler</small>
         </button>
       </section>
 
@@ -915,7 +919,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.78-closed-list-fix"></script>
+  <script src="./app.js?v=5.3.79-counter-uniform"></script>
   <script src="./mobile-layout-customizer.js?v=8"></script>
   <script src="./auto-update.js?v=1"></script>
 </body>
