@@ -2658,7 +2658,7 @@ function openHomeCashMovements(slot){
  content.innerHTML='<div class="cash-current-summary">'+summary.map(([label,amount])=>'<article><span>'+escapeHtml(label)+'</span><b>'+money(amount)+'</b></article>').join("")+
  '<article><span>Sayaç Toplamı</span><b>'+money(value)+'</b></article></div>'+
  '<h3>Bu tutarı oluşturan kasa hareketleri</h3>'+
- (matching.length?renderCashGroups(matching,"service"):'<p>Bu tarih aralığında kasa hareketi yok.</p>');
+ (matching.length?(renderCashGroups(matching.filter(item=>Boolean(item.serviceId)),"service")+(matching.some(item=>!item.serviceId)?renderCashGroups(matching.filter(item=>!item.serviceId),"cash"):"")):'<p>Bu tarih aralığında kasa hareketi yok.</p>');
  dialog.showModal();
 }
 function openHomePendingPayments(){
