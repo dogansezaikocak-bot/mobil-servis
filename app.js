@@ -4988,7 +4988,7 @@ function renderHomeCashCards(device,items){
     const override=special.countersByDevice?.[device]?.[id]||special.counters?.[id]||{};
     if(override.visible===false)return "";
     const defaultNames={profit:"Net Kazanç",income:"Toplam Hasılat",commission:"Ödenen Komisyon",material:"Malzeme",expense:"Diğer Gider",payment:"Ödeme Bekliyor"};
-    const displayName=[override.name,c.name,defaultNames[id],id].map(v=>String(v??"").trim()).find(Boolean)||id;
+    const displayName=[c.name,defaultNames[id],id].map(v=>String(v??"").trim()).find(Boolean)||id;
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
     const statusServices=c.kind==="service-status"?(device==="desktop"?filteredDashboardServices():(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!selectedSource||sourceMatches(service.source,selectedSource))&&(mobileAllDates||dateInRange(serviceMainDate(service),mobileRangeStart||mobileSelectedDate||isoToday,mobileRangeEnd||mobileSelectedDate||isoToday)))):null;
     const value=statusServices?statusServices.filter(service=>isStatus(service.status,c.statusName)).length:homeCashCounterValue(c,context);
