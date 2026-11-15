@@ -52,7 +52,7 @@
   const entries=settings[type];
   for(const entry of entries){
    const def=defs[type].find(x=>x[0]===entry.id),el=(type==="cash"&&entry.id!=="transactions"?document.querySelector("#mobileDailyCashPage "+def[2])||document.querySelector("#mobileCashProfitCounter")?.parentElement?.querySelector(def[2]):document.querySelector(def[2]));if(!el)continue;
-   el.hidden=!entry.visible;el.style.display=entry.visible?"":"none";
+   el.hidden=!entry.visible;el.classList.toggle("ekzen-layout-hidden",!entry.visible);el.style.setProperty("display",entry.visible?"":"none",entry.visible?"":"important");
    const title=el.querySelector("strong")||(type==="cash"?el.querySelector("span"):null);
    if(title)title.textContent=entry.name;
   }
@@ -98,7 +98,7 @@
 #ekzenLayoutSettings input.ekzen-layout-visible{display:inline-block!important;position:static!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;margin:0!important;padding:0!important;transform:none!important;appearance:auto!important;accent-color:#2563eb!important;vertical-align:middle!important}
 @media(max-width:550px){#ekzenLayoutSettings{padding:10px}#ekzenLayoutSettings .ekzen-layout-name{flex-basis:100%!important}}
 `;
- style.textContent+="#ekzenLayoutSave{display:block!important;background:#1765bd!important;color:white!important;padding:12px 18px!important;border-radius:9px!important;font-weight:700!important;margin:16px 0 8px!important;min-height:44px!important}#ekzenLayoutSaveStatus{font-size:13px;color:#334155}";document.head.append(style);
+ style.textContent+="#mobileWelcomePage .ekzen-layout-hidden,#mobileWelcomePage .ekzen-layout-hidden.mobile-welcome-source-entry,#mobileWelcomePage .ekzen-layout-hidden.mobile-welcome-cash-entry,.ekzen-layout-hidden{display:none!important}#ekzenLayoutSave{display:block!important;background:#1765bd!important;color:white!important;padding:12px 18px!important;border-radius:9px!important;font-weight:700!important;margin:16px 0 8px!important;min-height:44px!important}#ekzenLayoutSaveStatus{font-size:13px;color:#334155}";document.head.append(style);
  const observer=new MutationObserver(()=>{if(document.querySelector("#homeLayoutSettings")&&!document.querySelector("#homeLayoutSettings #ekzenLayoutSettings"))render();});
  document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#homeLayoutSettings");if(host)observer.observe(host,{childList:true});});
 })();
