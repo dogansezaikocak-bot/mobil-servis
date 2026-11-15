@@ -913,5 +913,16 @@
   <script src="./app.js?v=5.3.100-payment-source-filter"></script>
   <script src="./mobile-layout-customizer.js?v=9-home-only"></script>
   <script src="./auto-update.js?v=2"></script>
+<dialog id="mobileSourcePaymentDialog" class="source-payment-dialog">
+  <form id="mobileSourcePaymentForm">
+    <h3>Kaynağa Ödeme Yap</h3>
+    <p><strong data-payment-source-name></strong> · Kalan alacak: <strong data-payment-remaining></strong></p>
+    <input type="hidden" name="source">
+    <label>Tutar (₺)<input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+    <label>Tarih<input name="date" type="date" required></label>
+    <label>Açıklama<input name="description" type="text" placeholder="Ödeme açıklaması"></label>
+    <div class="source-payment-actions"><button type="button" id="mobileSourcePaymentCancel">Vazgeç</button><button type="submit">Ödemeyi Kaydet</button></div>
+  </form>
+</dialog>
 </body>
 </html>
