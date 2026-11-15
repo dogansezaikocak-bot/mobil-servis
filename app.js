@@ -1574,7 +1574,7 @@ function dashboardCounterBaseServices(label, services) {
   label = dashboardCounterBase(label);
   // V3.6.1: Yarın ve Açık Fişler sayaçları ana sayfa tarih aralığına takılmasın.
   // Yarın her zaman bugünden yarının açık fişlerini, Açık Fişler ise tüm açık fişleri sayar.
-  if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler") || isStatus(label, "İşlem Tamam") || (settingsList("statuses").some(status => isStatus(status, label)) && !isStatus(label, "Bugün"))) {
+  if (isStatus(label, "Yarın") || isStatus(label, "Açık Fişler") || (settingsList("statuses").some(status => isStatus(status, label)) && !isStatus(label, "Bugün") && !isStatus(label, "İşlem Tamam"))) {
     return (state.services || []).filter((service) => matchesPortalSource(service.source)
       && (!activeDashboardSource || sourceMatches(service.source, activeDashboardSource)));
   }
@@ -1723,7 +1723,7 @@ function serviceDateRangeForCurrentFilter() {
     const value = toIsoDate(tomorrow);
     return { start: value, end: value };
   }
-  if (isStatus(statBase, "Açık Fişler") || isStatus(statBase, "İşlem Tamam") || settingsList("statuses").some(status => isStatus(status, statBase))) return { start: "", end: "" };
+  if (isStatus(statBase, "Açık Fişler") || (settingsList("statuses").some(status => isStatus(status, statBase)) && !isStatus(statBase, "İşlem Tamam"))) return { start: "", end: "" };
   return { start: dashboardStartDate?.value || "", end: dashboardEndDate?.value || (dashboardStartDate?.value || "") };
 }
 
@@ -1734,7 +1734,7 @@ function dashboardCounterClickRange(stat) {
     return { start: value, end: value };
   }
   if (isStatus(stat, "Bugün")) return { start: isoToday, end: isoToday };
-  if (isStatus(stat, "Açık Fişler") || isStatus(stat, "İşlem Tamam") || settingsList("statuses").some(status => isStatus(status, stat))) return { start: "", end: "" };
+  if (isStatus(stat, "Açık Fişler") || (settingsList("statuses").some(status => isStatus(status, stat)) && !isStatus(stat, "İşlem Tamam"))) return { start: "", end: "" };
   return null;
 }
 
@@ -2641,7 +2641,7 @@ function openHomeServiceList(slot){
  const items=filteredDashboardCash();
  const pending=(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&(isStatus(service.status,"Ödeme Bekliyor")||["Havale Bekleniyor","Sonra Tahsil Edilecek"].includes(String(service.paymentStatus||""))));
  const statusName=slot.startsWith("status-")?decodeURIComponent(slot.slice(7)):null;
- const ids=statusName?(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&isStatus(service.status,statusName)).map(service=>String(service.id)):slot==="payment"?pending.map(service=>String(service.id)):items.filter(isServicePrimaryIncome).map(item=>String(item.serviceId));
+ const ids=statusName?homeStatusServices(statusName,source,"desktop").map(service=>String(service.id)):slot==="payment"?pending.map(service=>String(service.id)):items.filter(isServicePrimaryIncome).map(item=>String(item.serviceId));
  switchView("services");
  homeServiceDrilldown={slot,ids:new Set(ids)};
  serviceQuickStatSelection=null;
@@ -5038,6 +5038,17 @@ function homeCashCounterValue(counter,context){
  if(counter.id==="expense")return context.remainingPayment;
  return customCashValue(counter,context);
 }
+function homeStatusServices(statusName,source,device="desktop"){
+ const all=(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!source||sourceMatches(service.source,source))&&isStatus(service.status,statusName));
+ if(!isStatus(statusName,"İşlem Tamam"))return all;
+ if(device==="mobile"){
+   if(mobileAllDates)return all;
+   const start=mobileRangeStart||mobileSelectedDate||isoToday;
+   const end=mobileRangeEnd||mobileSelectedDate||isoToday;
+   return all.filter(service=>dateInRange(serviceMainDate(service),start,end));
+ }
+ return all.filter(service=>dateInRange(serviceMainDate(service),dashboardStartDate?.value||"",dashboardEndDate?.value||""));
+}
 function renderHomeCashCards(device,items){
   const selectedSource=device==="desktop"?activeDashboardSource:(document.querySelector("#mobileSourcePicker")?.value||"");
   const special=selectedSource?sourceSpecialConfig(selectedSource):{};
@@ -5055,7 +5066,7 @@ function renderHomeCashCards(device,items){
     const defaultNames={profit:"Net Kazanç",income:"Toplam Hasılat",commission:"Ödenen Komisyon",material:"Malzeme",expense:"Diğer Gider",payment:"Ödeme Bekliyor"};
     const displayName=[c.name,defaultNames[id],id].map(v=>String(v??"").trim()).find(Boolean)||id;
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
-    const statusServices=c.kind==="service-status"?(state.services||[]).filter(service=>matchesPortalSource(service.source)&&(!selectedSource||sourceMatches(service.source,selectedSource))):null;
+    const statusServices=c.kind==="service-status"?homeStatusServices(c.statusName,selectedSource,device):null;
     const value=statusServices?statusServices.filter(service=>isStatus(service.status,c.statusName)).length:homeCashCounterValue(c,context);
     const pendingDetail=id==="payment" ? '<small class="home-pending-amount">₺'+escapeHtml(new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0))+'</small>' : '<small class="ekzen-counter-description">'+escapeHtml(c.kind==="service-status"?"Bu durumdaki servisleri görüntüle":id==="profit"?"Hasılat - komisyon - malzeme - gider":id==="income"?"Toplam tahsilat":id==="commission"?"Ödenen komisyonlar":id==="material"?"Malzeme giderleri":id==="expense"?"Diğer giderler":"Ayrıntıları görüntüle")+'</small>';
     const displayValue=c.kind==="service-status"?escapeHtml(String(value)+" fiş"):id==="payment" ? escapeHtml(String(value)+" fiş") : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
