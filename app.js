@@ -852,9 +852,13 @@ document.addEventListener("click",event=>{
   if(slot.startsWith("status-")){openHomeServiceList(slot);return;}
   if(slot==="payment"||slot==="income"){openHomeServiceList(slot);return;}
   if(slot==="expense"){
-   if(cashSourceFilter)cashSourceFilter.value=activeDashboardSource||"";
-   switchView("cash");
-   openCashCurrentDetail("balance");
+   const source = activeDashboardSource || cashSourceFilter?.value || "";
+   if (source && !isOwnWorkSource(source)) mobileOpenSourcePayment(source);
+   else {
+     if(cashSourceFilter)cashSourceFilter.value=source;
+     switchView("cash");
+     openCashCurrentDetail("balance");
+   }
    return;
   }
   openHomeCashMovements(slot);
@@ -6752,6 +6756,10 @@ document.addEventListener("change",event=>{
         return;
       }
       if(slot==="payment"){window.ekzenMobileNavigatePaymentForHome?.();return;}
+      if(slot==="expense"){
+        const source = selectedSourceValue() || "";
+        if (source && !isOwnWorkSource(source)) { mobileOpenSourcePayment(source); return; }
+      }
       mobileCashDetailFilter=({income:"income",commission:"commission",material:"material",expense:"all",profit:"all"})[slot]||"all";
       showCash();
       if(mobileCashDetailFilter!=="all"){
@@ -6908,9 +6916,9 @@ if (ekzenV538CashForm) {
 }
 
 /* Kaynak cari ödemesi: yalnızca tutar, tarih, açıklama. */
-function mobileOpenSourcePayment() {
+function mobileOpenSourcePayment(requestedSource = "") {
   if (isSourcePortal()) return;
-  const source = mobileCashSource || "";
+  const source = requestedSource || mobileCashSource || "";
   if (!source || isOwnWorkSource(source)) {
     alert("Önce ödeme yapılacak servis kaynağını seçin.");
     return;
@@ -6966,7 +6974,7 @@ document.addEventListener("click", function(event) {
     window.ekzenMobileNavigatePayment?.();
     return;
   }
-  const sourceBalanceCounter = event.target.closest("#mobileDailyPageExpense");
+  const sourceBalanceCounter = event.target.closest("#mobileDailyPageExpense")?.closest("[data-cash-detail]");
   if (sourceBalanceCounter && mobileCashSource && !isOwnWorkSource(mobileCashSource)) {
     event.preventDefault();
     event.stopImmediatePropagation();
