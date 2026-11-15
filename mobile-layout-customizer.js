@@ -2,7 +2,7 @@
 (function(){
  const KEY="ekzen-mobile-layout-v1";
  const defs={
- home:[["cash","Para Hareketleri",".mobile-welcome-cash-entry[data-welcome-action='cash']"],["source","Kaynak Seçimi",".mobile-welcome-source-entry"],["search","Tüm Kayıtlarda Ara","#ekzenGlobalSearchButton"]],
+ home:[["open","Günün İşleri","[data-welcome-target=\'open\']"],["closed","Kapanan Fişler","[data-welcome-target=\'closed\']"],["cash","Para Hareketleri",".mobile-welcome-cash-entry[data-welcome-action='cash']"],["source","Kaynak Seçimi",".mobile-welcome-source-entry"],["search","Tüm Kayıtlarda Ara","#ekzenGlobalSearchButton"]],
  cash:[["profit","Net Kazanç","#mobileCashProfitCounter"],["payment","Ödeme Bekliyor","#mobileCashPaymentCounter"],["income","Toplam Hasılat","[data-cash-detail='income']"],["commission","Ödenen Komisyon","[data-cash-detail='commission']"],["material","Malzeme","[data-cash-detail='material']"],["expense","Diğer Gider","[data-cash-detail='expense']"],["transactions","Para Hareketleri",".mobile-cash-transactions"]]
  };
  const defaults=type=>defs[type].map(([id,name])=>({id,name,visible:true}));
@@ -66,7 +66,7 @@
   for(const entry of entries){
    const def=defs[type].find(x=>x[0]===entry.id),el=(type==="cash"&&entry.id!=="transactions"?document.querySelector("#mobileDailyCashPage "+def[2])||document.querySelector("#mobileCashProfitCounter")?.parentElement?.querySelector(def[2]):document.querySelector(def[2]));if(!el)continue;
    el.hidden=!entry.visible;el.classList.toggle("ekzen-layout-hidden",!entry.visible);el.style.setProperty("display",entry.visible?"":"none",entry.visible?"":"important");
-   const title=el.querySelector("strong")||(type==="cash"?el.querySelector("span"):null);
+   const title=(type==="home"&&(entry.id==="open"||entry.id==="closed"))?el.querySelector("span"):el.querySelector("strong")||(type==="cash"?el.querySelector("span"):null);
    if(title)title.textContent=entry.name;
   }
   // Only reorder siblings within the same container, preserving existing event handlers.
