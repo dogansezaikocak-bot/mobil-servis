@@ -949,7 +949,7 @@ function bindEvents() {
       return;
     }
     if(action==="edit-cash-slot"){editCashSlot(button.dataset.slot);return;}
-    if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;}
+    if(action==="toggle-cash-slot"){if(isSourcePortal())return;const id=button.dataset.slot;const old=cashSlotSettings().find(c=>c.id===id);if(!old)return;state.settings.cashSlotSettings=state.settings.cashSlotSettings||[];const i=state.settings.cashSlotSettings.findIndex(c=>c.id===id);const updated={...old,visible:old.visible===false};if(i<0)state.settings.cashSlotSettings.push(updated);else state.settings.cashSlotSettings[i]=updated;persistLocalCounterSettings();saveLocalState();renderCustomCashCounterSettings();mobileRenderDailyCash();if(canSyncCloud()){lastLocalCloudWriteAt=new Date().toISOString();cloudRef.update({"state/settings/cashSlotSettings":state.settings.cashSlotSettings,updatedAt:lastLocalCloudWriteAt}).catch(error=>console.warn("Sayaç görünürlüğü eşitlenemedi:",error));}return;}
     if (action === "edit-custom-counter") { editCustomCounter(Number(button.dataset.index)); return; }
     if (action === "clear-custom-counter-form") { renderCustomCashCounterSettings(); return; }
     if (action === "toggle-custom-counter" || action === "delete-custom-counter") {
@@ -958,7 +958,8 @@ function bindEvents() {
       if (!Number.isInteger(index)||index<0||index>=list.length)return;
       if(action==="delete-custom-counter") { if(!confirm("Bu sayaç silinsin mi? Kasa kayıtları silinmez."))return;list.splice(index,1); }
       else list[index].visible=list[index].visible===false;
-      saveState();renderCustomCashCounterSettings();mobileRenderDailyCash();return;
+      persistLocalCounterSettings();saveLocalState();renderCustomCashCounterSettings();mobileRenderDailyCash();
+      if(canSyncCloud()){lastLocalCloudWriteAt=new Date().toISOString();cloudRef.update({"state/settings/customCashCounters":state.settings.customCashCounters||[],updatedAt:lastLocalCloudWriteAt}).catch(error=>console.warn("Özel sayaç görünürlüğü eşitlenemedi:",error));}return;
     }
     if (action === "change-pin") {
       openPinChange();
