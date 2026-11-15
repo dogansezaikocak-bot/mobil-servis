@@ -5166,7 +5166,12 @@ function mobileRenderDailyCash() {
   }
 }
 function mobileOpenDailyCashPage() {
-  mobileCashDefaultToday();
+  const now = new Date();
+  mobileCashRangeStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
+  mobileCashRangeEnd = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  mobileCashRangeMode = "month";
+  mobileCashRangeInitialized = true;
+  document.querySelectorAll("[data-mobile-cash-range]").forEach(button => button.classList.toggle("is-active", button.dataset.mobileCashRange === "month"));
   mobileCashSource = "";
   mobileRenderDailyCash();
   mobileSetCashMode(true);
