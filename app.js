@@ -5192,7 +5192,7 @@ function mobileServiceCard(service) {
           </div>
           <div class="mobile-service-summary-right">
             <span class="mobile-service-summary-status">${escapeHtml(service.status || "Durum yok")}</span>
-            <strong class="mobile-service-summary-amount">Alınan: ${escapeHtml(formatCurrency(receivedTotal))}</strong>
+            <strong class="mobile-service-summary-amount">Alınan: ${escapeHtml(receivedTotal.toLocaleString("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0}))}</strong>
           </div>
         </div>
         <div class="mobile-fault">${escapeHtml(service.fault || "Şikayet yazılmadı")}</div>
