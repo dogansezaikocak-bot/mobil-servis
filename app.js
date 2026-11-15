@@ -2567,7 +2567,7 @@ function serviceSourceCounterBreakdown(items = state.cash) {
     sourceCollectedReceivable,
     manualExpense,
     manualIncome,
-    remainingPayment: hakedis - manualExpense - sourceCollectedReceivable + manualIncome,
+    remainingPayment: hakedis - sourceCollectedReceivable,
   };
 }
 
