@@ -9360,3 +9360,40 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
  #mobileHomeCashCards .mobile-daily-counter.home-cash-action>b{grid-row:2!important}
  #mobileHomeCashCards .mobile-daily-counter.home-cash-action>small{grid-row:3!important}
 }
+
+/* V5.3.84: Kaynağa özel sayaç başlığı DOM içindeki span'dan bağımsız çizilir */
+@media(max-width:820px){
+ #mobileHomeCashCards button.home-cash-action{
+   display:grid!important;
+   grid-template-rows:auto minmax(0,1fr) auto!important;
+   align-items:stretch!important;
+   position:relative!important;
+ }
+ #mobileHomeCashCards button.home-cash-action>.ekzen-home-counter-title{
+   display:none!important;
+ }
+ #mobileHomeCashCards button.home-cash-action::before{
+   content:attr(data-counter-title)!important;
+   display:block!important;
+   grid-column:1!important;
+   grid-row:1!important;
+   align-self:start!important;
+   font-size:clamp(14px,4vw,19px)!important;
+   line-height:1.22!important;
+   font-weight:850!important;
+   color:#fff!important;
+   opacity:1!important;
+   visibility:visible!important;
+   white-space:normal!important;
+   overflow-wrap:anywhere!important;
+   min-height:20px!important;
+ }
+ #mobileHomeCashCards button.home-cash-action>b{grid-row:2!important;align-self:center!important}
+ #mobileHomeCashCards button.home-cash-action>small{grid-row:3!important;align-self:end!important}
+ #mobileHomeCashCards button.home-cash-action[data-home-cash-slot="payment"] .home-pending-amount{
+   display:block!important;
+   font-size:clamp(17px,4.8vw,23px)!important;
+   white-space:nowrap!important;
+   line-height:1.2!important;
+ }
+}
