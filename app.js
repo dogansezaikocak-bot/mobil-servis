@@ -5444,6 +5444,7 @@ function mobileSaveDelayDate(serviceId) {
 
 
 const mobileNewServiceSteps = [
+  { key: "source", label: "Servis Kaynağı", type: "select", optionsKey: "sources", required: true },
   { key: "customerName", label: "İsim Soyisim", type: "text", placeholder: "Müşteri adı soyadı", required: false },
   { key: "phone", label: "Telefon", type: "tel", placeholder: "05xx xxx xx xx", required: false },
   { key: "address", label: "Adres", type: "textarea", placeholder: "Mahalle, sokak, bina, daire", required: false },
@@ -5457,7 +5458,7 @@ let mobileNewServiceData = {};
 let mobileNewServiceIndex = 0;
 
 function openMobileNewServiceWizard() {
-  mobileNewServiceData = { availableDate: mobileSelectedDate || isoToday, source: "Kendi İşim" };
+  mobileNewServiceData = { availableDate: mobileSelectedDate || isoToday, source: isSourcePortal() ? portalSourceName() : (document.querySelector("#mobileSourcePicker")?.value || "") };
   mobileNewServiceIndex = 0;
   let overlay = document.querySelector("#mobileNewServiceWizard");
   if (!overlay) {
@@ -5478,6 +5479,7 @@ function renderMobileNewServiceStep() {
   const overlay = document.querySelector("#mobileNewServiceWizard");
   if (!overlay) return;
   const step = mobileNewServiceSteps[mobileNewServiceIndex];
+  if (step.key === "source" && isSourcePortal()) mobileNewServiceData.source = portalSourceName();
   const progress = `${mobileNewServiceIndex + 1}/${mobileNewServiceSteps.length}`;
   const value = mobileNewServiceData[step.key] || "";
   let field = "";
@@ -5523,6 +5525,7 @@ function mobileWizardNext() {
     alert("Google Haritalar veya Apple Haritalar bağlantısı yapıştırın ya da boş geçin.");
     return;
   }
+  if (step.required && !value) { alert("Servis kaynağını seçin."); return; }
   mobileNewServiceData[step.key] = value;
   if (mobileNewServiceIndex < mobileNewServiceSteps.length - 1) {
     mobileNewServiceIndex += 1;
@@ -5543,7 +5546,7 @@ function saveMobileWizardService() {
     device: mobileNewServiceData.device || "",
     brand: mobileNewServiceData.brand || "",
     model: mobileNewServiceData.model || "",
-    source: mobileNewServiceData.source || "Kendi İşim",
+    source: isSourcePortal() ? portalSourceName() : mobileNewServiceData.source,
     status: "Yeni Kayıt",
     availableDate: mobileNewServiceData.availableDate || isoToday,
     visitDate: mobileNewServiceData.availableDate || isoToday,
