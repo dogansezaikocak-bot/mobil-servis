@@ -892,6 +892,7 @@ function bindEvents() {
     if (action === "quick-source-filter") applyTopSourceFilter(button.dataset.source);
     if (action === "clear-top-source-filter") applyTopSourceFilter("");
     if (!action) return;
+    if (action === "factory-reset-customizations") { resetEkzenCustomizations(); return; }
     if (action === "sign-out") {
       signOutApp();
       return;
@@ -7189,3 +7190,52 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
   mobileOpenDetail(row.dataset.mobileCashServiceId);
 });
+
+/* Safe customization-only reset. Never write the services/cash/company branches. */
+async function resetEkzenCustomizations() {
+  if (isSourcePortal()) return;
+  if (!canSyncCloud()) {
+    alert("Bulut bağlantısı hazır değil. Güvenli sıfırlama için bağlantıyı kontrol edin.");
+    return;
+  }
+  const snapshot = await cloudRef.once("value").catch(() => null);
+  if (!snapshot || !snapshot.val()?.state) {
+    alert("Buluttaki güncel veriler doğrulanamadı. Hiçbir ayar değiştirilmedi.");
+    return;
+  }
+  const live = snapshot.val().state;
+  const backup = {app:"ekzen-servis-takip",version:1,exportedAt:new Date().toISOString(),reason:"customization-reset",state:live};
+  const blob = new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href=url;
+  anchor.download="ekzen-sifirlama-oncesi-"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+  document.body.append(anchor);anchor.click();anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  const confirmation = prompt("Önce indirilen yedeği kontrol edin. Yalnızca görünüm ve sayaç özelleştirmeleri sıfırlanacak; servis, kasa ve müşteri kayıtları korunacak. Onay için AYARLARI SIFIRLA yazın:");
+  if (confirmation !== "AYARLARI SIFIRLA") return;
+  const old = live.settings || {};
+  // Only explicitly whitelisted presentation settings may be reset.
+  const reset = {
+    dashboardCounters: [...dashboardCounters],
+    dashboardCountersVersion: 3,
+    cashCounters: normalizeCashCounters(null),
+    customCashCounters: [],
+    cashSlotSettings: [],
+    mobileLayoutCustom: {},
+    homeLayout: {desktop:[],mobile:[]}
+  };
+  const patch = {updatedAt:new Date().toISOString()};
+  Object.entries(reset).forEach(([key,value])=>patch["state/settings/"+key]=value);
+  try {
+    await cloudRef.update(patch);
+    // Local settings are updated only after the cloud confirms the write.
+    Object.assign(state.settings,reset);
+    try { localStorage.removeItem(COUNTER_SETTINGS_LOCAL_KEY); } catch (_) {}
+    saveLocalState();
+    render();
+    alert("Özelleştirmeler varsayılanlara döndü. Servis ve kasa kayıtları silinmedi.");
+  } catch (error) {
+    alert("Buluta kayıt yapılamadı. Hiçbir özelleştirme sıfırlanmadı.");
+  }
+}
