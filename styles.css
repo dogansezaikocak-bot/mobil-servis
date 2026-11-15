@@ -9181,3 +9181,11 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
   color:#075849!important;cursor:pointer!important;
  }
 }
+
+/* Mobil servis kartı: müşteri/adres solda, durum ve tahsilat sağda */
+.mobile-service-summary-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
+.mobile-service-summary-left{flex:1;min-width:0}
+.mobile-service-summary-right{display:flex;flex-direction:column;align-items:flex-end;text-align:right;gap:7px;flex:0 0 auto;max-width:47%;padding-top:2px}
+.mobile-service-summary-status{font-size:12px;font-weight:800;color:#075985;background:#e0f2fe;border-radius:8px;padding:5px 8px;overflow-wrap:anywhere}
+.mobile-service-summary-amount{font-size:13px;font-weight:800;color:#047857;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:390px){.mobile-service-summary-right{max-width:44%}.mobile-service-summary-amount{font-size:12px}}
