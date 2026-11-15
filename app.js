@@ -4783,7 +4783,7 @@ function renderSharedCashSlots(items){
  const ordered=allHomeCashSlots().slice().sort((a,b)=>{const ids=special.counterOrderByDevice?.mobile||special.counterOrder||[];const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);return (ai<0?100+a.order:ai)-(bi<0?100+b.order:bi);});
  ordered.forEach((base,index)=>{
    const override=special.countersByDevice?.mobile?.[base.id]||special.counters?.[base.id]||{};
-   const c={...base,...override,name:String(base.name||"").trim()||base.id};
+   const c={...base,...override,name:String(override.name||"").trim()||String(base.name||"").trim()||base.id};
    const node=document.querySelector(selectors[c.id]);
    const card=c.id==="profit"||c.id==="payment"?node:node?.closest(".mobile-daily-counter");
    if(!card)return;
