@@ -5017,6 +5017,106 @@ function renderHomeCashCards(device,items){
   }).join("");
 }
 
+
+/* Yapılandırılabilir iş akışı sayaçları — mevcut sayaçları değiştirmez. */
+function workflowCounters(){
+  if(!Array.isArray(state.settings.workflowCounters))state.settings.workflowCounters=[];
+  return state.settings.workflowCounters;
+}
+function workflowMatches(counter,source,rangeStart="",rangeEnd=""){
+  return (state.services||[]).filter(s=>{
+    if(!matchesPortalSource(s.source)|| (source&&!sourceMatches(s.source,source)))return false;
+    if(rangeStart&&String(serviceMainDate(s)||"").slice(0,10)<rangeStart)return false;
+    if(rangeEnd&&String(serviceMainDate(s)||"").slice(0,10)>rangeEnd)return false;
+    if(counter.metric==="status")return isStatus(s.status,counter.status);
+    if(counter.metric==="count")return true;
+    return false;
+  });
+}
+function workflowCounterValue(counter,source,start="",end=""){
+  if(counter.metric==="status"||counter.metric==="count")return workflowMatches(counter,source,start,end).length;
+  const items=(state.cash||[]).filter(item=>cashIsPosted(item)&&matchesPortalSource(cashItemSource(item))&&(!source||sourceMatches(cashItemSource(item),source)));
+  const totals=serviceSourceCounterBreakdown(items);
+  return counter.metric==="money"?totals.remainingPayment:customCashValue(counter,customCashContext(items));
+}
+function workflowCounterMarkup(counter,source,start="",end=""){
+  const value=workflowCounterValue(counter,source,start,end);
+  const color=/^#[0-9a-fA-F]{6}$/.test(counter.color)?counter.color:"#2563eb";
+  return '<button type="button" class="mobile-daily-counter workflow-counter" data-workflow-id="'+escapeAttr(counter.id)+'" style="background:'+color+';color:#fff;border-radius:16px;padding:15px"><span>'+escapeHtml(counter.name)+'</span><b>'+escapeHtml(counter.metric==="status"||counter.metric==="count"?String(value)+" fiş":money(value))+'</b></button>';
+}
+function renderWorkflowCounters(place,source,start="",end=""){
+  const root=document.querySelector(place==="home-mobile"?"#mobileWorkflowCounters":place==="home-desktop"?"#desktopWorkflowCounters":"#cashWorkflowCounters");
+  if(!root)return;
+  const counters=workflowCounters().filter(c=>c.visible!==false&&(place==="cash"?c.place==="cash"||c.place==="both":c.place==="home"||c.place==="both"));
+  root.hidden=!counters.length;
+  root.innerHTML=counters.map(c=>workflowCounterMarkup(c,source,start,end)).join("");
+}
+function workflowCounterList(counter,source){
+  const services=workflowMatches(counter,source);
+  let dialog=document.querySelector("#workflowCounterDetail");
+  if(!dialog){dialog=document.createElement("dialog");dialog.id="workflowCounterDetail";document.body.appendChild(dialog);}
+  dialog.innerHTML='<div style="padding:18px;min-width:min(80vw,320px);max-height:75vh;overflow:auto"><button type="button" data-workflow-close style="float:right">Kapat ×</button><h3>'+escapeHtml(counter.name)+'</h3><p>'+services.length+' servis</p>'+services.map(s=>'<button type="button" data-workflow-service="'+escapeAttr(s.id)+'" style="display:block;width:100%;text-align:left;padding:12px;margin:6px 0;border:1px solid #ddd;border-radius:8px">'+escapeHtml(s.customerName||s.id)+' · '+escapeHtml(s.status||"")+'</button>').join("")+'</div>';
+  dialog.showModal();
+}
+function renderWorkflowSettings(){
+  const root=document.querySelector("#workflowCounterSettings");if(!root)return;
+  root.innerHTML='<h3>Yeni Nesil Sayaç Oluştur</h3><p>Sayaç adını, konumunu, hesaplamasını ve tıklama davranışını belirleyin.</p>'+
+    '<div class="custom-counter-list">'+workflowCounters().map(c=>'<div class="custom-counter-row"><strong>'+escapeHtml(c.name)+'</strong><span>'+escapeHtml(c.place==="both"?"Ana Sayfa + Kasa":c.place==="cash"?"Kasa":"Ana Sayfa")+'</span><button type="button" data-workflow-edit="'+escapeAttr(c.id)+'">Düzenle</button><button type="button" data-workflow-toggle="'+escapeAttr(c.id)+'">'+(c.visible===false?"Göster":"Gizle")+'</button><button type="button" data-workflow-delete="'+escapeAttr(c.id)+'">Sil</button></div>').join("")+'</div>'+
+    '<form id="workflowCounterForm" class="custom-counter-form"><input type="hidden" name="id">'+
+    '<label>Sayaç adı<input name="name" maxlength="45" required placeholder="Atölyedeki Cihazlar"></label>'+
+    '<label>Konum<select name="place"><option value="both">Ana Sayfa ve Kasa</option><option value="home">Ana Sayfa</option><option value="cash">Kasa</option></select></label>'+
+    '<label>Hesaplama<select name="metric"><option value="status">Servis durumuna göre fiş adedi</option><option value="count">Toplam servis fişi adedi</option><option value="money">Kaynağın kalan alacağı</option><option value="formula">Özel hesaplama</option></select></label>'+
+    '<label>Servis durumu<select name="status">'+settingsList("statuses").map(x=>'<option value="'+escapeAttr(x)+'">'+escapeHtml(x)+'</option>').join("")+'</select></label>'+
+    '<label>Tıklama davranışı<select name="action"><option value="list">Servisleri listele</option><option value="transactions">Para hareketlerini göster</option><option value="payment">Kaynağa ödeme gir</option><option value="detail">Hesap dökümünü aç</option></select></label>'+
+    '<label>Renk<input type="color" name="color" value="#2563eb"></label>'+
+    '<button type="submit" class="primary-button">Sayacı Kaydet</button><button type="button" data-workflow-reset>Yeni Sayaç</button></form>';
+}
+function workflowPersist(){
+  saveState();
+  renderWorkflowSettings();
+  renderDashboard();
+  if(typeof mobileRenderDailyCash==="function")mobileRenderDailyCash();
+}
+document.addEventListener("submit",e=>{
+  if(e.target.id!=="workflowCounterForm")return;
+  e.preventDefault();
+  if(isSourcePortal())return;
+  const f=e.target,old=workflowCounters().find(c=>c.id===f.elements.id.value);
+  const c={id:old?.id||uid(),name:f.elements.name.value.trim(),place:f.elements.place.value,
+    metric:f.elements.metric.value,status:f.elements.status.value,action:f.elements.action.value,
+    color:f.elements.color.value,visible:old?.visible!==false};
+  if(!c.name)return;
+  if(!old&&workflowCounters().length>=30){alert("En fazla 30 sayaç eklenebilir.");return;}
+  if(old)Object.assign(old,c);else workflowCounters().push(c);
+  workflowPersist();
+  alert("Sayaç kaydedildi.");
+});
+document.addEventListener("click",e=>{
+  const edit=e.target.closest("[data-workflow-edit]"),del=e.target.closest("[data-workflow-delete]"),toggle=e.target.closest("[data-workflow-toggle]");
+  if(edit||del||toggle){
+    const id=(edit||del||toggle).dataset.workflowEdit||(edit||del||toggle).dataset.workflowDelete||(edit||del||toggle).dataset.workflowToggle;
+    const c=workflowCounters().find(x=>x.id===id);if(!c)return;
+    if(del){if(confirm("Sayaç silinsin mi?")){state.settings.workflowCounters=workflowCounters().filter(x=>x.id!==id);workflowPersist();}return;}
+    if(toggle){c.visible=c.visible===false;workflowPersist();return;}
+    const f=document.querySelector("#workflowCounterForm");if(!f)return;
+    for(const key of ["id","name","place","metric","status","action","color"])if(f.elements[key])f.elements[key].value=c[key]||"";
+    f.scrollIntoView({behavior:"smooth",block:"center"});return;
+  }
+  if(e.target.closest("[data-workflow-reset]")){document.querySelector("#workflowCounterForm")?.reset();document.querySelector('#workflowCounterForm [name="id"]').value="";return;}
+  if(e.target.closest("[data-workflow-close]")){document.querySelector("#workflowCounterDetail")?.close();return;}
+  const service=e.target.closest("[data-workflow-service]");
+  if(service){document.querySelector("#workflowCounterDetail")?.close();mobileOpenDetail(service.dataset.workflowService);return;}
+  const button=e.target.closest("[data-workflow-id]");if(!button)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  const c=workflowCounters().find(x=>x.id===button.dataset.workflowId);if(!c)return;
+  const isCash=Boolean(button.closest("#mobileDailyCashPage"));
+  const source=isCash?mobileCashSource:(button.closest("#desktopWorkflowCounters")?activeDashboardSource:document.querySelector("#mobileSourcePicker")?.value||"");
+  if(c.action==="payment"){mobileOpenSourcePayment(source);return;}
+  if(c.action==="list"){workflowCounterList(c,source);return;}
+  if(c.action==="transactions"){if(typeof openHomeCashMovements==="function")openHomeCashMovements("expense");return;}
+  if(c.action==="detail"){if(typeof openCashCurrentDetail==="function")openCashCurrentDetail("balance");return;}
+},true);
+
 function renderCustomCashCounterSettings() {
   const root=document.querySelector("#customCashCounterSettings");
   if (!root) return;
@@ -5046,6 +5146,7 @@ function renderCustomCashCounterSettings() {
     </form>`;
   const saveButton=root.querySelector("#customCounterSaveButton");
   if(saveButton)saveButton.onclick=(event)=>{event.preventDefault();event.stopPropagation();saveCustomCounterForm(saveButton.closest("form"));};
+  renderWorkflowSettings();
 }
 function editCustomCounter(index) {
   const c=customCashCounters()[index];if(!c)return;
@@ -5071,6 +5172,7 @@ function editCashSlot(id){
 function renderCustomCashCounters(items) {
   const root=document.querySelector("#mobileCustomCashCounters");if(!root)return;
   renderSharedCashSlots(items);
+  renderWorkflowCounters("cash",mobileCashSource,mobileCashRangeStart||"",mobileCashRangeEnd||"");
   const counters=customCashCounters().filter(c=>c.visible!==false);
   if (!counters.length){root.hidden=true;root.innerHTML="";return;}
   root.hidden=false;
