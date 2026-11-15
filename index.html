@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="ekzen-build" content="2026-11-15-expense-purpose-23">
+  <meta name="ekzen-build" content="2026-11-15-mobile-cash-month-24">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ekzen Servis Takip V5.3.16</title>
   <link rel="stylesheet" href="./styles.css?v=5.3.86-fixed-labels">
@@ -438,15 +438,6 @@
           <strong id="mobileDailyCashPageDate">Bugün</strong>
         </div>
       </div>
-      <section class="mobile-cash-entry-actions" aria-label="Yeni kasa hareketi">
-        <button type="button" class="mobile-cash-add income" data-mobile-cash-add="income">
-          <span>＋</span><div><strong>Gelir Ekle</strong><small>Tahsilat / diğer gelir</small></div>
-        </button>
-        <button type="button" class="mobile-cash-add expense" data-mobile-cash-add="expense">
-          <span>−</span><div><strong>Gider Ekle</strong><small>Yakıt / parça / diğer gider</small></div>
-        </button>
-      </section>
-
       <section class="mobile-cash-filter-panel" aria-label="Kasa filtreleri">
         <div class="mobile-cash-quick-ranges">
           <button type="button" data-mobile-cash-range="today" class="is-active">Bugün</button>
@@ -464,7 +455,6 @@
             <option value="">Tüm Kaynaklar</option>
           </select>
         </label>
-        <button type="button" id="mobileCashApplyFilter" class="mobile-cash-apply">Filtrele</button>
       </section>
 
       <section id="mobileCustomCashCounters" class="mobile-daily-counter-grid" aria-label="Özel kasa sayaçları" hidden></section>
@@ -920,7 +910,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./app.js?v=5.3.97-expense-purpose"></script>
+  <script src="./app.js?v=5.3.98-mobile-cash-month"></script>
   <script src="./mobile-layout-customizer.js?v=9-home-only"></script>
   <script src="./auto-update.js?v=2"></script>
 </body>
