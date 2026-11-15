@@ -3724,6 +3724,16 @@ function deleteSettingItem(listKey, value) {
   if (listKey === "dashboardCounters") { alert("Ana sayfa sayaçlarını Ayarlar → Sayaçlar bölümünden yönetin."); return; }
   if (listKey === "cashCounters") return;
   if (listKey === "sources") return deleteSource(value);
+  if (listKey === "statuses") {
+    if (!confirm(`${value} servis durumu ve ona bağlı ana sayfa sayaçları kaldırılsın mı? Geçmiş servis kayıtları korunacak.`)) return;
+    state.settings.statuses = settingsList("statuses").filter(item => item !== value);
+    const copies = dashboardCounterCopies();
+    const removedNames = new Set([value, ...copies.filter(c => c.base === value).map(c => c.name)]);
+    state.settings.dashboardCounters = settingsList("dashboardCounters").filter(item => !removedNames.has(item));
+    state.settings.dashboardCounterCopies = copies.filter(c => !removedNames.has(c.name));
+    state.settings.hiddenDashboardCounters = (state.settings.hiddenDashboardCounters || []).filter(item => !removedNames.has(item));
+    saveState(); render(); return;
+  }
   if (!confirm(`${value} silinsin mi?`)) return;
   removeSettingValue(listKey, value);
   saveState();
@@ -3734,7 +3744,12 @@ function addSettingValue(listKey, value) {
   if (!value) return;
   if (listKey === "sources") unhideSource(value);
   const list = settingsList(listKey);
-  if (!list.includes(value)) state.settings[listKey] = [...list, value];
+  if (!list.includes(value)) {
+    state.settings[listKey] = [...list, value];
+    if (listKey === "statuses" && !settingsList("dashboardCounters").includes(value)) {
+      state.settings.dashboardCounters = [...settingsList("dashboardCounters"), value];
+    }
+  }
 }
 
 function updateSettingItem(listKey, oldValue, newValue) {
@@ -3822,6 +3837,8 @@ function updateExistingRecords(listKey, oldValue, newValue) {
     state.settings.dashboardCounters = settingsList("dashboardCounters")
       .map((item) => item === oldValue ? newValue : item)
       .filter(Boolean);
+    dashboardCounterCopies().forEach(c => { if (c.base === oldValue) c.base = newValue; });
+    state.settings.hiddenDashboardCounters = (state.settings.hiddenDashboardCounters || []).map(item => item === oldValue ? newValue : item);
   }
   if (listKey === "sources") {
     state.cash.forEach((item) => {
