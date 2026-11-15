@@ -6700,7 +6700,27 @@ document.addEventListener("change",event=>{
     document.querySelector("#mobileNativePageShell")?.scrollTo({ top: 0, behavior: "auto" });
   }
 
-  window.ekzenMobileNavigatePayment = () => showList("payment");
+  function showPaymentForSource(source) {
+    showList("payment");
+    const matching = sortServices(state.services || []).filter(service =>
+      matchesPortalSource(service.source) &&
+      (!source || sourceMatches(service.source, source)) &&
+      (isStatus(service.status, "Ödeme Bekliyor") ||
+        ["Havale Bekleniyor", "Sonra Tahsil Edilecek"].includes(String(service.paymentStatus || "")))
+    );
+    const list = document.querySelector("#mobileServiceList");
+    if (list) {
+      list.hidden = false;
+      list.style.setProperty("display", "grid", "important");
+      list.innerHTML = matching.length
+        ? matching.map(mobileServiceCard).join("")
+        : '<div class="mobile-empty">Seçilen kaynakta ödeme bekleyen servis yok.</div>';
+    }
+    const summary = document.querySelector("#mobileTechSummary");
+    if (summary) summary.textContent = "Ödeme Bekliyor · " + (source || "Tüm Kaynaklar") + " · " + matching.length + " fiş";
+  }
+  window.ekzenMobileNavigatePayment = () => showPaymentForSource(mobileCashSource || (isSourcePortal() ? portalSourceName() : ""));
+  window.ekzenMobileNavigatePaymentForHome = () => showPaymentForSource(selectedSourceValue() || (isSourcePortal() ? portalSourceName() : ""));
 
   function showCash() {
     ensureNativePageShell();
@@ -6731,7 +6751,7 @@ document.addEventListener("change",event=>{
         }
         return;
       }
-      if(slot==="payment"){showList("payment");return;}
+      if(slot==="payment"){window.ekzenMobileNavigatePaymentForHome?.();return;}
       mobileCashDetailFilter=({income:"income",commission:"commission",material:"material",expense:"all",profit:"all"})[slot]||"all";
       showCash();
       if(mobileCashDetailFilter!=="all"){
