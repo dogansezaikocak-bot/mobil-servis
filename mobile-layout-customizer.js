@@ -29,12 +29,14 @@
   const input=document.querySelector("#ekzenSearchInput"),out=document.querySelector("#ekzenSearchResults");if(!input||!out)return;
   const q=input.value.toLocaleLowerCase("tr").trim();if(!q){out.textContent="Aramak için bir kelime veya numara yazın.";return;}
   const records=[...(state.services||[]).map(x=>({type:"Servis",data:x})),...(state.cash||[]).map(x=>({type:"Kasa",data:x}))];
-  const hits=records.filter(x=>Object.values(x.data||{}).some(v=>v!=null&&typeof v!=="object"&&String(v).toLocaleLowerCase("tr").includes(q))).slice(0,80);
+  const flatten=v=>v==null?"":typeof v==="object"?Object.values(v).map(flatten).join(" "):String(v);
+  const norm=v=>String(v).toLocaleLowerCase("tr-TR").replace(/ı/g,"i").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const hits=records.filter(x=>norm(flatten(x.data)).includes(norm(q))).slice(0,80);
   out.replaceChildren();
   if(!hits.length){out.textContent="Eşleşen kayıt bulunamadı.";return;}
   for(const hit of hits){
    const b=document.createElement("button");b.type="button";b.className="ekzen-search-result";
-   const d=hit.data;const parts=[d.customerName,d.name,d.phone,d.address,d.description,d.amount,d.id].filter(Boolean);
+   const d=hit.data;const parts=[d.customerName,d.customer,d.name,d.phone,d.address,d.device,d.description,d.amount,d.id].filter(Boolean);
    b.textContent=hit.type+" · "+parts.slice(0,4).join(" · ");
    b.onclick=()=>{overlayClose();if(hit.type==="Servis"&&typeof mobileOpenDetail==="function")mobileOpenDetail(d.id);else{document.querySelector('[data-welcome-action="cash"]')?.click();}};
    out.append(b);
@@ -80,6 +82,9 @@
  function init(){ensureSearch();apply("home");apply("cash");render();}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
  // Settings and counters can be rerendered by the main application.
+ const style=document.createElement("style");
+ style.textContent="#ekzenSearchOverlay[hidden]{display:none!important}#ekzenSearchOverlay{position:fixed;inset:0;z-index:2147483000;background:#0009;display:flex;justify-content:center;align-items:flex-start;padding:24px 12px;overflow:auto}.ekzen-search-card{width:min(100%,650px);background:white;color:#1e2530;border-radius:14px;padding:16px}.ekzen-search-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}#ekzenSearchInput{display:block;width:100%;padding:12px;font-size:16px;border:1px solid #aaa;border-radius:8px;background:white;color:#111}#ekzenSearchResults{max-height:65vh;overflow:auto;margin-top:12px}.ekzen-search-result{display:block;width:100%;padding:12px 5px;background:white;color:#222;text-align:left;border:0;border-bottom:1px solid #ddd;overflow-wrap:anywhere}.ekzen-layout-row{display:flex;gap:6px;margin:8px 0;align-items:center}.ekzen-layout-row input:not([type=checkbox]){flex:1;min-width:0}";
+ document.head.append(style);
  const observer=new MutationObserver(()=>{if(document.querySelector("#settingsHome")&&!document.querySelector("#ekzenLayoutSettings"))render();});
  document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#settingsHome");if(host)observer.observe(host,{childList:true});});
 })();
