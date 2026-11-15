@@ -3899,7 +3899,6 @@ function printCashReport(){
  const cards=[
   {label:"Toplam Ciro",value:reportMoney(totals.income)},
   {label:"Malzeme",value:reportMoney(b.material)},
-  {label:"Komisyon",value:reportMoney(b.commission)},
   {label:"Diğer Giderler",value:reportMoney(b.manualExpense),tone:"bad"},
   {label:"Net Kasa",value:reportMoney(b.balance),tone:"good"},
   {label:"Hakediş (Kaynak Payı)",value:reportMoney(shares.hakedis),tone:"good"},
@@ -3909,11 +3908,10 @@ function printCashReport(){
  const rows=items.slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(item=>{
   const income=item.type==="income",primary=isServicePrimaryIncome(item);
   const material=primary?Number(item.materialCost)||0:0;
-  const owner=primary?ownerPayAmountForCashItem(item):0;
   const sourcePay=primary?sourcePayAmountForCashItem(item):0;
-  return '<tr><td>'+escapeHtml(formatDate(item.date||""))+'</td><td>'+escapeHtml(visibleCashTitle(item)||"-")+'<span class="sub">'+(income?"Gelir":"Gider")+'</span></td><td>'+escapeHtml(cashItemSource(item)||"-")+'</td><td class="num '+(income?"":"red")+'">'+(income?"":"−")+escapeHtml(reportMoney(item.amount))+'</td><td class="num">'+(material?escapeHtml(reportMoney(material)):"—")+'</td><td class="num">'+(primary?escapeHtml(reportMoney(owner)):"—")+'</td><td class="num">'+(primary?escapeHtml(reportMoney(sourcePay)):"—")+'</td></tr>';
+  return '<tr><td>'+escapeHtml(formatDate(item.date||""))+'</td><td>'+escapeHtml(visibleCashTitle(item)||"-")+'<span class="sub">'+(income?"Gelir":"Gider")+'</span></td><td>'+escapeHtml(cashItemSource(item)||"-")+'</td><td class="num '+(income?"":"red")+'">'+(income?"":"−")+escapeHtml(reportMoney(item.amount))+'</td><td class="num">'+(material?escapeHtml(reportMoney(material)):"—")+'</td><td class="num">'+(primary?escapeHtml(reportMoney(sourcePay)):"—")+'</td></tr>';
  });
- reportShell("EKZEN · KASA HESAP ÖZETİ",source||"Tüm kaynaklar",cards,["Tarih","Açıklama / Tür","Kaynak","Tutar","Malzeme","Ekzen Payı","Kaynak Payı"],rows);
+ reportShell("EKZEN · KASA HESAP ÖZETİ",source||"Tüm kaynaklar",cards,["Tarih","Açıklama / Tür","Kaynak","Tutar","Malzeme","Kaynak Payı"],rows);
 }
 function printServiceReport(fromList=false){
  const items=fromList?sortServices(homeServiceDrilldown?(state.services||[]).filter(s=>homeServiceDrilldown.ids.has(String(s.id))&&matchesPortalSource(s.source)):filteredServices({ignoreStatus:false})):sortServices(filteredDashboardServices());
@@ -3926,8 +3924,6 @@ function printServiceReport(fromList=false){
   {label:"Toplam Servis",value:String(items.length)},
   {label:"Toplam Ciro (Tahsilat)",value:reportMoney(totals.income)},
   {label:"Malzeme Gideri",value:reportMoney(b.material)},
-  {label:"Komisyon",value:reportMoney(b.commission)},
-  {label:"Net Kazanç",value:reportMoney(b.balance),tone:"good"},
   {label:"Hakediş (Kaynak Payı)",value:reportMoney(shares.hakedis)},
   {label:"Ödeme Bekleyen",value:pending.length+" Servis · "+reportMoney(pendingAmount),tone:"bad"},
   {label:"Tamamlanan Servis",value:String(items.filter(s=>isStatus(s.status,"İşlem Tamam")).length)}
@@ -3936,11 +3932,10 @@ function printServiceReport(fromList=false){
   const f=serviceCardFinancials(s),primary=primaryCashForService(s.id);
   const paid=primary&&cashIsPosted(primary)?Number(primary.amount)||0:0;
   const material=primary&&cashIsPosted(primary)?Number(primary.materialCost)||0:0;
-  const owner=primary&&cashIsPosted(primary)?ownerPayAmountForCashItem(primary):0;
   const sourcePay=primary&&cashIsPosted(primary)?sourcePayAmountForCashItem(primary):0;
-  return '<tr><td>'+escapeHtml(formatDate(serviceMainDate(s)||""))+'</td><td>'+escapeHtml(s.customerName||s.address||"-")+'<span class="sub">'+escapeHtml([s.device,s.brand].filter(Boolean).join(" / "))+'</span></td><td>'+escapeHtml(s.source||"-")+'<span class="sub">'+escapeHtml(s.status||"-")+'</span></td><td class="num">'+escapeHtml(reportMoney(paid))+'</td><td class="num">'+escapeHtml(reportMoney(material))+'</td><td class="num">'+escapeHtml(reportMoney(owner))+'</td><td class="num">'+escapeHtml(reportMoney(sourcePay))+'</td></tr>';
+  return '<tr><td>'+escapeHtml(formatDate(serviceMainDate(s)||""))+'</td><td>'+escapeHtml(s.customerName||s.address||"-")+'<span class="sub">'+escapeHtml([s.device,s.brand].filter(Boolean).join(" / "))+'</span></td><td>'+escapeHtml(s.source||"-")+'<span class="sub">'+escapeHtml(s.status||"-")+'</span></td><td class="num">'+escapeHtml(reportMoney(paid))+'</td><td class="num">'+escapeHtml(reportMoney(material))+'</td><td class="num">'+escapeHtml(reportMoney(sourcePay))+'</td></tr>';
  });
- reportShell("EKZEN · SERVİS VE KASA RAPORU",activeDashboardSource||(isSourcePortal()?portalSourceName():"Tüm kaynaklar"),cards,["Tarih","Servis / Cihaz","Kaynak / Durum","Tahsilat","Malzeme","Ekzen Payı","Kaynak Payı"],rows);
+ reportShell("EKZEN · SERVİS VE KASA RAPORU",activeDashboardSource||(isSourcePortal()?portalSourceName():"Tüm kaynaklar"),cards,["Tarih","Servis / Cihaz","Kaynak / Durum","Tahsilat","Malzeme","Kaynak Payı"],rows);
 }
 
 function printCash() { printCashReport(); }
