@@ -1723,7 +1723,7 @@ function serviceDateRangeForCurrentFilter() {
     const value = toIsoDate(tomorrow);
     return { start: value, end: value };
   }
-  if (isStatus(statBase, "Açık Fişler")) return { start: "", end: "" };
+  if (isStatus(statBase, "Açık Fişler") || settingsList("statuses").some(status => isStatus(status, statBase))) return { start: "", end: "" };
   return { start: dashboardStartDate?.value || "", end: dashboardEndDate?.value || (dashboardStartDate?.value || "") };
 }
 
