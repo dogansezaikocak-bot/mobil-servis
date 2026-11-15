@@ -4591,8 +4591,9 @@ function mobileIsRemainingService(service) {
 }
 
 let mobileAllDates = false;
-let mobileRangeStart = dashboardPresetRange("thisWeek").start;
-let mobileRangeEnd = dashboardPresetRange("thisWeek").end;
+// Mobile home always starts on today; desktop retains its This Week default.
+let mobileRangeStart = isoToday;
+let mobileRangeEnd = isoToday;
 let mobileServiceQuery = "";
 
 function mobileDateWithinRange(date) {
