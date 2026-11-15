@@ -38,8 +38,21 @@
   if(!hits.length){out.textContent="Eşleşen kayıt bulunamadı.";return;}
   for(const hit of hits){
    const b=document.createElement("button");b.type="button";b.className="ekzen-search-result";
-   const d=hit.data;const parts=[d.customerName,d.customer,d.name,d.phone,d.address,d.device,d.description,d.amount,d.id].filter(Boolean);
-   b.textContent=hit.type+" · "+parts.slice(0,4).join(" · ");
+   const d=hit.data;
+   if(hit.type==="Servis"){
+    const customer=document.createElement("span");customer.className="ekzen-search-customer";customer.textContent=d.customerName||d.customer||"İsimsiz Müşteri";
+    const info=document.createElement("span");info.className="ekzen-search-info";info.textContent=[d.brand,d.device,d.address].filter(Boolean).join(" · ");
+    const right=document.createElement("span");right.className="ekzen-search-right";
+    const status=document.createElement("strong");status.className="ekzen-search-status";status.textContent=d.status||"Durum belirtilmedi";
+    const payment=document.createElement("span");payment.className="ekzen-search-payment";
+    const cash=(state.cash||[]).filter(x=>x.serviceId===d.id&&x.type==="income"&&!x.autoMaterialExpense&&!x.autoCommissionExpense&&!x.autoOtherExpense&&!x.parentCashId);
+    const paid=cash.filter(x=>["Ödendi","Tahsilat Yapıldı"].includes(String(d.paymentStatus||""))||/tahsilat yapıldı|ödendi/i.test(String(x.title||""))).reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+    payment.textContent="Alınan: "+paid.toLocaleString("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0});
+    const left=document.createElement("span");left.className="ekzen-search-left";left.append(customer,info);right.append(status,payment);b.append(left,right);
+   }else{
+    const parts=[d.name,d.title,d.description,d.source,d.amount,d.id].filter(Boolean);
+    b.textContent="Kasa · "+parts.slice(0,4).join(" · ");
+   }
    b.onclick=()=>{overlayClose();if(hit.type==="Servis"&&typeof mobileOpenDetail==="function")mobileOpenDetail(d.id);else{document.querySelector('[data-welcome-action="cash"]')?.click();}};
    out.append(b);
   }
@@ -98,7 +111,7 @@
 #ekzenLayoutSettings input.ekzen-layout-visible{display:inline-block!important;position:static!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;margin:0!important;padding:0!important;transform:none!important;appearance:auto!important;accent-color:#2563eb!important;vertical-align:middle!important}
 @media(max-width:550px){#ekzenLayoutSettings{padding:10px}#ekzenLayoutSettings .ekzen-layout-name{flex-basis:100%!important}}
 `;
- style.textContent+="#mobileWelcomePage .ekzen-layout-hidden,#mobileWelcomePage .ekzen-layout-hidden.mobile-welcome-source-entry,#mobileWelcomePage .ekzen-layout-hidden.mobile-welcome-cash-entry,.ekzen-layout-hidden{display:none!important}#ekzenLayoutSave{display:block!important;background:#1765bd!important;color:white!important;padding:12px 18px!important;border-radius:9px!important;font-weight:700!important;margin:16px 0 8px!important;min-height:44px!important}#ekzenLayoutSaveStatus{font-size:13px;color:#334155}";document.head.append(style);
+ style.textContent+="#mobileWelcomePage .ekzen-layout-hidden,#mobileWelcomePage .ekzen-layout-hidden.mobile-welcome-source-entry,#mobileWelcomePage .ekzen-layout-hidden.mobile-welcome-cash-entry,.ekzen-layout-hidden{display:none!important}#ekzenLayoutSave{display:block!important;background:#1765bd!important;color:white!important;padding:12px 18px!important;border-radius:9px!important;font-weight:700!important;margin:16px 0 8px!important;min-height:44px!important}#ekzenLayoutSaveStatus{font-size:13px;color:#334155}";style.textContent+="#ekzenSearchResults .ekzen-search-result{display:flex!important;justify-content:space-between;align-items:center;gap:12px;min-height:64px}#ekzenSearchResults .ekzen-search-left{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}#ekzenSearchResults .ekzen-search-customer{font-weight:750;font-size:15px;color:#172033}#ekzenSearchResults .ekzen-search-info{font-size:12px;color:#64748b;overflow-wrap:anywhere}#ekzenSearchResults .ekzen-search-right{display:flex;flex-direction:column;gap:5px;align-items:flex-end;text-align:right;flex-shrink:0;max-width:45%}#ekzenSearchResults .ekzen-search-status{font-size:12px;color:#075985;background:#e0f2fe;padding:4px 7px;border-radius:7px}#ekzenSearchResults .ekzen-search-payment{font-size:13px;font-weight:700;color:#166534}";document.head.append(style);
  const observer=new MutationObserver(()=>{if(document.querySelector("#homeLayoutSettings")&&!document.querySelector("#homeLayoutSettings #ekzenLayoutSettings"))render();});
  document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#homeLayoutSettings");if(host)observer.observe(host,{childList:true});});
 })();
