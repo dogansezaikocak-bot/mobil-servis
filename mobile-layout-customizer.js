@@ -47,15 +47,15 @@
   if(!root)return;
   const entries=settings[type];
   for(const entry of entries){
-   const def=defs[type].find(x=>x[0]===entry.id),el=document.querySelector(def[2]);if(!el)continue;
+   const def=defs[type].find(x=>x[0]===entry.id),el=(type==="cash"&&entry.id!=="transactions"?document.querySelector("#mobileDailyCashPage "+def[2])||document.querySelector("#mobileCashProfitCounter")?.parentElement?.querySelector(def[2]):document.querySelector(def[2]));if(!el)continue;
    el.hidden=!entry.visible;el.style.display=entry.visible?"":"none";
    const title=el.querySelector("strong")||(type==="cash"?el.querySelector("span"):null);
    if(title)title.textContent=entry.name;
   }
   // Only reorder siblings within the same container, preserving existing event handlers.
   const groups=new Map();
-  for(const entry of entries){const def=defs[type].find(x=>x[0]===entry.id),el=document.querySelector(def[2]);if(!el||!el.parentElement)continue;const parent=el.parentElement;if(!groups.has(parent))groups.set(parent,[]);groups.get(parent).push(el);}
-  for(const [parent,elements] of groups){if(elements.length<2)continue;const anchor=elements[0];for(const el of elements.slice(1))parent.insertBefore(el,anchor.nextSibling);}
+  for(const entry of entries){const def=defs[type].find(x=>x[0]===entry.id),el=(type==="cash"&&entry.id!=="transactions"?document.querySelector("#mobileDailyCashPage "+def[2])||document.querySelector("#mobileCashProfitCounter")?.parentElement?.querySelector(def[2]):document.querySelector(def[2]));if(!el||!el.parentElement)continue;const parent=el.parentElement;if(!groups.has(parent))groups.set(parent,[]);groups.get(parent).push(el);}
+  for(const [parent,elements] of groups){if(elements.length<2)continue;const anchor=elements[0];let previous=anchor;for(const el of elements.slice(1)){parent.insertBefore(el,previous.nextSibling);previous=el;}}
  }
  function render(){
   const host=document.querySelector("#settingsHome");if(!host)return;
