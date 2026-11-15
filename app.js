@@ -5015,6 +5015,7 @@ function renderHomeCashCards(device,items){
     const displayValue=c.kind==="service-status"?escapeHtml(String(value)+" fiş"):id==="payment" ? escapeHtml(String(value)+" fiş") : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
     return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" data-counter-title="'+escapeAttr(displayName)+'" aria-label="'+escapeAttr(displayName)+' ayrıntılarını aç" style="'+(device==='mobile'?'background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;':'')+'min-width:0;box-sizing:border-box"><span class="ekzen-home-counter-title" style="color:#fff">'+escapeHtml(displayName)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
   }).join("");
+  renderWorkflowCounters(device==="desktop"?"home-desktop":"home-mobile",selectedSource);
 }
 
 
