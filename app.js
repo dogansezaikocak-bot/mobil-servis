@@ -1261,16 +1261,19 @@ function fillSelect(select, options) {
 function setDefaultDates() {
   if (cashStartDate) cashStartDate.value = isoToday;
   if (cashEndDate) cashEndDate.value = isoToday;
-  if (dashboardStartDate && !dashboardStartDate.value) dashboardStartDate.value = isoToday;
-  if (dashboardEndDate && !dashboardEndDate.value) dashboardEndDate.value = isoToday;
+  const week = dashboardPresetRange("thisWeek");
+  if (dashboardStartDate && !dashboardStartDate.value) dashboardStartDate.value = week.start;
+  if (dashboardEndDate && !dashboardEndDate.value) dashboardEndDate.value = week.end;
   syncDashboardDateRangeControls();
 }
 
 function resetDashboardDateToToday() {
-  if (dashboardStartDate) dashboardStartDate.value = isoToday;
-  if (dashboardEndDate) dashboardEndDate.value = isoToday;
-  if (dashboardRangeStartPicker) dashboardRangeStartPicker.value = isoToday;
-  if (dashboardRangeEndPicker) dashboardRangeEndPicker.value = isoToday;
+  // Returning home always starts with the current-week range, for all sources.
+  const week = dashboardPresetRange("thisWeek");
+  if (dashboardStartDate) dashboardStartDate.value = week.start;
+  if (dashboardEndDate) dashboardEndDate.value = week.end;
+  if (dashboardRangeStartPicker) dashboardRangeStartPicker.value = week.start;
+  if (dashboardRangeEndPicker) dashboardRangeEndPicker.value = week.end;
   activeDashboardStat = "";
   syncDashboardDateRangeControls();
   updateDashboardDateRangeLabel();
@@ -1302,6 +1305,7 @@ function showOpenServicesFromTopbar() {
 
 function switchView(view) {
   if (view === "ekzenCash") view = "cash";
+  if(view === "dashboard" && currentView !== "dashboard") resetDashboardDateToToday();
   homeServiceDrilldown=null;
   if (isSourcePortal() && !["dashboard", "cash", "services"].includes(view)) view = "dashboard";
   if (view === "services" && currentView !== "services") { serviceQuickStatSelection = "Yeni Kayıt"; if(topStatusFilter)topStatusFilter.value=""; }
@@ -4518,8 +4522,8 @@ function mobileIsRemainingService(service) {
 }
 
 let mobileAllDates = false;
-let mobileRangeStart = "";
-let mobileRangeEnd = "";
+let mobileRangeStart = dashboardPresetRange("thisWeek").start;
+let mobileRangeEnd = dashboardPresetRange("thisWeek").end;
 let mobileServiceQuery = "";
 
 function mobileDateWithinRange(date) {
