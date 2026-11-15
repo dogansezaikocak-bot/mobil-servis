@@ -60,8 +60,8 @@
   for(const [parent,elements] of groups){if(elements.length<2)continue;const anchor=elements[0];let previous=anchor;for(const el of elements.slice(1)){parent.insertBefore(el,previous.nextSibling);previous=el;}}
  }
  function render(){
-  const host=document.querySelector("#settingsHome");if(!host)return;
-  let panel=document.querySelector("#ekzenLayoutSettings");if(!panel){panel=document.createElement("section");panel.id="ekzenLayoutSettings";host.append(panel);}
+  const host=document.querySelector("#homeLayoutSettings");if(!host)return;
+  let panel=host.querySelector("#ekzenLayoutSettings");if(!panel){panel=document.createElement("section");panel.id="ekzenLayoutSettings";host.append(panel);} panel.hidden=Boolean(host.querySelector('[data-home-device-tab="desktop"].is-active'));
   panel.replaceChildren();
   const heading=document.createElement("h3");heading.textContent="Mobil Menü ve Kasa Düzeni";panel.append(heading);
   for(const type of ["home","cash"]){
@@ -79,12 +79,12 @@
   const note=document.createElement("p");note.textContent="Gizlenen menüler ve sayaçlar kayıtları silmez. Düzen bu cihazda saklanır.";panel.append(note);
  }
  function move(type,i,delta){const arr=settings[type];[arr[i],arr[i+delta]]=[arr[i+delta],arr[i]];persist();render();apply(type);}
- function init(){ensureSearch();apply("home");apply("cash");render();}
+ function init(){ensureSearch();apply("home");apply("cash");render();document.addEventListener("click",e=>{if(e.target.closest("[data-home-device-tab]"))setTimeout(render,0);});}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
  // Settings and counters can be rerendered by the main application.
  const style=document.createElement("style");
  style.textContent="#ekzenSearchOverlay[hidden]{display:none!important}#ekzenSearchOverlay{position:fixed;inset:0;z-index:2147483000;background:#0009;display:flex;justify-content:center;align-items:flex-start;padding:24px 12px;overflow:auto}.ekzen-search-card{width:min(100%,650px);background:white;color:#1e2530;border-radius:14px;padding:16px}.ekzen-search-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}#ekzenSearchInput{display:block;width:100%;padding:12px;font-size:16px;border:1px solid #aaa;border-radius:8px;background:white;color:#111}#ekzenSearchResults{max-height:65vh;overflow:auto;margin-top:12px}.ekzen-search-result{display:block;width:100%;padding:12px 5px;background:white;color:#222;text-align:left;border:0;border-bottom:1px solid #ddd;overflow-wrap:anywhere}.ekzen-layout-row{display:flex;gap:6px;margin:8px 0;align-items:center}.ekzen-layout-row input:not([type=checkbox]){flex:1;min-width:0}";
  document.head.append(style);
- const observer=new MutationObserver(()=>{if(document.querySelector("#settingsHome")&&!document.querySelector("#ekzenLayoutSettings"))render();});
- document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#settingsHome");if(host)observer.observe(host,{childList:true});});
+ const observer=new MutationObserver(()=>{if(document.querySelector("#homeLayoutSettings")&&!document.querySelector("#homeLayoutSettings #ekzenLayoutSettings"))render();});
+ document.addEventListener("DOMContentLoaded",()=>{const host=document.querySelector("#homeLayoutSettings");if(host)observer.observe(host,{childList:true});});
 })();
