@@ -3679,6 +3679,7 @@ function deleteSource(name) {
 }
 
 function addSettingItem(listKey) {
+  if (listKey === "dashboardCounters") { alert("Yeni sayaç için Ayarlar → Sayaçlar → Çoğalt seçeneğini kullanın."); return; }
   if (listKey === "sources") return openSourceForm();
   if (listKey === "cashCounters") return;
   const label = settingsLabels[listKey] || "Ayar";
@@ -3690,6 +3691,7 @@ function addSettingItem(listKey) {
 }
 
 function editSettingItem(listKey, oldValue) {
+  if (listKey === "dashboardCounters") { alert("Ana sayfa sayaçlarını Ayarlar → Sayaçlar bölümünden yönetin."); return; }
   if (listKey === "sources") return openSourceForm(oldValue);
   if (listKey === "cashCounters") {
     const counter = cashCounterList().find((item) => item.key === oldValue);
@@ -3709,6 +3711,7 @@ function editSettingItem(listKey, oldValue) {
 }
 
 function deleteSettingItem(listKey, value) {
+  if (listKey === "dashboardCounters") { alert("Ana sayfa sayaçlarını Ayarlar → Sayaçlar bölümünden yönetin."); return; }
   if (listKey === "cashCounters") return;
   if (listKey === "sources") return deleteSource(value);
   if (!confirm(`${value} silinsin mi?`)) return;
