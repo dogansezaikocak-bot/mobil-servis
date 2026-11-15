@@ -2726,8 +2726,8 @@ function renderCashCurrentDetail(detailType = "balance", selectedSource = "") {
       <div class="cash-current-formula">
         <div><span>Hakediş</span><b>${money(totals.hakedis)}</b></div>
         <div><span>Kaynağın aldığı işlerde Ekzen Teknik alacağı</span><b class="cash-negative">-${money(totals.sourceCollectedReceivable)}</b></div>
-        <div><span>Manuel yapılan ödeme</span><b class="cash-negative">-${money(totals.manualExpense)}</b></div>
-        <div><span>Manuel geri giriş / düzeltme</span><b>${money(totals.manualIncome)}</b></div>
+        <div><span>Kaynak alacağından mahsup</span><b class="cash-negative">-${money(Math.max(0, totals.hakedis - totals.sourceCollectedReceivable - totals.remainingPayment))}</b></div>
+        <div><span>İşletme giderleri kaynak bakiyesini değiştirmez</span><b>—</b></div>
         <div class="cash-current-total"><span>Kalan Ödeme</span><b>${money(totals.remainingPayment)}</b></div>
       </div>
     </section>
