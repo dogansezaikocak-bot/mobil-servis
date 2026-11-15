@@ -1582,6 +1582,9 @@ function dashboardCounterBaseServices(label, services) {
 }
 
 function dashboardCounterCount(label, services) {
+  if (isStatus(dashboardCounterBase(label), "İşlem Tamam")) {
+    return homeStatusServices("İşlem Tamam", activeDashboardSource, "desktop").length;
+  }
   return dashboardCounterBaseServices(label, services).filter((service) => matchesDashboardCounter(service, label)).length;
 }
 
@@ -1662,6 +1665,17 @@ function filteredServices({ ignoreStatus = false } = {}) {
 }
 
 function applyDashboardStatFilter(stat) {
+  if (isStatus(dashboardCounterBase(stat), "İşlem Tamam")) {
+    const source=activeDashboardSource || (isSourcePortal()?portalSourceName():"");
+    const ids=homeStatusServices("İşlem Tamam",source,"desktop").map(service=>String(service.id));
+    switchView("services");
+    homeServiceDrilldown={slot:"status-"+encodeURIComponent("İşlem Tamam"),ids:new Set(ids)};
+    activeDashboardStat="";
+    serviceQuickStatSelection=null;
+    if(topStatusFilter)topStatusFilter.value="";
+    renderServices();
+    return;
+  }
   const selectedSource = isSourcePortal() ? portalSourceName() : (activeDashboardSource || topSourceFilter?.value || "");
   activeDashboardStat = stat || "";
   activeDashboardSource = selectedSource;
