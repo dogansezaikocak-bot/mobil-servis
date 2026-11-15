@@ -5063,6 +5063,16 @@ function homeStatusServices(statusName,source,device="desktop"){
  }
  return all.filter(service=>dateInRange(serviceMainDate(service),dashboardStartDate?.value||"",dashboardEndDate?.value||""));
 }
+/* Shared presentation for current and future home counters. */
+function homeCounterDisplayValue(counter,id,value,device){
+ const isService=counter.kind==="service-status"||id==="payment";
+ const isCount=isService||counter.unit==="count";
+ if(isCount){
+  const unit=isService?"Servis":String(counter.unitLabel||"Adet");
+  return escapeHtml(String(value))+'<small class="home-counter-unit">'+escapeHtml(unit)+'</small>';
+ }
+ return escapeHtml(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value));
+}
 function renderHomeCashCards(device,items){
   const selectedSource=device==="desktop"?activeDashboardSource:(document.querySelector("#mobileSourcePicker")?.value||"");
   const special=selectedSource?sourceSpecialConfig(selectedSource):{};
@@ -5083,7 +5093,7 @@ function renderHomeCashCards(device,items){
     const statusServices=c.kind==="service-status"?homeStatusServices(c.statusName,selectedSource,device):null;
     const value=statusServices?statusServices.filter(service=>isStatus(service.status,c.statusName)).length:homeCashCounterValue(c,context);
     const pendingDetail=id==="payment" ? '<small class="home-pending-amount">₺'+escapeHtml(new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0))+'</small>' : '<small class="ekzen-counter-description">'+escapeHtml(c.kind==="service-status"?"Bu durumdaki servisleri görüntüle":id==="profit"?"Hasılat - komisyon - malzeme - gider":id==="income"?"Toplam tahsilat":id==="commission"?"Ödenen komisyonlar":id==="material"?"Malzeme giderleri":id==="expense"?"Diğer giderler":"Ayrıntıları görüntüle")+'</small>';
-    const displayValue=c.kind==="service-status"?escapeHtml(String(value))+"<small class=\"home-counter-unit\">Servis</small>":id==="payment" ? escapeHtml(String(value))+"<small class=\"home-counter-unit\">Servis</small>" : escapeHtml(c.unit==="count"?String(value):(device==="mobile"?"₺"+new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(value):money(value)));
+    const displayValue=homeCounterDisplayValue(c,id,value,device);
     return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" data-counter-title="'+escapeAttr(displayName)+'" aria-label="'+escapeAttr(displayName)+' ayrıntılarını aç" style="'+(device==='mobile'?'background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;':'')+'min-width:0;box-sizing:border-box"><span class="ekzen-home-counter-title" style="color:#fff">'+escapeHtml(displayName)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
   }).join("");
   renderWorkflowCounters(device==="desktop"?"home-desktop":"home-mobile",selectedSource);
