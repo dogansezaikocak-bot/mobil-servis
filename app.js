@@ -1017,7 +1017,7 @@ function bindEvents() {
     if (action === "photo-viewer-reset") resetPhotoViewer();
     if (action === "delete-service") deleteCurrentService();
     if (action === "delete-service-direct") deleteServiceById(button.dataset.serviceId);
-    if (action === "print" || action === "print-list") window.print();
+    if (action === "print" || action === "print-list") printServiceReport(action === "print-list");
     if (action === "print-cash") printCash();
     if (action === "set-cash-list-mode") setCashListMode(button.dataset.mode);
     if (action === "open-cash-current-detail") openCashCurrentDetail(button.dataset.detailType || "balance");
@@ -3865,11 +3865,65 @@ function updateExistingRecords(listKey, oldValue, newValue) {
   }
 }
 
-function printCash() {
-  document.body.dataset.printMode = "cash";
-  window.print();
-  setTimeout(() => delete document.body.dataset.printMode, 300);
+
+/* Ortak A4 rapor tasarımı: kasa ve servis çıktıları aynı PDF düzenini kullanır. */
+function reportMoney(value){
+ return new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0);
 }
+function reportDateRange(){
+ const start=dashboardStartDate?.value||"";
+ const end=dashboardEndDate?.value||start;
+ return start ? formatDate(start)+(end&&end!==start?" – "+formatDate(end):"") : "Tüm zamanlar";
+}
+function reportShell(title,source,cards,headers,rows){
+ const report=window.open("","_blank","width=960,height=780");
+ if(!report){alert("PDF raporunu açmak için açılır pencerelere izin verin.");return;}
+ const safe=escapeHtml;
+ const cardHtml=cards.map(c=>'<div class="metric '+(c.tone||"")+'"><span>'+safe(c.label)+'</span><b>'+safe(String(c.value))+'</b></div>').join("");
+ const rowHtml=rows.length?rows.join(""):'<tr><td colspan="'+headers.length+'" class="empty">Bu aralıkta kayıt bulunamadı.</td></tr>';
+ const html='<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safe(title)+'</title><style>'+
+ '@page{size:A4;margin:13mm 14mm}*{box-sizing:border-box}body{margin:0;padding:20px;font:12px Arial,Helvetica,sans-serif;color:#273c38;background:white}'+
+ 'h1{font-size:23px;color:#115b4c;margin:0 0 10px;font-weight:800}.meta{color:#4c625d;line-height:1.7;margin-bottom:13px}'+
+ '.rule{height:4px;background:#11745e;margin-bottom:18px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:18px}'+
+ '.metric{border:1px solid #d7e4df;border-radius:7px;padding:12px;min-height:63px;break-inside:avoid}.metric span{display:block;color:#60716b;font-size:11px;margin-bottom:7px}.metric b{font-size:16px;color:#263c35}.metric.good{background:#e7f3ed}.metric.bad{background:#fbecec;border-color:#edc8c8}.metric.bad b{color:#b52b36}'+
+ 'h2{font-size:17px;color:#115b4c;margin:16px 0 10px}table{width:100%;border-collapse:collapse;table-layout:fixed}th{background:#e7f3ed;text-align:left;font-size:10px;padding:10px 7px}td{border-bottom:1px solid #dce6e2;padding:10px 7px;font-size:10px;vertical-align:top;overflow-wrap:anywhere}tr{break-inside:avoid}td.num,th.num{text-align:right;white-space:nowrap}td.red{color:#b52b36;font-weight:bold}.sub{display:block;color:#75857e;font-size:9px;margin-top:4px}.empty{text-align:center;color:#75857e}.footer{border-top:1px solid #dce6e2;color:#72817b;font-size:10px;padding-top:10px;margin-top:22px}'+
+ '.toolbar{position:sticky;top:0;background:#f0f7f4;padding:12px;margin:-20px -20px 20px;text-align:right}.toolbar button{background:#11745e;color:white;border:0;border-radius:6px;padding:10px 18px;cursor:pointer;font-weight:bold}'+
+ '@media print{body{padding:0}.toolbar{display:none!important}thead{display:table-header-group}.metrics{break-inside:avoid}print-color-adjust:exact;-webkit-print-color-adjust:exact}'+
+ '</style></head><body><div class="toolbar"><button onclick="window.print()">Yazdır / PDF olarak kaydet</button></div><h1>'+safe(title)+'</h1><div class="meta"><b>Kaynak:</b> '+safe(source||"Tüm kaynaklar")+' &nbsp; | &nbsp; <b>Dönem:</b> '+safe(reportDateRange())+' &nbsp; | &nbsp; <b>Rapor tarihi:</b> '+safe(formatDate(isoToday))+'</div><div class="rule"></div><section class="metrics">'+cardHtml+'</section><h2>İşlem Detayları ('+rows.length+')</h2><table><thead><tr>'+headers.map((h,i)=>'<th'+(i===headers.length-1?' class="num"':'')+'>'+safe(h)+'</th>').join("")+'</tr></thead><tbody>'+rowHtml+'</tbody></table><div class="footer">Ekzen Servis Takip · '+safe(title)+'</div></body></html>';
+ report.document.open();report.document.write(html);report.document.close();
+}
+function printCashReport(){
+ const items=filteredCash();
+ const totals=cashTotals(items);
+ const b=cashBreakdown(items);
+ const cards=[
+  {label:"Toplam Ciro",value:reportMoney(totals.income)},
+  {label:"Malzeme",value:reportMoney(b.material)},
+  {label:"Komisyon",value:reportMoney(b.commission)},
+  {label:"Diğer Giderler",value:reportMoney(b.manualExpense),tone:"bad"},
+  {label:"Net Kasa",value:reportMoney(b.balance),tone:"good"},
+  {label:"Para Hareketleri",value:String(items.length)}
+ ];
+ const rows=items.slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(item=>
+  '<tr><td>'+escapeHtml(formatDate(item.date||""))+'</td><td>'+escapeHtml(visibleCashTitle(item)||"-")+'<span class="sub">'+(item.type==="expense"?"Gider":"Gelir")+'</span></td><td>'+escapeHtml(cashItemSource(item)||"-")+'</td><td class="num '+(item.type==="expense"?"red":"")+'">'+(item.type==="expense"?"−":"")+escapeHtml(reportMoney(item.amount))+'</td></tr>');
+ reportShell("EKZEN · KASA HESAP ÖZETİ",isSourcePortal()?portalSourceName():(cashSourceFilter?.value||activeDashboardSource||"Tüm kaynaklar"),cards,["Tarih","Açıklama / Tür","Kaynak","Tutar"],rows);
+}
+function printServiceReport(fromList=false){
+ const items=fromList?sortServices(homeServiceDrilldown?(state.services||[]).filter(s=>homeServiceDrilldown.ids.has(String(s.id))&&matchesPortalSource(s.source)):filteredServices({ignoreStatus:false})):sortServices(filteredDashboardServices());
+ const counts=(name)=>items.filter(s=>isStatus(s.status,name)).length;
+ const cards=[
+  {label:"Toplam Servis",value:String(items.length)},
+  {label:"Yeni Kayıt",value:String(counts("Yeni Kayıt"))},
+  {label:"İşlemde",value:String(counts("İşlemde"))},
+  {label:"Ödeme Bekliyor",value:String(counts("Ödeme Bekliyor")),tone:"bad"},
+  {label:"İşlem Tamam",value:String(counts("İşlem Tamam")),tone:"good"},
+  {label:"Diğer Durumlar",value:String(items.length-counts("Yeni Kayıt")-counts("İşlemde")-counts("Ödeme Bekliyor")-counts("İşlem Tamam"))}
+ ];
+ const rows=items.map(s=>'<tr><td>'+escapeHtml(formatDate(serviceMainDate(s)||""))+'</td><td>'+escapeHtml(s.customerName||"-")+'<span class="sub">'+escapeHtml(s.phone||"")+'</span></td><td>'+escapeHtml([s.device,s.brand].filter(Boolean).join(" / ")||"-")+'<span class="sub">'+escapeHtml(s.address||"")+'</span></td><td>'+escapeHtml(s.source||"-")+'</td><td class="num">'+escapeHtml(s.status||"-")+'</td></tr>');
+ reportShell("EKZEN · SERVİS RAPORU",activeDashboardSource||(isSourcePortal()?portalSourceName():"Tüm kaynaklar"),cards,["Tarih","Müşteri","Cihaz / Adres","Kaynak","Durum"],rows);
+}
+
+function printCash() { printCashReport(); }
 
 function shareCashWhatsApp() {
   const items = filteredCash();
