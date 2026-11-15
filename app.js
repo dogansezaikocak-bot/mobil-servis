@@ -6893,7 +6893,7 @@ document.addEventListener("click", function(event) {
 });
 
 
-async async function saveCustomCounterForm(form) {
+async function saveCustomCounterForm(form) {
   if(isSourcePortal()) { alert("Bu ayar yalnızca yönetici hesabında değiştirilebilir."); return; }
   const field=(name)=>form.querySelector('[name="'+name+'"]');
   const slot=field("slot")?.value || "";
