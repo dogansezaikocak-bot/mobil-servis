@@ -9467,3 +9467,60 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
   outline:3px solid #4384ce!important;outline-offset:3px!important;
  }
 }
+
+/* Masaüstü kasa: özet sayaçlarını birbirinden ayrılmış, okunaklı yükseltilmiş kartlar olarak göster. */
+@media (min-width:821px) {
+ #cashSummary.cash-summary {
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(205px,1fr))!important;
+  gap:16px!important;
+  align-items:stretch!important;
+  margin:18px 0 26px!important;
+ }
+ #cashSummary.cash-summary > article {
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:space-between!important;
+  align-items:flex-start!important;
+  min-width:0!important;
+  min-height:128px!important;
+  padding:19px 20px!important;
+  border:1.5px solid #c5d4e6!important;
+  border-left:5px solid #6b91c3!important;
+  border-radius:18px!important;
+  background:linear-gradient(155deg,#fff 0%,#f3f7fc 100%)!important;
+  box-shadow:0 5px 10px rgba(22,43,72,.09),0 14px 30px rgba(22,43,72,.11)!important;
+  transition:transform .16s ease,box-shadow .16s ease!important;
+ }
+ #cashSummary.cash-summary > article:hover {
+  transform:translateY(-3px)!important;
+  box-shadow:0 9px 17px rgba(22,43,72,.13),0 20px 40px rgba(22,43,72,.15)!important;
+ }
+ #cashSummary.cash-summary > article > span {
+  display:block!important;
+  margin:0 0 12px!important;
+  color:#526780!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+  font-weight:800!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+ }
+ #cashSummary.cash-summary > article > b {
+  display:block!important;
+  width:100%!important;
+  margin:0!important;
+  font-size:clamp(22px,2vw,31px)!important;
+  line-height:1.2!important;
+  letter-spacing:-.025em!important;
+  font-weight:900!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  font-variant-numeric:tabular-nums!important;
+ }
+ #cashSummary.cash-summary > article > small {
+  display:block!important;
+  margin-top:10px!important;
+  line-height:1.35!important;
+ }
+}
