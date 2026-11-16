@@ -5580,10 +5580,7 @@ function mobileRenderDetail(serviceId) {
       <p class="mobile-detail-meta">${escapeHtml([service.brand, service.device, service.model].filter(Boolean).join(" · ") || "Cihaz bilgisi yok")}</p>
     </div>
 
-    <div class="mobile-detail-actions mobile-detail-actions-six">
-      <a href="${phoneHref}">📞<b>Ara</b></a>
-      <a href="${whatsappHref}" target="_blank" rel="noopener">💬<b>WhatsApp</b></a>
-      <a href="${mapHref || '#'}" target="_blank" rel="noopener">🗺️<b>Harita</b></a>
+    <div class="mobile-detail-actions mobile-detail-actions-three">
       <button type="button" data-mobile-action="add-note" data-service-id="${escapeAttr(service.id)}">📝<b>Not</b></button>
       <button type="button" data-mobile-action="add-photo" data-service-id="${escapeAttr(service.id)}">📷<b>Fotoğraf</b></button>
       <button type="button" data-mobile-action="edit-service" data-service-id="${escapeAttr(service.id)}">✎<b>Düzenle</b></button>
