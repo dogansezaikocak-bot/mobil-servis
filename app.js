@@ -5739,6 +5739,7 @@ function mobileQuickCardDialog(title, inputMarkup, onSave) {
   });
   dialog.showModal();
   dialog.querySelector("input,select,textarea")?.focus();
+  return dialog;
 }
 function mobileQuickAmount(serviceId) {
   if(isSourcePortal())return;
@@ -5797,17 +5798,19 @@ function mobileQuickAddress(serviceId) {
   const service=state.services.find(item=>String(item.id)===String(serviceId));
   if(!service)return;
   // İl / ilçe / mahalle mevcut seçimlerden gelir. Yalnızca sokak-bina-daire satırı düzenlenir.
-  mobileQuickCardDialog("Adres Düzenle",
-    '<p style="margin:0;font-size:13px;color:#64748b">İlçe ve mahalle aynı kalacak. Sokak, bina ve daire bilgisini değiştir.</p>'+
-    '<input id="ekzenQuickAddress" type="text" maxlength="300" autocomplete="street-address" value="'+escapeAttr(String(service.address||""))+'" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #cbd5e1;border-radius:9px">',
+  const dialog=mobileQuickCardDialog("Adres Düzenle",
+    '<p style="margin:0;font-size:13px;color:#64748b">İlçe ve mahalle aynı kalacak. Cadde/sokak seç, bina ve daireyi yaz.</p>'+
+    '<div id="ekzenQuickStreetPicker"><small>Cadde/sokak listesi yükleniyor...</small></div>',
     dialog => {
-      const value=dialog.querySelector("#ekzenQuickAddress").value.trim();
+      const value=dialog.querySelector("#ekzenQuickStreetPicker")?.ekzenPicker?.getValue()?.trim()||"";
       service.address=removeSelectedNeighborhoodPrefix(value,service.neighborhood);
       mobileSaveWorkNote(service.id);
       saveState();
       mobileRenderDetail(service.id);
       return true;
     });
+  const root=dialog?.querySelector("#ekzenQuickStreetPicker");
+  if(root)root.ekzenPicker=window.ekzenStreetPicker?.mount(root,service.district,service.neighborhood,service.address);
 }
 function mobileQuickComplaint(serviceId) {
   if(isSourcePortal())return;
@@ -6013,6 +6016,8 @@ function renderMobileNewServiceStep() {
       const select=document.querySelector("#mobileWizardField");
       if(select)select.innerHTML='<option value="">Mahalle listesi alınamadı, geri dönüp yeniden deneyin</option>';
     });
+  } else if (step.key === "address") {
+    field = '<div id="mobileWizardStreetPicker"><small>Mahalleye ait cadde ve sokaklar yükleniyor...</small></div>';
   } else if (step.type === "textarea") {
     field = `<textarea id="mobileWizardField" rows="5" placeholder="${escapeAttr(step.placeholder || "")}" ${step.required ? "required" : ""}>${escapeHtml(value)}</textarea>`;
   } else if (step.type === "select") {
@@ -6040,10 +6045,20 @@ function renderMobileNewServiceStep() {
       </footer>
     </section>
   `;
-  setTimeout(() => document.querySelector("#mobileWizardField")?.focus({ preventScroll: true }), 50);
+  if(step.key==="address"){
+    const pickerRoot=document.querySelector("#mobileWizardStreetPicker");
+    const picker=window.ekzenStreetPicker?.mount(pickerRoot,mobileNewServiceData.district,mobileNewServiceData.neighborhood,value);
+    if(pickerRoot)pickerRoot.ekzenPicker=picker||null;
+  }else{
+    setTimeout(() => document.querySelector("#mobileWizardField")?.focus({ preventScroll: true }), 50);
+  }
 }
 
 function mobileWizardCurrentValue() {
+  if(mobileNewServiceSteps[mobileNewServiceIndex]?.key==="address"){
+    const root=document.querySelector("#mobileWizardStreetPicker");
+    return root?.ekzenPicker?.getValue()?.trim()||"";
+  }
   const field = document.querySelector("#mobileWizardField");
   return field ? String(field.value || "").trim() : "";
 }
