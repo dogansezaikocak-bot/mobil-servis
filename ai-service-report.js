@@ -356,6 +356,13 @@
     });
   }
   document.addEventListener("click",function(e){
+    var printButton=e.target.closest("[data-print-service-card]");
+    if(printButton){
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof printSingleServiceCard==="function")printSingleServiceCard(printButton.dataset.printServiceCard);
+      return;
+    }
     var btn=e.target.closest("[data-ai-service-report]");
     if(btn){e.preventDefault();e.stopPropagation();openReport(btn.dataset.aiServiceReport);}
   },true);
