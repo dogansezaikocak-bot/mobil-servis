@@ -3135,7 +3135,13 @@ function desktopRefreshStreetPicker(){
    root,serviceForm.elements.district.value,serviceForm.elements.neighborhood.value,
    address.value,()=>{if(root.ekzenPicker)address.value=root.ekzenPicker.getValue();}
  );
- if(picker)root.ekzenPicker=picker;
+ if(picker){
+   root.ekzenPicker=picker;
+   // Sokak ve bina bilgisi tek seçicide düzenlenir; eski ikinci adres kutusu gösterilmez.
+   address.hidden=true;
+   address.style.display="none";
+   address.value=picker.getValue();
+ }
 }
 serviceForm?.elements?.district?.addEventListener("change",()=>{
  desktopPopulateNeighborhoods(serviceForm.elements.district.value);
@@ -3145,6 +3151,9 @@ serviceForm?.elements?.neighborhood?.addEventListener("change",desktopRefreshStr
 function openServiceForm(service) {
   if (isSourcePortal() && service) return;
   serviceForm.reset();
+  serviceForm.elements.address.hidden=false;
+  serviceForm.elements.address.style.removeProperty("display");
+  document.querySelector("#ekzenDesktopStreetPicker")?.remove();
   desktopPopulateDistricts();
   serviceForm.elements.city.value = "Ankara";
   serviceForm.elements.id.value = "";
@@ -3199,6 +3208,8 @@ function saveService(formData) {
   if (isSourcePortal() && previous && !matchesPortalSource(previous.source)) return;
   if (isSourcePortal()) data.source = portalSourceName();
   data.city = "Ankara";
+  const streetPicker=document.querySelector("#ekzenDesktopStreetPicker");
+  if(streetPicker?.ekzenPicker)data.address=streetPicker.ekzenPicker.getValue();
   if(data.neighborhood) data.address = removeSelectedNeighborhoodPrefix(data.address,data.neighborhood);
   const status = isUpdate ? data.status : "Yeni Kayıt";
   const service = {
@@ -4640,7 +4651,12 @@ function isMobileTechViewport() {
 function mobileFullAddress(service) {
   const address=String(service.address||"");
   const neighborhood=service.neighborhood ? cleanNeighborhoodName(service.neighborhood)+" Mahallesi" : "";
-  const street=removeSelectedNeighborhoodPrefix(address,service.neighborhood);
+  const normalizedStreet=address.replace(/^\s*,+\s*/,"")
+    .replace(/(.+?)\s*\((Sokak|Cadde|Bulvar|Meydan)\)(?=\s*,|\s|$)/giu,(all,name,type)=>{
+      const stem=name.trim().replace(/\.$/,"");
+      return (/^\d+(?:[/-]\d+)?$/.test(stem)?stem+". ":"")+(!/^\d+(?:[/-]\d+)?$/.test(stem)?stem+" ":"")+type;
+    });
+  const street=removeSelectedNeighborhoodPrefix(normalizedStreet,service.neighborhood);
   return [service.city || "Ankara",service.district,neighborhood,street].filter(Boolean).join(", ").trim();
 }
 
@@ -5970,7 +5986,8 @@ function removeSelectedNeighborhoodPrefix(address, neighborhood) {
  return value.replace(prefix,"").trim();
 }
 function mobileStructuredAddress(data) {
- return [data.neighborhood ? cleanNeighborhoodName(data.neighborhood)+" Mahallesi" : "",removeSelectedNeighborhoodPrefix(data.address,data.neighborhood)].filter(Boolean).join(", ");
+ // İl, ilçe ve mahalle fiş üzerinde ayrı tutulur; adres satırına tekrar eklenmez.
+ return removeSelectedNeighborhoodPrefix(data.address,data.neighborhood);
 }
 let mobileNewServiceData = {};
 let mobileNewServiceIndex = 0;
