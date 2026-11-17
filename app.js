@@ -3097,9 +3097,35 @@ function settingsItemsForList(key) {
   return settingsList(key).map((value) => ({ value, label: value }));
 }
 
+function desktopPopulateDistricts() {
+ const select=serviceForm?.elements?.district;
+ if(!select)return;
+ select.innerHTML='<option value="">İlçe seçin</option>'+ANKARA_DISTRICTS.map(([name])=>'<option value="'+escapeAttr(name)+'">'+escapeHtml(name)+'</option>').join('');
+}
+async function desktopPopulateNeighborhoods(district,selected="") {
+ const select=serviceForm?.elements?.neighborhood;
+ if(!select)return;
+ const expected=district;
+ select.innerHTML='<option value="">Mahalleler yükleniyor...</option>';
+ try {
+  const names=await loadAnkaraNeighborhoods(district);
+  if(serviceForm.elements.district.value!==expected)return;
+  select.innerHTML='<option value="">Mahalle seçin</option>'+names.map(name=>'<option value="'+escapeAttr(name)+'">'+escapeHtml(name)+'</option>').join('');
+  if(selected && !names.includes(selected))select.add(new Option(selected,selected));
+  select.value=selected||"";
+ }catch(error) {
+  select.innerHTML='<option value="">Mahalle listesi alınamadı</option>';
+  if(selected) {select.add(new Option(selected,selected));select.value=selected;}
+ }
+}
+serviceForm?.elements?.district?.addEventListener("change",()=>{
+ desktopPopulateNeighborhoods(serviceForm.elements.district.value);
+});
 function openServiceForm(service) {
   if (isSourcePortal() && service) return;
   serviceForm.reset();
+  desktopPopulateDistricts();
+  serviceForm.elements.city.value = "Ankara";
   serviceForm.elements.id.value = "";
   serviceForm.elements.status.value = "Yeni Kayıt";
   serviceForm.elements.source.value = isSourcePortal() ? portalSourceName() : "Kendi İşim";
@@ -3114,6 +3140,9 @@ function openServiceForm(service) {
       if (serviceForm.elements[key]) serviceForm.elements[key].value = value || "";
     });
     keepSelectValue(serviceForm.elements.source, service.source);
+    if(service.district) {serviceForm.elements.district.value=service.district;desktopPopulateNeighborhoods(service.district,service.neighborhood||"");}
+    serviceForm.elements.district.required=false;
+    serviceForm.elements.neighborhood.required=false;
     document.querySelector("#serviceDialogTitle").textContent = `Servisi Güncelle (${service.id})`;
     serviceDialog.querySelector("[data-action='delete-service']").style.visibility = "visible";
   }
@@ -3146,6 +3175,8 @@ function saveService(formData) {
   const previous = state.services.find((service) => service.id === data.id);
   if (isSourcePortal() && previous && !matchesPortalSource(previous.source)) return;
   if (isSourcePortal()) data.source = portalSourceName();
+  data.city = "Ankara";
+  if(data.neighborhood && !String(data.address||"").toLocaleLowerCase("tr").includes(data.neighborhood.toLocaleLowerCase("tr"))) data.address = data.neighborhood+" Mahallesi, "+(data.address||"");
   const status = isUpdate ? data.status : "Yeni Kayıt";
   const service = {
     ...(previous || {}),
