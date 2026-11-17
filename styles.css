@@ -9703,3 +9703,50 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
     outline-offset:2px;
   }
 }
+
+/* EKZEN mobile quick-intake actions: equal, prominent buttons side-by-side. */
+@media (max-width: 768px) {
+  #mobileTechApp .ekzen-mobile-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+    width: calc(100% - 28px) !important;
+    margin: 12px 14px calc(20px + env(safe-area-inset-bottom)) !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+  #mobileTechApp .ekzen-mobile-actions > .mobile-new-service-bar,
+  #mobileTechApp .ekzen-mobile-actions > .ekzen-quick-intake {
+    position: static !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 66px !important;
+    margin: 0 !important;
+    padding: 9px 5px !important;
+    border-radius: 15px !important;
+    border: 0 !important;
+    font-size: clamp(15px, 4vw, 19px) !important;
+    font-weight: 900 !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    box-shadow: 0 8px 18px rgba(13,48,48,.18) !important;
+    cursor: pointer !important;
+  }
+  #mobileTechApp .ekzen-mobile-actions > .mobile-new-service-bar {
+    background: linear-gradient(135deg,#047857,#065f46) !important;
+    color: #fff !important;
+  }
+  #mobileTechApp .ekzen-mobile-actions > .ekzen-quick-intake {
+    background: linear-gradient(135deg,#ea580c,#c2410c) !important;
+    color: #fff !important;
+  }
+  #mobileTechApp.is-cash-mode .ekzen-mobile-actions,
+  #mobileTechApp.is-welcome-mode > .ekzen-mobile-actions {
+    display: none !important;
+  }
+}
