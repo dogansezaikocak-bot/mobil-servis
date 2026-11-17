@@ -3247,6 +3247,15 @@ function openDetail(id) {
   detailDialog.showModal();
 }
 
+function normalizeWhatsAppPhone(value) {
+  let phone=String(value||"").replace(/\D/g,"");
+  if(phone.startsWith("00"))phone=phone.slice(2);
+  if(phone.startsWith("90")&&phone.length===12)return phone;
+  if(phone.startsWith("0")&&phone.length===11)return "9"+phone;
+  if(phone.length===10)return "90"+phone;
+  return "";
+}
+
 function printSingleServiceCard(serviceId) {
  const service=state.services.find(item=>String(item.id)===String(serviceId));
  if(!service)return;
@@ -3299,7 +3308,8 @@ function renderDetail(id) {
   const cleanPhone = digits(service.phone);
   const addressText = [service.city, service.district, service.address].filter(Boolean).join(" ");
   const mapUrl = safeServiceLocationUrl(service.locationUrl) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
-  const whatsappUrl = cleanPhone ? `https://wa.me/9${cleanPhone}` : "#";
+  const whatsappPhone = normalizeWhatsAppPhone(service.phone);
+  const whatsappUrl = whatsappPhone ? `https://wa.me/${whatsappPhone}` : "#";
   const serviceTotal = linkedCash.filter((item) => item.type === "income").reduce((total, item) => total + (Number(item.amount) || 0), 0);
   const serviceExpense = linkedCash.filter((item) => item.type === "expense").reduce((total, item) => total + (Number(item.amount) || 0), 0);
   const serviceBalance = serviceTotal - serviceExpense;
@@ -5543,7 +5553,8 @@ function mobileServiceCard(service) {
   const overdue = !mobileAllDates && dateValue && dateValue < (mobileSelectedDate || isoToday) && mobileIsRemainingService(service);
   const phoneClean = digits(service.phone);
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
-  const whatsappHref = phoneClean ? `https://wa.me/90${phoneClean.replace(/^0/, "")}` : "#";
+  const whatsappPhone = normalizeWhatsAppPhone(service.phone);
+  const whatsappHref = whatsappPhone ? `https://wa.me/${whatsappPhone}` : "#";
   const mapHref = mobileMapUrl(service);
   const bucket = mobileStatusBucket(service.status);
   const deviceTitle = [service.brand, service.device].filter(Boolean).join(" ") || "Cihaz bilgisi yok";
@@ -5643,7 +5654,8 @@ function mobileRenderDetail(serviceId) {
   if (!service || !body) return;
   const phoneClean = digits(service.phone);
   const phoneHref = phoneClean ? `tel:${phoneClean}` : "#";
-  const whatsappHref = phoneClean ? `https://wa.me/90${phoneClean.replace(/^0/, "")}` : "#";
+  const whatsappPhone = normalizeWhatsAppPhone(service.phone);
+  const whatsappHref = whatsappPhone ? `https://wa.me/${whatsappPhone}` : "#";
   const addressText = mobileFullAddress(service);
   const mapHref = mobileMapUrl(service);
   const noteText = service.notes?.map((note) => note.text).filter(Boolean).join("\n") || "";
