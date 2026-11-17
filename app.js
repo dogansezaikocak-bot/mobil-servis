@@ -4702,8 +4702,10 @@ function mobileMapUrl(service) {
   const city=String(service.city||"Ankara").trim();
   const query=[district,road,city].filter(Boolean).join(" ");
   if(!query)return "";
-  // Google Maps'i bir adrese kilitlemek yerine arama sonuçlarını gösterir.
-  // Kullanıcı doğru cadde/sokağı seçip ardından Yol Tarifi'ne basar.
+  // iPhone/iPad/Mac'te Apple Haritalar'ı aç; kullanıcı arama sonuçlarından
+  // doğru yolu seçer. Android/Windows için Google Maps araması yedektir.
+  const isAppleDevice=/iPhone|iPad|iPod|Macintosh/i.test(navigator.userAgent);
+  if(isAppleDevice)return `https://maps.apple.com/?q=${encodeURIComponent(query)}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 function openMobileMap(serviceId) {
