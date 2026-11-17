@@ -5765,14 +5765,14 @@ async function loadAnkaraNeighborhoods(district) {
  return names;
 }
 function cleanNeighborhoodName(value) {
- return String(value||"").trim().replace(/\\s+(?:mahallesi|mah\\.?|mah)$/iu,"").trim();
+ return String(value||"").trim().replace(/\s+(?:mahallesi|mah\.?|mah)$/iu,"").trim();
 }
 function removeSelectedNeighborhoodPrefix(address, neighborhood) {
  const name=cleanNeighborhoodName(neighborhood);
  let value=String(address||"").trim();
  if(!name)return value;
- const escapeRegex=(text)=>text.replace(/[.*+?^\x24{}()|[\]\\]/g,"\\function mobileStructuredAddress(data) {");
- const prefix=new RegExp("^"+escapeRegex(name)+"(?:\\s+(?:mahallesi|mah\\.?))?(?:\\s*,\\s*|\\s+|$)","iu");
+ const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+ const prefix=new RegExp("^"+escaped+"(?:\\s+(?:mahallesi|mah\\.?))?(?:\\s*,\\s*|\\s+|$)","iu");
  return value.replace(prefix,"").trim();
 }
 function mobileStructuredAddress(data) {
