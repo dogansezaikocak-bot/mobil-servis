@@ -3114,14 +3114,34 @@ async function desktopPopulateNeighborhoods(district,selected="") {
   select.innerHTML='<option value="">Mahalle seçin</option>'+names.map(name=>'<option value="'+escapeAttr(name)+'">'+escapeHtml(name)+'</option>').join('');
   if(selected && !names.includes(selected))select.add(new Option(selected,selected));
   select.value=selected||"";
+  if(selected)desktopRefreshStreetPicker();
  }catch(error) {
   select.innerHTML='<option value="">Mahalle listesi alınamadı</option>';
   if(selected) {select.add(new Option(selected,selected));select.value=selected;}
  }
 }
+function desktopRefreshStreetPicker(){
+ const address=serviceForm?.elements?.address;
+ if(!address || !serviceForm?.elements?.district?.value || !serviceForm?.elements?.neighborhood?.value){
+   document.querySelector("#ekzenDesktopStreetPicker")?.remove();
+   return;
+ }
+ let root=document.querySelector("#ekzenDesktopStreetPicker");
+ if(!root){
+   root=document.createElement("div");root.id="ekzenDesktopStreetPicker";
+   address.insertAdjacentElement("beforebegin",root);
+ }
+ const picker=window.ekzenStreetPicker?.mount(
+   root,serviceForm.elements.district.value,serviceForm.elements.neighborhood.value,
+   address.value,()=>{if(root.ekzenPicker)address.value=root.ekzenPicker.getValue();}
+ );
+ if(picker)root.ekzenPicker=picker;
+}
 serviceForm?.elements?.district?.addEventListener("change",()=>{
  desktopPopulateNeighborhoods(serviceForm.elements.district.value);
+ document.querySelector("#ekzenDesktopStreetPicker")?.remove();
 });
+serviceForm?.elements?.neighborhood?.addEventListener("change",desktopRefreshStreetPicker);
 function openServiceForm(service) {
   if (isSourcePortal() && service) return;
   serviceForm.reset();
@@ -3149,6 +3169,7 @@ function openServiceForm(service) {
     serviceDialog.querySelector("[data-action='delete-service']").style.visibility = "visible";
   }
   serviceDialog.showModal();
+  if(serviceForm.elements.neighborhood.value)desktopRefreshStreetPicker();
 }
 
 function openRelatedServiceForm(serviceId) {
