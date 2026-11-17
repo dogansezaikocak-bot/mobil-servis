@@ -180,7 +180,7 @@
           brand:selected.brand||"",
           model:selected.model||"",
           complaint:selected.fault||"",
-          operation:note,
+          operation:note + "\nYanıt biçimi: json.",
           parts:note
         })
       });
