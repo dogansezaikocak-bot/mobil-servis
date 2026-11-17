@@ -57,7 +57,7 @@
     if(!m)return raw;
     const stem=m[1].trim().replace(/\.\s*$/,"");
     const type=m[2].toLocaleLowerCase("tr-TR");
-    const suffix=type==="sokak"?"Sokak":type==="cadde"?"Cadde":type==="bulvar"?"Bulvar":type==="meydan"?"Meydan":"Küme Evler";
+    const suffix=type==="sokak"?"Sokak":type==="cadde"?"Caddesi":type==="bulvar"?"Bulvarı":type==="meydan"?"Meydanı":"Küme Evler";
     return /^\d+(?:[/-]\d+)?$/.test(stem)?stem+". "+suffix:stem+" "+suffix;
   }
   function roadKey(value){
