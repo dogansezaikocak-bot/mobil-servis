@@ -4688,28 +4688,24 @@ function safeServiceLocationUrl(value) {
 }
 
 function mobileMapUrl(service) {
-  // Müşterinin paylaştığı gerçek harita bağlantısı varsa onu kullan; metinden tahmin etme.
+  // Müşterinin gönderdiği gerçek konum, yazılı adres tahmininden daha kesin.
   const shared=safeServiceLocationUrl(service.locationUrl);
   if(shared)return shared;
-  const street=mapReadyStreetAddress(removeSelectedNeighborhoodPrefix(service.address||"",service.neighborhood));
-  if(!street)return "";
   const district=String(service.district||"").trim();
-  const originalNeighborhood=cleanNeighborhoodName(service.neighborhood||"");
-  // Google Maps, Peyami Safa mahallesini yer yer "Peyami Sefa" olarak indeksliyor.
-  const isPeyami=sourceKey(district)==="mamak" &&
-    /peyami\s+saf[ae]/iu.test(originalNeighborhood);
-  const neighborhood=isPeyami?"Peyami Sefa":originalNeighborhood;
-  const postCode=isPeyami?"06630":"";
-  // Aynı numaralı cadde başka ilçede de olabilir: ilçeyi ve mahalleyi başta vurgula.
-  const destination=[neighborhood?neighborhood+" Mahallesi":"",district,postCode,
-    street,service.city||"Ankara","Türkiye"].filter(Boolean).join(", ");
-  // Numara bazlı cadde/sokaklarda kesin koordinat bilinmiyor. Google'ın hatalı
-  // otomatik rota kurması yerine sonuç ekranını göster; konumu kullanıcı doğrulasın.
-  const ambiguous=/^\d+(?:[/-]\d+)?\.?\s*(?:Sokak|Sk\.?|Cadde|Cd\.?|Caddesi)\b/iu.test(street);
-  if(ambiguous)return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+  const address=mapReadyStreetAddress(removeSelectedNeighborhoodPrefix(service.address||"",service.neighborhood));
+  // Sadece sokak/cadde ismi: bina, daire ve ek adres Google'ın yanlış binaya
+  // gitmesine sebep olabildiğinden harita aramasına gönderilmez.
+  let road=address.split(",")[0].trim()
+    .replace(/\s+(?:No\s*:\s*\d+|D\s*:\s*\d+|Daire\s*:\s*\d+).*$/iu,"").trim();
+  // Eski kayıtlarda '372. Cadde No:30 D:3' biçimi virgülsüz olabilir.
+  road=road.replace(/\s+\d+\s*\/\s*\d+\s*$/u,"").trim();
+  const city=String(service.city||"Ankara").trim();
+  const query=[district,road,city].filter(Boolean).join(" ");
+  if(!query)return "";
+  // Google Maps'i bir adrese kilitlemek yerine arama sonuçlarını gösterir.
+  // Kullanıcı doğru cadde/sokağı seçip ardından Yol Tarifi'ne basar.
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
-
 function openMobileMap(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
   const url = service ? mobileMapUrl(service) : "";
