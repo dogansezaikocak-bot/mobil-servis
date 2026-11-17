@@ -5679,10 +5679,10 @@ function mobileRenderDetail(serviceId) {
     </div>
 
     <div class="mobile-detail-info-grid">
-      <div class="mobile-detail-box"><h3>Telefon</h3><p>${escapeHtml(service.phone || "Telefon yok")}</p></div>
-      <div class="mobile-detail-box"><h3>Tarih / Saat</h3><p>${escapeHtml(formatDate(serviceDate))} · ${escapeHtml(serviceTime)}</p></div>
-      <div class="mobile-detail-box"><h3>Kaynak</h3><p>${escapeHtml(service.source || "Kendi İşim")}</p></div>
-      <button type="button" class="mobile-detail-box mobile-money-edit-box" data-mobile-action="edit-payment" data-service-id="${escapeAttr(service.id)}"><h3>Alınan Tutar</h3><p>${escapeHtml(money(incomeTotal || service.price || 0))}</p><small>Düzenle</small></button>
+      <a class="mobile-detail-box mobile-tap-card" href="${normalizeWhatsAppPhone(service.phone) ? 'tel:+' + normalizeWhatsAppPhone(service.phone) : (digits(service.phone) ? 'tel:' + digits(service.phone) : '#')}" aria-label="Müşteriyi ara"><h3>Telefon</h3><p>${escapeHtml(service.phone || "Telefon yok")}</p></a>
+      <button type="button" class="mobile-detail-box mobile-tap-card" data-mobile-action="delay-service" data-service-id="${escapeAttr(service.id)}"><h3>Tarih / Saat</h3><p>${escapeHtml(formatDate(serviceDate))} · ${escapeHtml(serviceTime)}</p></button>
+      <button type="button" class="mobile-detail-box mobile-tap-card" data-mobile-action="quick-source" data-service-id="${escapeAttr(service.id)}"><h3>Kaynak</h3><p>${escapeHtml(service.source || "Kendi İşim")}</p></button>
+      <button type="button" class="mobile-detail-box mobile-money-edit-box mobile-tap-card" data-mobile-action="quick-amount" data-service-id="${escapeAttr(service.id)}"><h3>Alınan Tutar</h3><p>${escapeHtml(money(incomeTotal || service.price || 0))}</p></button>
     </div>
 
     <div class="mobile-detail-box"><h3>Adres</h3><p>${escapeHtml(addressText || "Adres girilmedi")}</p></div>
@@ -5719,6 +5719,78 @@ function mobileRenderDetail(serviceId) {
       <button class="mobile-repeat-service-btn" type="button" data-mobile-action="repeat-service" data-service-id="${escapeAttr(service.id)}">↻ Tekrar Kayıt Aç</button>
     </footer>
   `;
+}
+/* Mobil detay hızlı kart düzenleyicileri: kasa kapanışındaki diğer alanları değiştirmez. */
+function mobileQuickCardDialog(title, inputMarkup, onSave) {
+  document.querySelector("#ekzenQuickCardDialog")?.remove();
+  const dialog = document.createElement("dialog");
+  dialog.id = "ekzenQuickCardDialog";
+  dialog.style.cssText = "border:0;border-radius:14px;padding:18px;width:min(92vw,360px);box-shadow:0 18px 55px #0004;color:#17324d";
+  dialog.innerHTML = '<form method="dialog" id="ekzenQuickCardForm" style="display:grid;gap:14px;font-family:Arial,sans-serif">'+
+    '<h3 style="margin:0;font-size:19px">'+escapeHtml(title)+'</h3>'+inputMarkup+
+    '<div style="display:flex;gap:10px"><button type="button" id="ekzenQuickCancel" style="flex:1;padding:12px;border:1px solid #cbd5e1;border-radius:9px">Vazgeç</button>'+
+    '<button type="submit" style="flex:1;padding:12px;border:0;border-radius:9px;background:#0f766e;color:white;font-weight:bold">Kaydet</button></div></form>';
+  document.body.appendChild(dialog);
+  dialog.querySelector("#ekzenQuickCancel").onclick = () => dialog.close();
+  dialog.addEventListener("close", () => dialog.remove(), {once:true});
+  dialog.querySelector("form").addEventListener("submit", event => {
+    event.preventDefault();
+    if(onSave(dialog))dialog.close();
+  });
+  dialog.showModal();
+  dialog.querySelector("input,select")?.focus();
+}
+function mobileQuickAmount(serviceId) {
+  if(isSourcePortal())return;
+  const service=state.services.find(item=>String(item.id)===String(serviceId));
+  if(!service)return;
+  const cash=primaryCashForService(service.id);
+  const amount=Number(cash?.amount ?? service.price ?? 0)||0;
+  mobileQuickCardDialog("Alınan Tutar",
+    '<input id="ekzenQuickAmount" type="number" inputmode="decimal" min="0" step="0.01" required value="'+escapeAttr(String(amount))+'" style="width:100%;box-sizing:border-box;font-size:28px;padding:12px;border:1px solid #cbd5e1;border-radius:9px">',
+    dialog => {
+      const field=dialog.querySelector("#ekzenQuickAmount");
+      const value=Number(field.value);
+      if(field.value.trim()===""||!Number.isFinite(value)||value<0){field.setCustomValidity("Geçerli bir tutar girin");field.reportValidity();return false;}
+      if(!cash && !mobileIsDoneService(service)){alert("Tutarı değiştirmek için önce fişi kapatın.");return false;}
+      if(cash){
+        cash.amount=value;
+        syncSettlementCash(cash);
+      }
+      service.price=value;
+      // Ödeme durumu değiştirilmez: yalnızca mevcut tahsilat/kayıtlı tutar güncellenir.
+      saveState();
+      render();
+      mobileRenderDetail(service.id);
+      return true;
+    });
+}
+function mobileQuickSource(serviceId) {
+  if(isSourcePortal())return;
+  const service=state.services.find(item=>String(item.id)===String(serviceId));
+  if(!service)return;
+  const options=Array.from(new Set([service.source,...settingsList("sources")].filter(Boolean)));
+  mobileQuickCardDialog("İş Kaynağını Değiştir",
+    '<select id="ekzenQuickSource" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #cbd5e1;border-radius:9px">'+
+    options.map(name=>'<option value="'+escapeAttr(name)+'" '+(name===service.source?'selected':'')+'>'+escapeHtml(name)+'</option>').join("")+'</select>',
+    dialog => {
+      const next=dialog.querySelector("#ekzenQuickSource").value;
+      if(!next)return false;
+      if(next===service.source)return true;
+      const cash=primaryCashForService(service.id);
+      service.source=next;
+      if(cash){
+        cash.source=next;
+        cash.commissionRate=sourceCommissionRate(next);
+        cash.commission50=cash.commissionRate>0;
+        syncSettlementCash(cash);
+      }
+      saveState();
+      render();
+      // Kaynak değişikliği nedeniyle mevcut filtre fişi gizleyebilir; detayı kapat.
+      mobileCloseDetail();
+      return true;
+    });
 }
 function mobileSaveWorkNote(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
@@ -6078,6 +6150,8 @@ document.addEventListener("keydown", (event) => {
     if (action === "repeat-service" && serviceId) { event.preventDefault(); mobileRepeatService(serviceId); }
     if (action === "delete-service" && serviceId) { event.preventDefault(); deleteServiceById(serviceId); }
     if (action === "delay-service" && serviceId) mobileDelayService(serviceId);
+    if (action === "quick-source" && serviceId) { event.preventDefault(); mobileQuickSource(serviceId); }
+    if (action === "quick-amount" && serviceId) { event.preventDefault(); mobileQuickAmount(serviceId); }
     if (action === "save-delay" && serviceId) mobileSaveDelayDate(serviceId);
     if (action === "cancel-delay") document.querySelector("#mobileDelayPanel")?.remove();
     if (action === "add-note" && serviceId) { mobileSaveWorkNote(serviceId); openNoteForm(serviceId); }
