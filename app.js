@@ -4708,9 +4708,9 @@ function mobileMapUrl(service) {
   if(isAppleDevice){
     // Apple Haritalar'da bina numarasını da ara. Daire numarası harita hedefi değildir.
     // Örnekler: "372. Cadde, 30/3" veya "372. Cadde No:30 D:3".
-    const houseMatch=address.match(/(?:^|[,\\s])No\\s*:\\s*(\\d+[a-zA-Z]?(?:\\/\\d+[a-zA-Z]?)?)/iu)
-      ||address.match(/,\\s*(\\d+[a-zA-Z]?)\\s*\\/\\s*\\d+[a-zA-Z]?\\s*$/iu)
-      ||address.match(/,\\s*(\\d+[a-zA-Z]?)\\s*$/iu);
+    const houseMatch=address.match(/(?:^|[,\s])No\s*:\s*(\d+[a-zA-Z]?(?:\/\d+[a-zA-Z]?)?)/iu)
+      ||address.match(/,\s*(\d+[a-zA-Z]?)\s*\/\s*\d+[a-zA-Z]?\s*$/iu)
+      ||address.match(/,\s*(\d+[a-zA-Z]?)\s*$/iu);
     const house=houseMatch?.[1]||"";
     const neighborhood=cleanNeighborhoodName(service.neighborhood||"");
     const appleQuery=[road+(house?" No:"+house:""),neighborhood?neighborhood+" Mahallesi":"",district,city].filter(Boolean).join(", ");
