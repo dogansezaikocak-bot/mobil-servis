@@ -51,10 +51,27 @@
     cache.set(key,request);
     try{return await request;}catch(e){cache.delete(key);throw e;}
   }
+  function roadLabel(name){
+    const raw=String(name||"").trim();
+    const m=raw.match(/^(.+?)\s*\((Sokak|Cadde|Bulvar|Meydan|Küme Evler)\)$/iu);
+    if(!m)return raw;
+    const stem=m[1].trim().replace(/\.\s*$/,"");
+    const type=m[2].toLocaleLowerCase("tr-TR");
+    const suffix=type==="sokak"?"Sokak":type==="cadde"?"Cadde":type==="bulvar"?"Bulvar":type==="meydan"?"Meydan":"Küme Evler";
+    return /^\d+(?:[/-]\d+)?$/.test(stem)?stem+". "+suffix:stem+" "+suffix;
+  }
+  function roadKey(value){
+    return norm(roadLabel(value)).replace(/[().,\s/-]+/g," ").trim();
+  }
   function splitOld(value){
-    const x=String(value||"").trim();
-    const match=x.match(/^(.*?\b(?:sokak|sokağı|cadde|caddesi|bulvar|bulvarı|meydan|meydanı|küme evler)\b)\s*(?:[,;]\s*)?(.*)$/iu);
-    return match?{street:match[1].trim(),detail:match[2].trim()}:{street:"",detail:x};
+    let x=String(value||"").trim();
+    // Eski fişlerde mahalle adı sokak satırına kopyalanmış olabilir.
+    x=x.replace(/^\s*,+\s*/,"");
+    const parens=x.match(/^(.+?\s*\((?:Sokak|Cadde|Bulvar|Meydan|Küme Evler)\))\s*,?\s*(.*)$/iu);
+    if(parens)return {street:roadLabel(parens[1]),detail:parens[2].replace(/^[\s,;]+/,"").trim()};
+    const clear=x.match(/^(.+?\b(?:sokak|sokağı|cadde|caddesi|bulvar|bulvarı|meydan|meydanı|küme evler)\b)\s*[,;]?\s*(.*)$/iu);
+    if(clear)return {street:roadLabel(clear[1]),detail:clear[2].replace(/^[\s,;]+/,"").trim()};
+    return {street:"",detail:x};
   }
   function mount(root,district,neighborhood,oldValue,onChange){
     if(!root)return null;
@@ -81,13 +98,13 @@
       select.replaceChildren();
       const opt=document.createElement("option");opt.value="";opt.textContent=description;select.appendChild(opt);
       items.forEach(street=>{
-        const o=document.createElement("option");o.value=street;o.textContent=street;select.appendChild(o);
+        const o=document.createElement("option");o.value=roadLabel(street);o.textContent=roadLabel(street);select.appendChild(o);
       });
       const custom=document.createElement("option");custom.value="__manual";custom.textContent="Listede yok / Elle yaz";select.appendChild(custom);
-      if(original.street&&items.some(x=>norm(x)===norm(original.street))){
-        select.value=items.find(x=>norm(x)===norm(original.street));
+      if(original.street&&items.some(x=>roadKey(x)===roadKey(original.street))){
+        select.value=roadLabel(items.find(x=>roadKey(x)===roadKey(original.street)));
         manual.value=select.value;
-      }else if(last&&items.includes(last))select.value=last;
+      }else if(last&&items.some(x=>roadKey(x)===roadKey(last)))select.value=roadLabel(items.find(x=>roadKey(x)===roadKey(last)));
       else if(original.street)select.value="__manual";
       manual.hidden=!!select.value&&select.value!=="__manual";
     };
@@ -98,7 +115,7 @@
       if(onChange)onChange();
     });
     for(const field of [manual,detail])field.addEventListener("input",()=>onChange?.());
-    const getValue=()=>[select.value==="__manual"||!select.value?manual.value:select.value,detail.value].filter(x=>x.trim()).join(", ");
+    const getValue=()=>[roadLabel(select.value==="__manual"||!select.value?manual.value:select.value),detail.value.trim().replace(/^[,;\s]+/,"")].filter(x=>x.trim()).join(", ");
     loadStreets(district,neighborhood).then(items=>{
       if(!root.isConnected)return;
       setOptions(items,items.length?"Cadde / Sokak seçin ("+items.length+")":"Bu mahalle için sokak kaydı yok");
