@@ -5738,7 +5738,7 @@ function mobileQuickCardDialog(title, inputMarkup, onSave) {
     if(onSave(dialog))dialog.close();
   });
   dialog.showModal();
-  dialog.querySelector("input,select")?.focus();
+  dialog.querySelector("input,select,textarea")?.focus();
 }
 function mobileQuickAmount(serviceId) {
   if(isSourcePortal())return;
