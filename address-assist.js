@@ -57,11 +57,18 @@
     if(!m)return raw;
     const stem=m[1].trim().replace(/\.\s*$/,"");
     const type=m[2].toLocaleLowerCase("tr-TR");
-    const suffix=type==="sokak"?"Sokak":type==="cadde"?"Caddesi":type==="bulvar"?"Bulvarı":type==="meydan"?"Meydanı":"Küme Evler";
-    return /^\d+(?:[/-]\d+)?$/.test(stem)?stem+". "+suffix:stem+" "+suffix;
+    const numbered=/^\d+(?:[/-]\d+)?$/.test(stem);
+    const suffix=type==="sokak"?"Sokak":
+      type==="cadde"?(numbered?"Cadde":"Caddesi"):
+      type==="bulvar"?(numbered?"Bulvar":"Bulvarı"):
+      type==="meydan"?"Meydanı":"Küme Evler";
+    return numbered?stem+". "+suffix:stem+" "+suffix;
   }
   function roadKey(value){
-    return norm(roadLabel(value)).replace(/[().,\s/-]+/g," ").trim();
+    // "742. Cd.", "742. Cadde", "742. Caddesi" aynı numaralı yolu bulur.
+    return norm(roadLabel(value)).replace(/\bcd\.?\b/giu,"cadde")
+      .replace(/\bcaddesi\b/giu,"cadde")
+      .replace(/[().,\s/-]+/g," ").trim();
   }
   function splitOld(value){
     let x=String(value||"").trim();
@@ -69,7 +76,7 @@
     x=x.replace(/^\s*,+\s*/,"");
     const parens=x.match(/^(.+?\s*\((?:Sokak|Cadde|Bulvar|Meydan|Küme Evler)\))\s*,?\s*(.*)$/iu);
     if(parens)return {street:roadLabel(parens[1]),detail:parens[2].replace(/^[\s,;]+/,"").trim()};
-    const clear=x.match(/^(.+?\b(?:sokak|sokağı|cadde|caddesi|bulvar|bulvarı|meydan|meydanı|küme evler)\b)\s*[,;]?\s*(.*)$/iu);
+    const clear=x.match(/^(.+?\b(?:sokak|sokağı|cadde|caddesi|cd\.?|bulvar|bulvarı|meydan|meydanı|küme evler)\b)\s*[,;]?\s*(.*)$/iu);
     if(clear)return {street:roadLabel(clear[1]),detail:clear[2].replace(/^[\s,;]+/,"").trim()};
     return {street:"",detail:x};
   }
