@@ -13,9 +13,14 @@
     return norm(value).replace(/[çğıöşü]/g, c=>({"ç":"c","ğ":"g","ı":"i","ö":"o","ş":"s","ü":"u"}[c]))
       .normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
   }
+  function neighborhoodKey(value){
+    // PTT kaynağı "Doğantepe Mah", "Doğantepe Mah.", "Doğantepe Mahallesi"
+    // gibi ekler döndürebilir; sokak dosyalarında yalın mahalle adı tutulur.
+    return slug(String(value||"").trim().replace(/(?:\s|[.,-])*(?:mahallesi|mah\\.?|mahalle)$/iu,""));
+  }
   async function loadStreets(district,neighborhood){
     if(!district||!neighborhood)return [];
-    const districtSlug=slug(district),key=districtSlug+"|"+slug(neighborhood.replace(/\s+mahallesi$/iu,""));
+    const districtSlug=slug(district),key=districtSlug+"|"+neighborhoodKey(neighborhood);
     if(cache.has(key))return cache.get(key);
     const request=(async()=>{
       // GitHub Pages kendi statik dosyası: harita servislerinden bağımsız.
@@ -25,7 +30,7 @@
         "https://raw.githubusercontent.com/dogansezaikocak-bot/mobil-servis/main/"+relative,
         "https://cdn.jsdelivr.net/gh/dogansezaikocak-bot/mobil-servis@main/"+relative
       ];
-      const requestedSlug=slug(neighborhood.replace(/\s+mahallesi$/iu,""));
+      const requestedSlug=neighborhoodKey(neighborhood);
       const errors=[];
       for(const url of candidates){
         try{
@@ -33,9 +38,9 @@
           if(!response.ok)throw new Error("HTTP "+response.status);
           const data=await response.json();
           const neighborhoods=data.neighborhoods||{};
-          const key=Object.keys(neighborhoods).find(k=>slug(k)===requestedSlug);
+          const key=Object.keys(neighborhoods).find(k=>neighborhoodKey(k)===requestedSlug);
           const names=neighborhoods[key];
-          if(!Array.isArray(names))throw new Error("Mahalle eşleşmedi: "+requestedSlug);
+          if(!Array.isArray(names))throw new Error("Seçilen mahalle ("+neighborhood+") "+district+" sokak dosyasında bulunamadı");
           return [...new Set(names.map(cleanedStreetName).filter(Boolean))];
         }catch(error){
           errors.push(new URL(url).hostname+": "+error.message);
