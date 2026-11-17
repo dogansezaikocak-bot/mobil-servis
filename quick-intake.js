@@ -66,13 +66,14 @@ function geoFields(){
 }
 function clearGeo(){
   geoResult=null;
-  const area=get("ekzenGeoFields");if(area)area.hidden=true;
+  const area=get("ekzenGeoFields");if(area){area.hidden=true;area.style.display="none";}
   const msg=get("ekzenGeoStatus");if(msg)msg.textContent="";
 }
 function displayGeo(result){
   geoResult=result;
   const area=get("ekzenGeoFields");
   area.hidden=false;
+  area.style.display="grid";
   geoFields().forEach(field=>{get("ekzenGeo_"+field).value=result[field]||"";});
   get("ekzenGeoStatus").textContent="Harita verisinde bulunan bilgiler aşağıda. Doğru olduklarını kontrol et; eksikleri elle tamamlayabilirsin.";
 }
@@ -103,11 +104,13 @@ async function resolveGeo(){
     const response=await fetch(request.href,{headers:{"Accept":"application/json"}});
     if(!response.ok)throw new Error("Adres sorgusu başarısız ("+response.status+")");
     const data=await response.json();
+    if(get("ekzenQuickRaw")?.value!==raw)return;
     const a=data.address||{};
     const region=[a.province,a.state,a.city,a.municipality,a.county,a.state_district].filter(Boolean).join(" ");
     if(!/ankara/i.test(clean(region))){status.textContent="Harita sonucu Ankara olarak doğrulanamadı. Alanlar doldurulmadı.";return;}
     const district=matchingDistrict([a.city_district,a.town,a.municipality,a.county,a.state_district,a.suburb]);
-    const neighborhood=normalizeNeighborhood(a.neighbourhood||a.quarter||a.suburb||"");
+    const candidate=normalizeNeighborhood(a.neighbourhood||a.quarter||a.suburb||"");
+    const neighborhood=clean(candidate)===clean(district)?"":candidate;
     const road=String(a.road||a.pedestrian||a.residential||"").trim();
     const number=String(a.house_number||"").trim();
     displayGeo({district,neighborhood,road,number,lat:pin.lat,lon:pin.lon,
@@ -138,12 +141,12 @@ function createDialog(){
   '<div id="ekzenQuickPreview" style="padding:11px;background:#f3f7fa;border:1px solid #d5e2ea;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6"></div>'+
   '<button type="button" id="ekzenGeoLookup" style="padding:13px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:9px;font-weight:800;font-size:16px">📍 Konumdan Adres Çıkar</button>'+
   '<div id="ekzenGeoStatus" role="status" style="font-size:13px;line-height:1.5;color:#475569"></div>'+
-  '<div id="ekzenGeoFields" hidden style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:#f8fafc;display:grid;gap:9px">'+
+  '<div id="ekzenGeoFields" hidden style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:#f8fafc;gap:9px">'+
     '<strong style="font-size:15px">Haritadan bulunan adres — kontrol et</strong>'+
-    '<label>İlçe<input id="ekzenGeo_district" autocomplete="off" placeholder="Örn: Mamak"></label>'+
-    '<label>Mahalle<input id="ekzenGeo_neighborhood" autocomplete="off" placeholder="Örn: Peyami Safa"></label>'+
-    '<label>Cadde / Sokak<input id="ekzenGeo_road" autocomplete="off" placeholder="Örn: 372. Cadde"></label>'+
-    '<label>Kapı No<input id="ekzenGeo_number" autocomplete="off" placeholder="Haritada yoksa boş bırak"></label>'+
+    '<label>İlçe<input id="ekzenGeo_district" autocomplete="off" placeholder="Örn: Mamak" style="display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font-size:16px"></label>'+
+    '<label>Mahalle<input id="ekzenGeo_neighborhood" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font-size:16px" placeholder="Örn: Peyami Safa"></label>'+
+    '<label>Cadde / Sokak<input id="ekzenGeo_road" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font-size:16px" placeholder="Örn: 372. Cadde"></label>'+
+    '<label>Kapı No<input id="ekzenGeo_number" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font-size:16px" placeholder="Haritada yoksa boş bırak"></label>'+
     '<small>Kaydet dediğinde yalnız burada kontrol ettiğin alanlar servise aktarılır. Adres bilgisi: © OpenStreetMap katılımcıları</small>'+
   '</div>'+
   '<label style="display:grid;gap:6px;font-weight:bold">İş Kaynağı<select id="ekzenQuickSource" style="font-size:16px;padding:10px;border:1px solid #b5c8d7;border-radius:8px"></select></label>'+
