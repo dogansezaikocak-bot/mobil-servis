@@ -19,13 +19,29 @@
     if(cache.has(key))return cache.get(key);
     const request=(async()=>{
       // GitHub Pages kendi statik dosyası: harita servislerinden bağımsız.
-      const url="./data/ankara-streets/"+encodeURIComponent(districtSlug)+".json?v=2026-10";
-      const r=await fetch(url,{cache:"default"});
-      if(!r.ok)throw new Error("Ankara adres veri dosyası bulunamadı ("+r.status+")");
-      const data=await r.json();
-      const names=data.neighborhoods?.[slug(neighborhood.replace(/\s+mahallesi$/iu,""))];
-      if(!Array.isArray(names))throw new Error("Mahalle bu adres veri dosyasında yok");
-      return [...new Set(names.map(cleanedStreetName).filter(Boolean))];
+      const relative="data/ankara-streets/"+encodeURIComponent(districtSlug)+".json";
+      const candidates=[
+        new URL("./"+relative,document.querySelector('script[src*="address-assist.js"]')?.src||document.baseURI).href,
+        "https://raw.githubusercontent.com/dogansezaikocak-bot/mobil-servis/main/"+relative,
+        "https://cdn.jsdelivr.net/gh/dogansezaikocak-bot/mobil-servis@main/"+relative
+      ];
+      const requestedSlug=slug(neighborhood.replace(/\s+mahallesi$/iu,""));
+      const errors=[];
+      for(const url of candidates){
+        try{
+          const response=await fetch(url,{cache:"no-store"});
+          if(!response.ok)throw new Error("HTTP "+response.status);
+          const data=await response.json();
+          const neighborhoods=data.neighborhoods||{};
+          const key=Object.keys(neighborhoods).find(k=>slug(k)===requestedSlug);
+          const names=neighborhoods[key];
+          if(!Array.isArray(names))throw new Error("Mahalle eşleşmedi: "+requestedSlug);
+          return [...new Set(names.map(cleanedStreetName).filter(Boolean))];
+        }catch(error){
+          errors.push(new URL(url).hostname+": "+error.message);
+        }
+      }
+      throw new Error(errors.join(" | "));
     })();
     cache.set(key,request);
     try{return await request;}catch(e){cache.delete(key);throw e;}
@@ -85,11 +101,12 @@
         ?"Adres veri setinde "+items.length+" cadde/sokak kaydı bulundu. Listede yoksa elle yazın."
         :"Bu mahalle için cadde/sokak kaydı yok. Elle yazabilirsiniz.";
       if(!items.length)manual.hidden=false;
-    }).catch(()=>{
+    }).catch(error=>{
       if(!root.isConnected)return;
       setOptions([],"Sokak listesi şu anda yüklenemedi");
       select.value="__manual";manual.hidden=false;
-      note.textContent="Adres sunucuları şu anda yanıt vermedi. Tekrar denemek için mahalleyi yeniden seçebilir veya elle yazabilirsiniz.";
+      note.textContent="Sokak listesi alınamadı: "+(error?.message||"Bilinmeyen hata")+". Elle adres yazabilirsiniz.";
+      console.warn("EKZEN sokak verisi:",{district,neighborhood,error});
     });
     return {getValue};
   }
