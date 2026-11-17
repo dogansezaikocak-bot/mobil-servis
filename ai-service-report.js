@@ -8,6 +8,65 @@
   function moneyValue(x) { return new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY"}).format(Number(x)||0); }
   function status(s) { var x=get("ekzenAiStatus"); if(x)x.textContent=s; }
   function serviceNote(service) { return serviceCloseNote(service)?.text || ""; }
+  function normalizeKey(x){return String(x||"").toLocaleLowerCase("tr-TR").replace(/[^a-z0-9çğıöşü]+/gi," ").trim();}
+  function operationKey(service){
+    var note=serviceNote(service);
+    var known=["ntc","kart","pompa","devirdaim","sirkülasyon","fan","prosestat","rezistans","filtre","vana","sensör","sensor","bakım","temizlik","motor","termostat","eşanjör","ateşleme","gaz valfi"];
+    var text=normalizeKey([note,service.fault].join(" "));
+    return known.filter(function(k){return text.includes(k);}).join(" ") || text.slice(0,100);
+  }
+  function templates(){return Array.isArray(state.settings?.aiReportTemplates)?state.settings.aiReportTemplates:[];}
+  function matchesTemplate(t,service){
+    if(normalizeKey(t.device)!==normalizeKey(service.device))return false;
+    if(t.brand && normalizeKey(t.brand)!==normalizeKey(service.brand))return false;
+    var text=operationKey(service);
+    return !!(t.operation && text && (text===t.operation || text.includes(t.operation) || t.operation.includes(text)));
+  }
+  function suggestedTemplates(service){
+    return templates().filter(function(t){return matchesTemplate(t,service);})
+      .sort(function(a,b){return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));});
+  }
+  function refreshSavedOptions(){
+    var select=get("ekzenAiTemplateList");
+    if(!select||!selected)return;
+    var matches=suggestedTemplates(selected);
+    select.replaceChildren();
+    var intro=document.createElement("option");intro.value="";intro.textContent=matches.length?"Kayıtlı açıklama seç ("+matches.length+")":"Bu işleme ait kayıtlı açıklama yok";select.appendChild(intro);
+    matches.forEach(function(t){var opt=document.createElement("option");opt.value=t.id;opt.textContent=t.title||"Kayıtlı servis açıklaması";select.appendChild(opt);});
+    select.disabled=!matches.length;
+  }
+  function applySavedTemplate(id){
+    var t=templates().find(function(x){return String(x.id)===String(id);});
+    if(!t)return;
+    get("ekzenAiDiagnosis").value=t.diagnosis;
+    get("ekzenAiWork").value=t.work;
+    status("Kütüphanedeki açıklama getirildi. Kontrol edip PDF oluşturabilirsiniz.");
+  }
+  function saveTemplate(){
+    if(!selected)return;
+    var diagnosis=get("ekzenAiDiagnosis").value.trim(),work=get("ekzenAiWork").value.trim();
+    if(!diagnosis||!work){status("Önce iki açıklama alanını doldurun.");return;}
+    if(!window.confirm("Bu teknik açıklamayı benzer servislerde tekrar kullanmak üzere taslak kütüphanesine kaydedelim mi?"))return;
+    var list=templates().slice(),key=operationKey(selected);
+    if(!key){status("Taslağa kaydetmek için fişin işlem veya şikâyet bilgisini girin.");return;}
+    var title=[selected.brand,selected.device,serviceNote(selected)||selected.fault].filter(Boolean).join(" · ").slice(0,150);
+    var existing=list.find(function(x){return normalizeKey(x.brand)===normalizeKey(selected.brand)&&normalizeKey(x.device)===normalizeKey(selected.device)&&x.operation===key;});
+    var entry={id:existing?.id||("report-"+Date.now().toString(36)),brand:selected.brand||"",device:selected.device||"",operation:key,title:title,diagnosis:diagnosis,work:work,updatedAt:new Date().toISOString()};
+    if(existing){if(!window.confirm("Bu işlem için kayıtlı açıklama var. Üzerine yazılsın mı?"))return;list=list.filter(function(x){return x.id!==existing.id;});}
+    list.unshift(entry);
+    state.settings.aiReportTemplates=list.slice(0,300);
+    saveState();
+    refreshSavedOptions();
+    status("Açıklama taslak kütüphanesine kaydedildi. EKZEN bulut eşitlemesi açıksa diğer cihazlarda da kullanılabilir.");
+  }
+  function deleteTemplate(){
+    if(!selected)return;
+    var id=get("ekzenAiTemplateList")?.value;
+    if(!id)return;
+    if(!window.confirm("Seçili kayıtlı açıklamayı taslak kütüphanesinden silelim mi?"))return;
+    state.settings.aiReportTemplates=templates().filter(function(x){return String(x.id)!==String(id);});
+    saveState();refreshSavedOptions();status("Kayıtlı açıklama silindi.");
+  }
   function getDialog() {
     if (get("ekzenAiDialog")) return get("ekzenAiDialog");
     var d=document.createElement("dialog");
@@ -18,6 +77,7 @@
       '<p id="ekzenAiPerson" style="font-size:13px;color:#637185"></p><p id="ekzenAiStatus" role="status" style="color:#8b5300;font-size:13px"></p>'+
       '<label style="display:block;font-weight:bold">Müşteri Şikâyeti / Arıza Tespiti<textarea id="ekzenAiDiagnosis" rows="5" style="box-sizing:border-box;width:100%;display:block;margin:8px 0 15px;padding:10px;border:1px solid #bccada;border-radius:7px;font:14px/1.5 Arial"></textarea></label>'+
       '<label style="display:block;font-weight:bold">Yapılan İşlemler ve Açıklamalar<textarea id="ekzenAiWork" rows="6" style="box-sizing:border-box;width:100%;display:block;margin:8px 0 15px;padding:10px;border:1px solid #bccada;border-radius:7px;font:14px/1.5 Arial"></textarea></label>'+
+      '<div style="border:1px solid #d6dee7;border-radius:8px;padding:11px;margin:10px 0;background:#f7f9fb"><b style="display:block;margin-bottom:7px">Kayıtlı Teknik Açıklamalar</b><select id="ekzenAiTemplateList" style="width:100%;padding:9px;border-radius:6px;border:1px solid #bdcbd9"></select><div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap"><button type="button" id="ekzenAiSaveTemplate">Taslağa Kaydet</button><button type="button" id="ekzenAiDeleteTemplate">Seçili Kaydı Sil</button></div></div>'+ 
       '<label style="display:flex;gap:9px;align-items:center;font-size:13px"><input type="checkbox" id="ekzenAiTests"> Test ve kontroller gerçekleştirildi, cihaz müşteriye teslim edildi</label>'+
       '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">Hazır Taslak Oluştur</button><button id="ekzenAiOnline" type="button" style="padding:11px 14px;background:#087e79;color:white;border:0;border-radius:8px;font-weight:bold">✦ Yapay Zekâ ile Oluştur</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">A4 Servis Fişi / PDF</button></div>'+
       '<p style="font-size:12px;color:#65758a">Teknik taslağı kontrol edin. Yapılmayan işlemleri veya doğrulanmamış tespitleri fişe yazmayın.</p></div>';
@@ -26,6 +86,9 @@
     get("ekzenAiGenerate").onclick=generate;
     get("ekzenAiOnline").onclick=generateOnline;
     get("ekzenAiPrint").onclick=printReport;
+    get("ekzenAiSaveTemplate").onclick=saveTemplate;
+    get("ekzenAiDeleteTemplate").onclick=deleteTemplate;
+    get("ekzenAiTemplateList").onchange=function(e){if(e.target.value)applySavedTemplate(e.target.value);};
     return d;
   }
   function openReport(id) {
@@ -37,6 +100,7 @@
     get("ekzenAiDiagnosis").value=service.fault||"";
     get("ekzenAiWork").value=serviceNote(service);
     get("ekzenAiTests").checked=false;
+    refreshSavedOptions();
     status("Hazır Taslak internet gerektirmez. Yapay Zekâ seçeneği Cloudflare üzerinden çalışır. İki metni de PDF öncesi düzenleyebilirsiniz.");
     if(!d.open)d.showModal();
   }
@@ -89,10 +153,11 @@
   }
   function generate() {
     if(!selected||processing)return;
-    var draft=localTechnicalDraft(selected);
+    var candidates=suggestedTemplates(selected);
+    var draft=candidates.length?candidates[0]:localTechnicalDraft(selected);
     get("ekzenAiDiagnosis").value=draft.diagnosis;
     get("ekzenAiWork").value=draft.work;
-    status("Teknik açıklama taslağı hazır. İçeriği kontrol edip A4 servis fişini oluşturabilirsiniz.");
+    status(candidates.length?"Kütüphaneden eşleşen kayıtlı açıklama getirildi. Kontrol edip PDF oluşturabilirsiniz.":"Hazır teknik taslak oluşturuldu. Dilerseniz düzenleyip Taslağa Kaydet ile kütüphaneye ekleyin.");
   }
   async function generateOnline() {
     if(!selected||processing)return;
