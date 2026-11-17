@@ -1,0 +1,28 @@
+name: Ankara Sokak Verisi
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/ankara-streets.yml"
+      - "scripts/build_ankara_streets.py"
+permissions:
+  contents: write
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build Ankara road catalogs
+        run: python3 scripts/build_ankara_streets.py
+      - name: Commit generated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ankara-streets/
+          if git diff --cached --quiet; then
+            echo "No changes to address data."
+          else
+            git commit -m "Update static Ankara streets from October 2026 catalog"
+            git push
+          fi
