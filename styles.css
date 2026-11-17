@@ -9750,3 +9750,53 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
     display: none !important;
   }
 }
+
+/* Mobil ana sayfadaki Yeni Fiş Aç + Hızlı Kayıt görünürlüğü — 18.11 */
+@media (max-width: 820px) {
+  #mobileTechApp .ekzen-welcome-actions,
+  #mobileTechApp .ekzen-mobile-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+    width: calc(100% - 28px) !important;
+    margin: 12px 14px 16px !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+  #mobileTechApp .ekzen-welcome-actions {
+    width: 100% !important;
+    margin: 14px 0 6px !important;
+  }
+  #mobileTechApp .ekzen-mobile-actions > .mobile-welcome-new-service,
+  #mobileTechApp .ekzen-mobile-actions > .mobile-new-service-bar,
+  #mobileTechApp .ekzen-mobile-actions > .ekzen-quick-intake {
+    position: static !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 64px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 10px 6px !important;
+    border-radius: 14px !important;
+    border: 0 !important;
+    font-size: clamp(15px, 4vw, 18px) !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    color: #fff !important;
+    text-align: center !important;
+    white-space: normal !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .18) !important;
+  }
+  #mobileTechApp .ekzen-mobile-actions > .mobile-welcome-new-service,
+  #mobileTechApp .ekzen-mobile-actions > .mobile-new-service-bar {
+    background: linear-gradient(135deg, #07865b, #046349) !important;
+  }
+  #mobileTechApp .ekzen-mobile-actions > .ekzen-quick-intake {
+    background: linear-gradient(135deg, #f97316, #c2410c) !important;
+  }
+  #mobileTechApp.is-cash-mode .ekzen-mobile-actions:not(.ekzen-welcome-actions) { display:none !important; }
+}
