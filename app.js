@@ -3246,6 +3246,34 @@ function openDetail(id) {
   detailDialog.showModal();
 }
 
+function printSingleServiceCard(serviceId) {
+ const service=state.services.find(item=>String(item.id)===String(serviceId));
+ if(!service)return;
+ const safe=(value)=>escapeHtml(String(value??"").trim()||"—");
+ const address=mobileFullAddress(service)||"—";
+ const fields=[
+  ["Müşteri",service.customerName],["Telefon",service.phone],
+  ["Adres",address],["Kayıt Tarihi",formatDisplayDate(service.createdAt?.slice(0,10)||service.availableDate||"")],
+  ["Servis Tarihi",formatDisplayDate(service.visitDate||service.availableDate||"")],
+  ["Cihaz",[service.brand,service.device].filter(Boolean).join(" ")],
+  ["Model",service.model],["Şikâyet",service.fault]
+ ];
+ const rows=fields.map(([label,value])=>'<div class="line"><strong>'+safe(label)+'</strong><span>'+safe(value)+'</span></div>').join("");
+ const html='<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Servis Kartı '+safe(service.id)+'</title><style>'+
+ '@page{size:A5 portrait;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#142638;margin:0;background:#fff}'+
+ '.sheet{border:2px solid #c6d7df;border-radius:14px;padding:20px;break-inside:avoid;page-break-inside:avoid}'+
+ '.heading{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #148d82;padding-bottom:13px;margin-bottom:14px}'+
+ 'h1{font-size:21px;margin:0;color:#117c74}.number{font-size:13px;font-weight:bold}'+
+ '.line{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid #e2e8ef;font-size:14px;line-height:1.45;overflow-wrap:anywhere}'+
+ '.line:last-child{border-bottom:0}.line strong{color:#41566d}.toolbar{margin:18px auto;text-align:center}.toolbar button{background:#138b80;color:white;border:0;border-radius:8px;padding:12px 24px;font-weight:bold;cursor:pointer}'+
+ '@media print{.toolbar{display:none!important}body{margin:0}.sheet{border-color:#aabdc9}}'+
+ '</style></head><body><div class="toolbar"><button onclick="window.print()">Yazdır / PDF olarak kaydet</button></div>'+
+ '<main class="sheet"><div class="heading"><h1>SERVİS KARTI</h1><div class="number">Fiş No: '+safe(service.id)+'</div></div>'+rows+'</main></body></html>';
+ const win=window.open("","_blank");
+ if(!win){alert("PDF penceresi engellendi. Tarayıcıdan açılır pencerelere izin verin.");return;}
+ win.document.open();win.document.write(html);win.document.close();
+ win.focus();
+}
 function renderDetail(id) {
   const service = state.services.find((item) => item.id === id);
   if (!service || !matchesPortalSource(service.source)) return;
@@ -3362,7 +3390,7 @@ function renderDetail(id) {
       openServiceForm(service);
     }, { once: true });
   });
-  detailBody.querySelector("[data-print-service]")?.addEventListener("click", () => window.print(), { once: true });
+  detailBody.querySelector("[data-print-service]")?.addEventListener("click", () => printSingleServiceCard(service.id), { once: true });
 }
 
 function openStatusForm(serviceId) {
