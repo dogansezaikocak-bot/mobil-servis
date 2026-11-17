@@ -3258,17 +3258,26 @@ function printSingleServiceCard(serviceId) {
   ["Cihaz",[service.brand,service.device].filter(Boolean).join(" ")],
   ["Model",service.model],["Şikâyet",service.fault]
  ];
+ const closed=mobileIsDoneService(service);
+ const settlement=primaryCashForService(service.id);
+ const received=Number(settlement?.amount??service.price??0)||0;
+ const material=Number(settlement?.materialCost??0)||0;
+ const money=(value)=>new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY"}).format(value);
+ const financial=closed ? '<section class="financial"><div><strong>Alınan Tutar</strong><b>'+safe(money(received))+'</b></div>'+
+ (material>0?'<div><strong>Malzeme Ücreti</strong><b>'+safe(money(material))+'</b></div>':'')+
+ '<div class="grand"><strong>Genel Toplam</strong><b>'+safe(money(received+material))+'</b></div></section>' : '';
  const rows=fields.map(([label,value])=>'<div class="line"><strong>'+safe(label)+'</strong><span>'+safe(value)+'</span></div>').join("");
  const html='<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Servis Kartı '+safe(service.id)+'</title><style>'+
  '@page{size:A5 portrait;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#142638;margin:0;background:#fff}'+
  '.sheet{border:2px solid #c6d7df;border-radius:14px;padding:20px;break-inside:avoid;page-break-inside:avoid}'+
  '.heading{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #148d82;padding-bottom:13px;margin-bottom:14px}'+
  'h1{font-size:21px;margin:0;color:#117c74}.number{font-size:13px;font-weight:bold}'+
+ '.financial{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px;padding-top:13px;border-top:2px solid #148d82}.financial>div{padding:10px 6px;background:#f2f7fa;border:1px solid #d9e5ed;border-radius:8px;text-align:center;min-width:0}.financial strong{display:block;font-size:10px;margin-bottom:8px;color:#52647b}.financial b{font-size:15px;white-space:nowrap}.financial .grand{background:#e5f4f0;border-color:#83bcb1}'+
  '.line{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid #e2e8ef;font-size:14px;line-height:1.45;overflow-wrap:anywhere}'+
  '.line:last-child{border-bottom:0}.line strong{color:#41566d}.toolbar{margin:18px auto;text-align:center}.toolbar button{background:#138b80;color:white;border:0;border-radius:8px;padding:12px 24px;font-weight:bold;cursor:pointer}'+
  '@media print{.toolbar{display:none!important}body{margin:0}.sheet{border-color:#aabdc9}}'+
  '</style></head><body><div class="toolbar"><button onclick="window.print()">Yazdır / PDF olarak kaydet</button></div>'+
- '<main class="sheet"><div class="heading"><h1>SERVİS KARTI</h1><div class="number">Fiş No: '+safe(service.id)+'</div></div>'+rows+'</main></body></html>';
+ '<main class="sheet"><div class="heading"><h1>SERVİS KARTI</h1><div class="number">Fiş No: '+safe(service.id)+'</div></div>'+rows+financial+'</main></body></html>';
  const win=window.open("","_blank");
  if(!win){alert("PDF penceresi engellendi. Tarayıcıdan açılır pencerelere izin verin.");return;}
  win.document.open();win.document.write(html);win.document.close();
