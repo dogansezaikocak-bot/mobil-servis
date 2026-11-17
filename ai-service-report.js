@@ -39,6 +39,53 @@
     status("Teknik açıklama oluşturabilir veya alanları kendiniz düzenleyebilirsiniz.");
     if(!d.open)d.showModal();
   }
+  function localTechnicalDraft(service) {
+    var note=serviceNote(service).trim();
+    var key=[service.device,service.brand,service.fault,note].join(" ").toLocaleLowerCase("tr-TR");
+    var item="cihaz";
+    var symptom="Cihazın çalışma fonksiyonlarıyla ilgili arıza şikâyeti üzerine servis müdahalesi gerçekleştirilmiştir.";
+    var action="";
+    if(/kart|anakart|elektronik modül|elektronik modul/.test(key)){
+      item="elektronik kontrol kartı";
+      symptom="Cihazın elektronik kontrol sistemiyle ilgili arıza şikâyeti üzerine müdahale edilmiştir. Elektronik kart değişimi uygulanmıştır.";
+      action="Cihazın elektronik kontrol kartı değiştirilmiştir. Yeni kartın cihazla uyumlu şekilde montajı yapılmıştır.";
+    } else if(/pompa|devirdaim|sirkülasyon/.test(key)){
+      item="sirkülasyon pompası";
+      symptom="Cihazın su dolaşımı veya ısıtma performansıyla ilgili şikâyeti kapsamında sirkülasyon pompasına müdahale edilmiştir.";
+      action=/temiz/.test(key)?"Sirkülasyon pompasının temizliği yapılmıştır.": "Sirkülasyon pompasıyla ilgili bildirilen servis işlemi gerçekleştirilmiştir.";
+    } else if(/fan|prosestat/.test(key)){
+      item="fan sistemi";
+      symptom="Cihazın hava akışı veya yanma sistemiyle ilgili şikâyeti üzerine fan grubuna müdahale edilmiştir.";
+      action="Fan grubuna yönelik bildirilen servis işlemi gerçekleştirilmiştir.";
+    } else if(/ntc|sensör|sensor|termistör/.test(key)){
+      item="sıcaklık sensörü";
+      symptom="Cihazın sıcaklık algılama veya kontrol fonksiyonuyla ilgili şikâyeti üzerine sensör grubuna müdahale edilmiştir.";
+      action="Sıcaklık sensörüne yönelik bildirilen servis işlemi uygulanmıştır.";
+    } else if(/üç yollu|3 yollu|vana/.test(key)){
+      item="vana mekanizması";
+      symptom="Cihazın su yönlendirme veya ısıtma devresiyle ilgili şikâyeti kapsamında vana mekanizmasına müdahale edilmiştir.";
+      action="Vana mekanizmasıyla ilgili bildirilen servis işlemi gerçekleştirilmiştir.";
+    } else if(/rezistans|ısıtıcı/.test(key)){
+      item="ısıtıcı eleman";
+      symptom="Cihazın ısıtma işleviyle ilgili şikâyeti üzerine ısıtıcı eleman grubuna müdahale edilmiştir.";
+      action="Isıtıcı elemanla ilgili bildirilen servis işlemi uygulanmıştır.";
+    } else if(/bakım|temizlik|filtre/.test(key)){
+      item="bakım";
+      symptom="Cihazın periyodik bakım veya temizlik ihtiyacı kapsamında servis işlemi gerçekleştirilmiştir.";
+      action="Bildirilen bakım ve temizlik işlemleri uygulanmıştır.";
+    }
+    if(!action)action=note?note.replace(/[.!?]+$/,"")+".":"Cihaz üzerinde bildirilen servis işlemi gerçekleştirilmiştir.";
+    else if(note && !action.toLocaleLowerCase("tr-TR").includes(note.toLocaleLowerCase("tr-TR"))) {
+      action=note.replace(/[.!?]+$/,"")+". "+action;
+    }
+    return {diagnosis:symptom,work:action};
+  }
+  function setLocalDraft(service, reason) {
+    var draft=localTechnicalDraft(service);
+    get("ekzenAiDiagnosis").value=draft.diagnosis;
+    get("ekzenAiWork").value=draft.work;
+    status("Çevrim içi yapay zekâya ulaşılamadı ("+reason+"). Değişen parçaya göre çevrim dışı teknik taslak hazırlandı. PDF öncesi kontrol edin.");
+  }
   async function generate() {
     if(!selected||processing)return;
     var current=window.firebase?.auth?.().currentUser;
@@ -56,13 +103,17 @@
           complaint:selected.fault||"",operation:note,parts:note
         })
       });
-      var result=await response.json();
-      if(!response.ok||!result.ok)throw new Error(result.error||"Yapay zekâ bağlantısı başarısız");
+      var result=await response.json().catch(function(){return {error:"Sunucudan geçerli yanıt alınamadı"};});
+      if(!response.ok||!result.ok) {
+        var reason=result.detail||result.error||"Yapay zekâ bağlantısı başarısız";
+        throw new Error("HTTP "+response.status+": "+reason);
+      }
       get("ekzenAiDiagnosis").value=result.diagnosis||"";
       get("ekzenAiWork").value=result.work||"";
       status("Açıklamalar hazır. Kontrol edip PDF alabilirsiniz.");
     }catch(err){
-      status("Bağlantı hatası: "+err.message+". İsterseniz açıklamaları elle düzenleyip PDF hazırlayabilirsiniz.");
+      console.warn("EKZEN servis fişi AI bağlantısı:",err);
+      setLocalDraft(selected,(err && err.message)||"bağlantı hatası");
     }finally{processing=false;get("ekzenAiGenerate").disabled=false;}
   }
   function printReport(){
