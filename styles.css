@@ -9632,3 +9632,39 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
  }
  #completeDialog[open] input,#completeDialog[open] textarea,#completeDialog[open] select {font-size:16px!important;}
 }
+
+/* Masaüstü: servis açılış ve fiş kapatma formlarında kartlı, geniş, okunaklı düzen */
+@media(min-width:821px){
+ #serviceDialog .dialog-shell,#completeDialog .dialog-shell{
+  width:min(1080px,calc(100vw - 48px))!important;max-width:1080px!important;
+  max-height:calc(100dvh - 48px)!important;display:flex!important;
+  flex-direction:column!important;overflow:hidden!important;
+  border:1px solid #d2e0ed!important;border-radius:22px!important;
+  box-shadow:0 20px 60px rgba(15,23,42,.2)!important;background:#f6f9fd!important;
+ }
+ #completeDialog .dialog-shell{width:min(850px,calc(100vw - 48px))!important;}
+ #serviceDialog .dialog-body,#completeDialog .dialog-body{
+  overflow-y:auto!important;min-height:0!important;flex:1 1 auto!important;
+  padding:20px!important;gap:18px!important;
+ }
+ #serviceDialog fieldset,#completeDialog fieldset{
+  min-width:0!important;border:1.5px solid #cad9e9!important;border-radius:17px!important;
+  padding:18px!important;background:#fff!important;
+  box-shadow:0 5px 14px rgba(22,43,72,.07)!important;
+ }
+ #serviceDialog fieldset legend,#completeDialog fieldset legend{
+  font-size:16px!important;font-weight:850!important;color:#234b73!important;padding:0 8px!important;
+ }
+ #serviceDialog label,#completeDialog label{
+  font-size:14px!important;font-weight:750!important;line-height:1.45!important;min-width:0!important;
+ }
+ #serviceDialog input,#serviceDialog select,#serviceDialog textarea,
+ #completeDialog input,#completeDialog select,#completeDialog textarea{
+  min-height:42px!important;font-size:15px!important;border:1px solid #cbd7e5!important;
+  border-radius:10px!important;background:#fff!important;
+ }
+ #serviceDialog textarea,#completeDialog textarea{min-height:82px!important;resize:vertical!important;}
+ #serviceDialog .dialog-shell>footer,#completeDialog .dialog-shell>footer{
+  flex-shrink:0!important;background:#fff!important;border-top:1px solid #dce5ee!important;
+ }
+}
