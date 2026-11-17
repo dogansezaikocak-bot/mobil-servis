@@ -11,7 +11,10 @@ function extract(raw){
   // Hızlı kayıt, telefon haricindeki metni herhangi bir servis alanına dağıtmaz.
   // Ham mesaj sadece quickRawMessage içinde saklanır.
   const phone=text.replace(/https?:\/\/[^\s<>"']+/gi," ").match(/(?:\+?90[\s.-]*|0)?5\d{2}[\s.-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}\b/)?.[0]||"";
-  return {raw:text,phone};
+  const links=text.match(/https?:\/\/[^\s<>"']+/gi)||[];
+  const locationUrl=links.map(u=>u.replace(/[),;]+$/,"")).find(u=>
+    typeof safeServiceLocationUrl==="function"&&safeServiceLocationUrl(u))||"";
+  return {raw:text,phone,locationUrl};
 }
 
 /* Harita paylaşımındaki gerçek pin koordinatından adres çözümlemesi.
@@ -164,7 +167,7 @@ function showPreview(){
   get("ekzenQuickPreview").textContent=p.raw
     ? "Mesaj, fişte \"Hızlı Kayıt — Eksik Bilgileri Tamamla\" kutusunda saklanacak.\n"+
       (p.phone?"Telefon arama alanına kaydedilecek: "+p.phone:"Telefon bulunamadı; daha sonra ekleyebilirsin.")+
-      "\nAdres, şikâyet ve yapılan işlemler boş kalacak."
+      "\nAdres yalnızca konumdan bulunup kontrol edildiyse doldurulacak. Şikâyet ve yapılan işlemler boş kalacak."
     : "Mesajı yapıştır; tamamı fişteki Hızlı Kayıt kutusunda korunacak.";
 }
 function open(){
@@ -190,7 +193,7 @@ function save(){
   const service={
     id:nextServiceId(),customerName:"",phone:p.phone,city:"Ankara",
     district:confirmed?.district||"",neighborhood:confirmed?.neighborhood||"",
-    address:confirmed?.address||"",locationUrl:confirmed?.locationUrl||"",
+    address:confirmed?.address||"",locationUrl:confirmed?.locationUrl||p.locationUrl||"",
     brand:"",device:"",model:"",fault:"",source:get("ekzenQuickSource").value||"Kendi İşim",
     status:"Yeni Kayıt",paymentStatus:"",availableDate:date,visitDate:date,availableTime:"",
     warrantyEnd:addYear(today),operatorNote:"",createdAt:now,price:0,
