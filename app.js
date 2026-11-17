@@ -5614,6 +5614,7 @@ function mobileRenderDetail(serviceId) {
       <button class="mobile-delay-btn" type="button" data-mobile-action="delay-service" data-service-id="${escapeAttr(service.id)}">Ertele</button>
       <button class="mobile-close-btn" type="button" data-mobile-action="finish-service" data-service-id="${escapeAttr(service.id)}">Fişi Kapat</button>
       <button class="mobile-delete-service-btn" type="button" data-mobile-action="delete-service" data-service-id="${escapeAttr(service.id)}">Fişi Sil</button>
+      <button class="mobile-repeat-service-btn" type="button" data-mobile-action="repeat-service" data-service-id="${escapeAttr(service.id)}">↻ Tekrar Kayıt Aç</button>
     </footer>
   `;
 }
@@ -5642,7 +5643,7 @@ function mobileFinishService(serviceId) {
   mobileCloseDetail();
   openCompleteForm(serviceId);
   if (note && completeForm?.elements?.workNote) completeForm.elements.workNote.value = note;
-  setTimeout(() => completeForm?.elements?.amount?.focus({ preventScroll: true }), 80);
+  // Mobil klavye kapanış formunu örtmesin: alanı kullanıcı seçtiğinde odakla.
 }
 
 function mobileDelayService(serviceId) {
@@ -5724,6 +5725,28 @@ function openMobileNewServiceWizard() {
     document.body.appendChild(overlay);
   }
   overlay.removeAttribute("hidden");
+  renderMobileNewServiceStep();
+}
+
+function mobileRepeatService(serviceId) {
+  const original = state.services.find((item) => item.id === serviceId);
+  if (!original) return;
+  mobileCloseDetail();
+  openMobileNewServiceWizard();
+  mobileNewServiceData = {
+    availableDate: isoToday,
+    source: isSourcePortal() ? portalSourceName() : (original.source || "Kendi İşim"),
+    customerName: original.customerName || "",
+    phone: original.phone || "",
+    address: original.address || "",
+    locationUrl: original.locationUrl || "",
+    fault: "",
+    device: "",
+    brand: "",
+    model: ""
+  };
+  // Müşteri bilgileri hazır; kullanıcı yeni cihaz ve arıza bilgilerini girsin.
+  mobileNewServiceIndex = mobileNewServiceSteps.findIndex((step) => step.key === "fault");
   renderMobileNewServiceStep();
 }
 
@@ -5900,6 +5923,7 @@ document.addEventListener("keydown", (event) => {
     if (action === "open-detail" && serviceId) mobileOpenDetail(serviceId);
     if (action === "close-detail") mobileCloseDetail();
     if (action === "finish-service" && serviceId) mobileFinishService(serviceId);
+    if (action === "repeat-service" && serviceId) { event.preventDefault(); mobileRepeatService(serviceId); }
     if (action === "delete-service" && serviceId) { event.preventDefault(); deleteServiceById(serviceId); }
     if (action === "delay-service" && serviceId) mobileDelayService(serviceId);
     if (action === "save-delay" && serviceId) mobileSaveDelayDate(serviceId);
