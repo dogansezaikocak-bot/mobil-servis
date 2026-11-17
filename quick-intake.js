@@ -99,9 +99,16 @@ function inject(){
     b.dataset.quickIntakeAdded="true";
     const btn=document.createElement("button");btn.type="button";btn.className="ekzen-quick-intake";btn.textContent="⚡ Hızlı Kayıt";
     btn.style.cssText="padding:10px 14px;margin:6px;border-radius:10px;border:1px solid #0f766e;background:#e5f4f0;color:#155e52;font-size:14px;font-weight:800;cursor:pointer";
-    if(b.classList.contains("mobile-new-service-bar"))btn.style.cssText+=";display:block;width:calc(100% - 24px);min-height:50px;margin:8px 12px";
     btn.onclick=e=>{e.preventDefault();e.stopPropagation();open();};
-    b.insertAdjacentElement("afterend",btn);
+    if(b.classList.contains("mobile-new-service-bar")){
+      const parent=document.createElement("div");
+      parent.className="ekzen-mobile-actions";
+      b.parentNode.insertBefore(parent,b);
+      parent.appendChild(b);
+      parent.appendChild(btn);
+    }else{
+      b.insertAdjacentElement("afterend",btn);
+    }
   });
 }
 inject();
