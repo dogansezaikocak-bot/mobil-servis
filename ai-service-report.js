@@ -79,13 +79,14 @@
       '<label style="display:block;font-weight:bold">Yapılan İşlemler ve Açıklamalar<textarea id="ekzenAiWork" rows="6" style="box-sizing:border-box;width:100%;display:block;margin:8px 0 15px;padding:10px;border:1px solid #bccada;border-radius:7px;font:14px/1.5 Arial"></textarea></label>'+
       '<div style="border:1px solid #d6dee7;border-radius:8px;padding:11px;margin:10px 0;background:#f7f9fb"><b style="display:block;margin-bottom:7px">Kayıtlı Teknik Açıklamalar</b><select id="ekzenAiTemplateList" style="width:100%;padding:9px;border-radius:6px;border:1px solid #bdcbd9"></select><div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap"><button type="button" id="ekzenAiSaveTemplate">Taslağa Kaydet</button><button type="button" id="ekzenAiDeleteTemplate">Seçili Kaydı Sil</button></div></div>'+ 
       '<label style="display:flex;gap:9px;align-items:center;font-size:13px"><input type="checkbox" id="ekzenAiTests"> Test ve kontroller gerçekleştirildi, cihaz müşteriye teslim edildi</label>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">Hazır Taslak Oluştur</button><button id="ekzenAiOnline" type="button" style="padding:11px 14px;background:#087e79;color:white;border:0;border-radius:8px;font-weight:bold">✦ Yapay Zekâ ile Oluştur</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">A4 Servis Fişi / PDF</button><button id="ekzenAiShare" type="button" style="padding:11px 14px;background:#16834d;color:white;border:0;border-radius:8px;font-weight:bold">Müşteri WhatsApp’ını Aç / PDF</button></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">Hazır Taslak Oluştur</button><button id="ekzenAiOnline" type="button" style="padding:11px 14px;background:#087e79;color:white;border:0;border-radius:8px;font-weight:bold">✦ Yapay Zekâ ile Oluştur</button><button id="ekzenAiDownloadPdf" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">↓ PDF Kaydet</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">⎙ Yazdır / Önizle</button><button id="ekzenAiShare" type="button" style="padding:11px 14px;background:#16834d;color:white;border:0;border-radius:8px;font-weight:bold">Müşteri WhatsApp’ını Aç / PDF</button></div>'+
       '<p style="font-size:12px;color:#65758a">Teknik taslağı kontrol edin. Yapılmayan işlemleri veya doğrulanmamış tespitleri fişe yazmayın.</p></div>';
     document.body.appendChild(d);
     get("ekzenAiClose").onclick=function(){d.close();};
     get("ekzenAiGenerate").onclick=generate;
     get("ekzenAiOnline").onclick=generateOnline;
     get("ekzenAiPrint").onclick=printReport;
+    get("ekzenAiDownloadPdf").onclick=savePdfDirect;
     ["ekzenAiDiagnosis","ekzenAiWork","ekzenAiTests"].forEach(function(id){get(id).addEventListener("input",function(){preparedShare=null;});});
     get("ekzenAiShare").onclick=shareReport;
     get("ekzenAiSaveTemplate").onclick=saveTemplate;
@@ -244,6 +245,34 @@
     var win=window.open("","_blank");
     if(!win){status("Açılır pencere engellendi. Tarayıcıdan izin verin.");return;}
     win.document.open();win.document.write(html);win.document.close();win.focus();
+    // Mobil tarayıcı yeni sekmede üst araç düğmesini gizleyebilir.
+    // Kullanıcının Yazdır eyleminde doğrudan sistem yazdırma ekranını da dene.
+    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+      win.addEventListener("load",function(){setTimeout(function(){try{win.print();}catch(e){console.warn("Mobil yazdırma:",e);}},250);},{once:true});
+      status("Mobil yazdırma ekranı açılıyor. Açılmazsa A4 önizlemesinden tarayıcının Paylaş / Yazdır seçeneğini kullanabilirsiniz.");
+    }
+  }
+  function reportFilename(service) {
+    return "EKZEN-Servis-Fisi-"+String(service.customerName||service.id||"Musteri")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,70)+".pdf";
+  }
+  async function savePdfDirect() {
+    if(!selected||processing)return;
+    var button=get("ekzenAiDownloadPdf");
+    var html=printReport("share");
+    if(!html)return;
+    processing=true;
+    button.disabled=true;
+    status("PDF dosyası hazırlanıyor...");
+    try {
+      var file=await makePdf(html,reportFilename(selected));
+      downloadFile(file);
+      status("PDF hazırlandı ve indirildi. Telefonda Dosyalar / İndirilenler bölümünde bulabilirsiniz.");
+    }catch(e){
+      console.warn("EKZEN PDF kaydetme hatası:",e);
+      status("PDF indirilemedi: "+(e?.message||"Bilinmeyen hata")+". Yazdır / Önizle seçeneğini kullanabilirsiniz.");
+    }finally{processing=false;button.disabled=false;}
   }
   function customerWhatsAppPhone(service) {
     var raw=String(service?.phone||"").replace(/\D/g,"");
