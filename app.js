@@ -4705,7 +4705,17 @@ function mobileMapUrl(service) {
   // iPhone/iPad/Mac'te Apple Haritalar'ı aç; kullanıcı arama sonuçlarından
   // doğru yolu seçer. Android/Windows için Google Maps araması yedektir.
   const isAppleDevice=/iPhone|iPad|iPod|Macintosh/i.test(navigator.userAgent);
-  if(isAppleDevice)return `https://maps.apple.com/?q=${encodeURIComponent(query)}`;
+  if(isAppleDevice){
+    // Apple Haritalar'da bina numarasını da ara. Daire numarası harita hedefi değildir.
+    // Örnekler: "372. Cadde, 30/3" veya "372. Cadde No:30 D:3".
+    const houseMatch=address.match(/(?:^|[,\\s])No\\s*:\\s*(\\d+[a-zA-Z]?(?:\\/\\d+[a-zA-Z]?)?)/iu)
+      ||address.match(/,\\s*(\\d+[a-zA-Z]?)\\s*\\/\\s*\\d+[a-zA-Z]?\\s*$/iu)
+      ||address.match(/,\\s*(\\d+[a-zA-Z]?)\\s*$/iu);
+    const house=houseMatch?.[1]||"";
+    const neighborhood=cleanNeighborhoodName(service.neighborhood||"");
+    const appleQuery=[road+(house?" No:"+house:""),neighborhood?neighborhood+" Mahallesi":"",district,city].filter(Boolean).join(", ");
+    return `https://maps.apple.com/?q=${encodeURIComponent(appleQuery)}`;
+  }
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 function openMobileMap(serviceId) {
