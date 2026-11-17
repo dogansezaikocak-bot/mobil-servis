@@ -19,11 +19,12 @@
       '<label style="display:block;font-weight:bold">Müşteri Şikâyeti / Arıza Tespiti<textarea id="ekzenAiDiagnosis" rows="5" style="box-sizing:border-box;width:100%;display:block;margin:8px 0 15px;padding:10px;border:1px solid #bccada;border-radius:7px;font:14px/1.5 Arial"></textarea></label>'+
       '<label style="display:block;font-weight:bold">Yapılan İşlemler ve Açıklamalar<textarea id="ekzenAiWork" rows="6" style="box-sizing:border-box;width:100%;display:block;margin:8px 0 15px;padding:10px;border:1px solid #bccada;border-radius:7px;font:14px/1.5 Arial"></textarea></label>'+
       '<label style="display:flex;gap:9px;align-items:center;font-size:13px"><input type="checkbox" id="ekzenAiTests"> Test ve kontroller gerçekleştirildi, cihaz müşteriye teslim edildi</label>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">✦ Teknik Açıklama Hazırla</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">A4 Servis Fişi / PDF</button></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">Hazır Taslak Oluştur</button><button id="ekzenAiOnline" type="button" style="padding:11px 14px;background:#087e79;color:white;border:0;border-radius:8px;font-weight:bold">✦ Yapay Zekâ ile Oluştur</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">A4 Servis Fişi / PDF</button></div>'+
       '<p style="font-size:12px;color:#65758a">Teknik taslağı kontrol edin. Yapılmayan işlemleri veya doğrulanmamış tespitleri fişe yazmayın.</p></div>';
     document.body.appendChild(d);
     get("ekzenAiClose").onclick=function(){d.close();};
     get("ekzenAiGenerate").onclick=generate;
+    get("ekzenAiOnline").onclick=generateOnline;
     get("ekzenAiPrint").onclick=printReport;
     return d;
   }
@@ -36,7 +37,7 @@
     get("ekzenAiDiagnosis").value=service.fault||"";
     get("ekzenAiWork").value=serviceNote(service);
     get("ekzenAiTests").checked=false;
-    status("Değişen parçaya göre teknik açıklama taslağı hazırlayabilir veya alanları düzenleyebilirsiniz.");
+    status("Hazır Taslak internet gerektirmez. Yapay Zekâ seçeneği Cloudflare üzerinden çalışır. İki metni de PDF öncesi düzenleyebilirsiniz.");
     if(!d.open)d.showModal();
   }
   function localTechnicalDraft(service) {
@@ -92,6 +93,46 @@
     get("ekzenAiDiagnosis").value=draft.diagnosis;
     get("ekzenAiWork").value=draft.work;
     status("Teknik açıklama taslağı hazır. İçeriği kontrol edip A4 servis fişini oluşturabilirsiniz.");
+  }
+  async function generateOnline() {
+    if(!selected||processing)return;
+    var user=window.firebase?.auth?.().currentUser;
+    if(!user||typeof user.getIdToken!=="function"){
+      status("Yapay zekâ için EKZEN oturumu bulunamadı. Uygulamaya yeniden giriş yapın.");return;
+    }
+    processing=true;
+    var btn=get("ekzenAiOnline");
+    btn.disabled=true;
+    status("Yapay zekâya bağlanıyor...");
+    try {
+      var token=await user.getIdToken();
+      var note=serviceNote(selected);
+      var response=await fetch(ENDPOINT,{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body:JSON.stringify({
+          device:selected.device||"",
+          brand:selected.brand||"",
+          model:selected.model||"",
+          complaint:selected.fault||"",
+          operation:note,
+          parts:note
+        })
+      });
+      var result=await response.json().catch(function(){return {error:"Sunucudan geçerli yanıt alınamadı"};});
+      if(!response.ok||!result.ok){
+        throw new Error(result.detail||result.error||("HTTP "+response.status));
+      }
+      get("ekzenAiDiagnosis").value=result.diagnosis||"";
+      get("ekzenAiWork").value=result.work||"";
+      status("Yapay zekâ metni oluşturuldu. PDF öncesi doğruluğunu kontrol edin.");
+    }catch(e){
+      console.warn("EKZEN AI fişi bağlantısı:",e);
+      status("Yapay zekâ bağlantısı henüz çalışmıyor: "+e.message+". Mevcut açıklamalar korunmuştur; Hazır Taslak seçeneğini kullanabilirsiniz.");
+    }finally{
+      processing=false;
+      btn.disabled=false;
+    }
   }
   function printReport(){
     if(!selected)return;
