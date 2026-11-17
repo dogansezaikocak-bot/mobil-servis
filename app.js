@@ -5685,8 +5685,8 @@ function mobileRenderDetail(serviceId) {
       <button type="button" class="mobile-detail-box mobile-money-edit-box mobile-tap-card" data-mobile-action="quick-amount" data-service-id="${escapeAttr(service.id)}"><h3>Alınan Tutar</h3><p>${escapeHtml(money(incomeTotal || service.price || 0))}</p></button>
     </div>
 
-    <div class="mobile-detail-box"><h3>Adres</h3><p>${escapeHtml(addressText || "Adres girilmedi")}</p></div>
-    <div class="mobile-detail-box mobile-fault-box"><h3>Şikayet</h3><p>${escapeHtml(service.fault || "Şikayet yazılmadı")}</p></div>
+    <button type="button" class="mobile-detail-box mobile-tap-card" data-mobile-action="quick-address" data-service-id="${escapeAttr(service.id)}"><h3>Adres</h3><p>${escapeHtml(addressText || "Adres girilmedi")}</p></button>
+    <button type="button" class="mobile-detail-box mobile-fault-box mobile-tap-card" data-mobile-action="quick-complaint" data-service-id="${escapeAttr(service.id)}"><h3>Şikayet</h3><p>${escapeHtml(service.fault || "Şikayet yazılmadı")}</p></button>
 
     <div class="mobile-detail-box">
       <h3>Servis Durumu</h3>
@@ -5789,6 +5789,37 @@ function mobileQuickSource(serviceId) {
       render();
       // Kaynak değişikliği nedeniyle mevcut filtre fişi gizleyebilir; detayı kapat.
       mobileCloseDetail();
+      return true;
+    });
+}
+function mobileQuickAddress(serviceId) {
+  if(isSourcePortal())return;
+  const service=state.services.find(item=>String(item.id)===String(serviceId));
+  if(!service)return;
+  // İl / ilçe / mahalle mevcut seçimlerden gelir. Yalnızca sokak-bina-daire satırı düzenlenir.
+  mobileQuickCardDialog("Adres Düzenle",
+    '<p style="margin:0;font-size:13px;color:#64748b">İlçe ve mahalle aynı kalacak. Sokak, bina ve daire bilgisini değiştir.</p>'+
+    '<input id="ekzenQuickAddress" type="text" maxlength="300" autocomplete="street-address" value="'+escapeAttr(String(service.address||""))+'" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #cbd5e1;border-radius:9px">',
+    dialog => {
+      const value=dialog.querySelector("#ekzenQuickAddress").value.trim();
+      service.address=removeSelectedNeighborhoodPrefix(value,service.neighborhood);
+      mobileSaveWorkNote(service.id);
+      saveState();
+      mobileRenderDetail(service.id);
+      return true;
+    });
+}
+function mobileQuickComplaint(serviceId) {
+  if(isSourcePortal())return;
+  const service=state.services.find(item=>String(item.id)===String(serviceId));
+  if(!service)return;
+  mobileQuickCardDialog("Şikayeti Düzenle",
+    '<textarea id="ekzenQuickComplaint" rows="3" maxlength="1200" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #cbd5e1;border-radius:9px;resize:vertical">'+escapeHtml(service.fault||"")+'</textarea>',
+    dialog => {
+      service.fault=dialog.querySelector("#ekzenQuickComplaint").value.trim();
+      mobileSaveWorkNote(service.id);
+      saveState();
+      mobileRenderDetail(service.id);
       return true;
     });
 }
@@ -6152,6 +6183,8 @@ document.addEventListener("keydown", (event) => {
     if (action === "delay-service" && serviceId) mobileDelayService(serviceId);
     if (action === "quick-source" && serviceId) { event.preventDefault(); mobileQuickSource(serviceId); }
     if (action === "quick-amount" && serviceId) { event.preventDefault(); mobileQuickAmount(serviceId); }
+    if (action === "quick-address" && serviceId) { event.preventDefault(); mobileQuickAddress(serviceId); }
+    if (action === "quick-complaint" && serviceId) { event.preventDefault(); mobileQuickComplaint(serviceId); }
     if (action === "save-delay" && serviceId) mobileSaveDelayDate(serviceId);
     if (action === "cancel-delay") document.querySelector("#mobileDelayPanel")?.remove();
     if (action === "add-note" && serviceId) { mobileSaveWorkNote(serviceId); openNoteForm(serviceId); }
