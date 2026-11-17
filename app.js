@@ -5754,7 +5754,6 @@ function mobileRenderDetail(serviceId) {
 
     ${service.quickDraft ? `<section class="mobile-detail-box" style="border-left:4px solid #0f766e;margin-bottom:12px">
       <h3>⚡ Hızlı Kayıt — Eksik Bilgileri Tamamla</h3>
-      <p style="white-space:pre-wrap;font-weight:500;font-size:14px">${escapeHtml(service.quickRawMessage || "")}</p>
       <button type="button" data-mobile-action="edit-service" data-service-id="${escapeAttr(service.id)}" style="margin-top:12px;padding:12px 14px;border:0;border-radius:9px;background:#0f766e;color:white;font-weight:bold">Bilgileri Düzenle</button>
     </section>` : ""}
     <div class="mobile-detail-info-grid">
