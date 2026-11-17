@@ -5683,6 +5683,16 @@ function mobileRenderDetail(serviceId) {
 
     ${service.photos?.length ? `<div class="mobile-photo-strip">${service.photos.slice(0, 4).map((photo) => `<img src="${escapeAttr(photo.dataUrl)}" alt="Servis fotoğrafı" data-action="open-photo-viewer" data-service-id="${escapeAttr(service.id)}" data-photo-id="${escapeAttr(photo.id)}">`).join("")}</div>` : ""}
 
+    ${mobileIsDoneService(service) ? `
+    <section class="mobile-detail-box" style="margin-top:12px">
+      <h3>Servis Fişi İşlemleri</h3>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px">
+        <button type="button" data-ai-service-report="${escapeAttr(service.id)}" style="min-height:52px;background:#0f766e;color:#fff;border:0;border-radius:10px;font-size:14px;font-weight:700">📄 PDF / WhatsApp</button>
+        <button type="button" data-print-service-card="${escapeAttr(service.id)}" style="min-height:52px;background:#eaf0f6;color:#173454;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700">⎙ Yazdır</button>
+      </div>
+      <small style="display:block;margin-top:7px;color:#64748b">PDF / WhatsApp: teknik açıklamalar, A4 PDF ve WhatsApp paylaşımı</small>
+    </section>` : ""}
+
     <footer class="mobile-sheet-footer">
       <button class="mobile-delay-btn" type="button" data-mobile-action="delay-service" data-service-id="${escapeAttr(service.id)}">Ertele</button>
       <button class="mobile-close-btn" type="button" data-mobile-action="finish-service" data-service-id="${escapeAttr(service.id)}">Fişi Kapat</button>
