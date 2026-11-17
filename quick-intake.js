@@ -23,7 +23,8 @@ function extract(raw){
   const remainder=street?simple.slice(simple.indexOf(street)+street.length):"";
   const number=remainder.match(/^\s*(?:,?\s*(?:No|Numara)\s*:?\s*)?(\d+[A-Za-z]?(?:\s*\/\s*\d+[A-Za-z]?)?)/iu)?.[1]?.replace(/\s+/g,"")||"";
   const apartment=simple.match(/([A-Za-zÇĞİÖŞÜçğıöşü][A-Za-zÇĞİÖŞÜçğıöşü\s]{1,32})\s+(?:apartmanı|apt\.?|sitesi)\b/iu)?.[0]?.trim()||"";
-  const address=[street,number,apartment].filter(Boolean).join(", ")||(!locationUrl&&!device&&!brand?simple:"");
+  // Hızlı kayıt: WhatsApp metninin tamamı açık adreste kalsın; konum URL\u0027si ayrı alanda tutulur.
+  const address=text.replace(/https?:\/\/[^\s<>"\u0027]+/gi," ").replace(/[ \t]+/g," ").trim();
   const fault=simple.split(/[.!?\n]/).map(s=>s.trim()).find(s=>/akıt|çalışm|ısıtm|soğutm|sıkm|ses yap|su alm|hata ver|arızal/i.test(s))||"";
   return {raw:text,locationUrl,phone,district,device,brand,address,fault};
 }
@@ -37,7 +38,7 @@ function createDialog(){
   '<div id="ekzenQuickPreview" style="padding:11px;background:#f3f7fa;border:1px solid #d5e2ea;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6"></div>'+
   '<label style="display:grid;gap:6px;font-weight:bold">İş Kaynağı<select id="ekzenQuickSource" style="font-size:16px;padding:10px;border:1px solid #b5c8d7;border-radius:8px"></select></label>'+
   '<button id="ekzenQuickSave" type="button" style="padding:14px;background:#0f766e;border:0;border-radius:9px;color:#fff;font-size:17px;font-weight:bold">Hızlı Kaydet</button>'+
-  '<small style="color:#64748b">Eksik bilgiler boş kalır. Orijinal mesaj korunur. Fişi sonra düzenleyebilirsin.</small><p id="ekzenQuickError" role="alert" style="color:#b91c1c;margin:0"></p></div>';
+  '<small style="color:#64748b">Mesaj Açık Adres alanına, harita bağlantısı Konum alanına kaydedilir. Yapılan İşlemler boş kalır.</small><p id="ekzenQuickError" role="alert" style="color:#b91c1c;margin:0"></p></div>';
   document.body.appendChild(d);
   get("ekzenQuickClose").onclick=()=>d.close();
   get("ekzenQuickRaw").oninput=showPreview;
@@ -81,7 +82,7 @@ function save(){
     status:"Yeni Kayıt",paymentStatus:"",availableDate:date,visitDate:date,availableTime:"",
     warrantyEnd:addYear(today),operatorNote:"",createdAt:now,price:0,
     sortOrder:state.services.reduce((min,item)=>Math.min(min,Number.isFinite(Number(item.sortOrder))?Number(item.sortOrder):0),0)-1,
-    notes:[{id:uid(),text:"WhatsApp orijinal mesaj:\n"+raw,createdAt:now,updatedAt:""}],
+    notes:[],
     photos:[],quickDraft:true,quickRawMessage:raw,
     statusHistory:[{id:uid(),date,status:"Yeni Kayıt",description:"WhatsApp hızlı kayıt – eksik bilgiler sonra tamamlanacak",createdAt:now}],
     history:[]
