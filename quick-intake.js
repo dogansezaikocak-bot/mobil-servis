@@ -8,25 +8,10 @@ const devices=["çamaşır makinesi","bulaşık makinesi","kurutma makinesi","bu
 const brands=["Bosch","Siemens","Profilo","Arçelik","Beko","Altus","Samsung","Miele","Vaillant","Demirdöküm","Baymak","Buderus","ECA","Protherm","Airfel","Ferroli"];
 function extract(raw){
   const text=String(raw||"").trim();
-  const links=text.match(/https?:\/\/[^\s<>"']+/gi)||[];
-  let locationUrl="";
-  for(const link of links){
-    const candidate=link.replace(/[),;]+$/,"");
-    if(typeof safeServiceLocationUrl==="function"&&safeServiceLocationUrl(candidate)){locationUrl=candidate;break;}
-  }
-  const simple=text.replace(/https?:\/\/[^\s<>"']+/gi," ").replace(/\s+/g," ").trim();
-  const phone=simple.match(/(?:\+?90\s*|0)?5\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/)?.[0]||"";
-  const district=districts.find(x=>new RegExp("(^|\\W)"+clean(x)+"($|\\W)","i").test(clean(simple)))||"";
-  const device=devices.find(x=>clean(simple).includes(clean(x)))||"";
-  const brand=brands.find(x=>clean(simple).includes(clean(x)))||"";
-  const street=simple.match(/(?:^|[,;]|\s)([A-Za-zÇĞİÖŞÜçğıöşü0-9][A-Za-zÇĞİÖŞÜçğıöşü0-9. \-]{0,65}?\s+(?:caddesi|cadde|cd\.?|sokak|sokağı|sk\.?|bulvarı))\b/iu)?.[1]?.trim()||"";
-  const remainder=street?simple.slice(simple.indexOf(street)+street.length):"";
-  const number=remainder.match(/^\s*(?:,?\s*(?:No|Numara)\s*:?\s*)?(\d+[A-Za-z]?(?:\s*\/\s*\d+[A-Za-z]?)?)/iu)?.[1]?.replace(/\s+/g,"")||"";
-  const apartment=simple.match(/([A-Za-zÇĞİÖŞÜçğıöşü][A-Za-zÇĞİÖŞÜçğıöşü\s]{1,32})\s+(?:apartmanı|apt\.?|sitesi)\b/iu)?.[0]?.trim()||"";
-  // Hızlı kayıt: WhatsApp metninin tamamı açık adreste kalsın; konum URL\u0027si ayrı alanda tutulur.
-  const address=text.replace(/https?:\/\/[^\s<>"\u0027]+/gi," ").replace(/[ \t]+/g," ").trim();
-  const fault=""; // Hızlı Kayıt şikâyeti otomatik doldurmaz.
-  return {raw:text,locationUrl,phone,district,device,brand,address,fault};
+  // Hızlı kayıt, telefon haricindeki metni herhangi bir servis alanına dağıtmaz.
+  // Ham mesaj sadece quickRawMessage içinde saklanır.
+  const phone=text.replace(/https?:\/\/[^\s<>"']+/gi," ").match(/(?:\+?90[\s.-]*|0)?5\d{2}[\s.-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}\b/)?.[0]||"";
+  return {raw:text,phone};
 }
 function createDialog(){
   if(get("ekzenQuickIntake"))return get("ekzenQuickIntake");
@@ -38,7 +23,7 @@ function createDialog(){
   '<div id="ekzenQuickPreview" style="padding:11px;background:#f3f7fa;border:1px solid #d5e2ea;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6"></div>'+
   '<label style="display:grid;gap:6px;font-weight:bold">İş Kaynağı<select id="ekzenQuickSource" style="font-size:16px;padding:10px;border:1px solid #b5c8d7;border-radius:8px"></select></label>'+
   '<button id="ekzenQuickSave" type="button" style="padding:14px;background:#0f766e;border:0;border-radius:9px;color:#fff;font-size:17px;font-weight:bold">Hızlı Kaydet</button>'+
-  '<small style="color:#64748b">Mesaj Açık Adres alanına, harita bağlantısı Konum alanına kaydedilir. Yapılan İşlemler boş kalır.</small><p id="ekzenQuickError" role="alert" style="color:#b91c1c;margin:0"></p></div>';
+  '<small style="color:#64748b">Yapıştırılan mesaj yalnızca Hızlı Kayıt bilgi kutusunda saklanır. Telefon varsa arama için kaydedilir.</small><p id="ekzenQuickError" role="alert" style="color:#b91c1c;margin:0"></p></div>';
   document.body.appendChild(d);
   get("ekzenQuickClose").onclick=()=>d.close();
   get("ekzenQuickRaw").oninput=showPreview;
@@ -47,13 +32,11 @@ function createDialog(){
 }
 function showPreview(){
   const p=extract(get("ekzenQuickRaw")?.value||"");
-  const info=[];
-  if(p.phone)info.push("Telefon: "+p.phone);
-  if(p.district)info.push("İlçe: "+p.district);
-  if(p.address)info.push("Adres: "+p.address);
-  if(p.brand||p.device)info.push("Cihaz: "+[p.brand,p.device].filter(Boolean).join(" "));
-  if(p.locationUrl)info.push("WhatsApp/Harita konumu: Bağlantı alındı");
-  get("ekzenQuickPreview").textContent=info.join("\n")||"Henüz ayrıştırılan bilgi yok. Mesaj olduğu gibi kaydedilecek.";
+  get("ekzenQuickPreview").textContent=p.raw
+    ? "Mesaj, fişte \"Hızlı Kayıt — Eksik Bilgileri Tamamla\" kutusunda saklanacak.\n"+
+      (p.phone?"Telefon arama alanına kaydedilecek: "+p.phone:"Telefon bulunamadı; daha sonra ekleyebilirsin.")+
+      "\nAdres, şikâyet ve yapılan işlemler boş kalacak."
+    : "Mesajı yapıştır; tamamı fişteki Hızlı Kayıt kutusunda korunacak.";
 }
 function open(){
   const d=createDialog();
@@ -76,8 +59,8 @@ function save(){
   const now=new Date().toISOString();
   const service={
     id:nextServiceId(),customerName:"",phone:p.phone,city:"Ankara",
-    district:p.district,neighborhood:"",address:p.address,locationUrl:p.locationUrl,
-    brand:p.brand,device:p.device,model:"",fault:"",source:get("ekzenQuickSource").value||"Kendi İşim",
+    district:"",neighborhood:"",address:"",locationUrl:"",
+    brand:"",device:"",model:"",fault:"",source:get("ekzenQuickSource").value||"Kendi İşim",
     status:"Yeni Kayıt",paymentStatus:"",availableDate:date,visitDate:date,availableTime:"",
     warrantyEnd:addYear(today),operatorNote:"",createdAt:now,price:0,
     sortOrder:state.services.reduce((min,item)=>Math.min(min,Number.isFinite(Number(item.sortOrder))?Number(item.sortOrder):0),0)-1,
