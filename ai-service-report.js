@@ -86,6 +86,7 @@
     get("ekzenAiGenerate").onclick=generate;
     get("ekzenAiOnline").onclick=generateOnline;
     get("ekzenAiPrint").onclick=printReport;
+    ["ekzenAiDiagnosis","ekzenAiWork","ekzenAiTests"].forEach(function(id){get(id).addEventListener("input",function(){preparedShare=null;});});
     get("ekzenAiShare").onclick=shareReport;
     get("ekzenAiSaveTemplate").onclick=saveTemplate;
     get("ekzenAiDeleteTemplate").onclick=deleteTemplate;
@@ -246,7 +247,7 @@
     win.document.open();win.document.write(html);win.document.close();win.focus();
   }
   function customerWhatsAppPhone(service) {
-    var raw=String(service?.phone||"").replace(/\\D/g,"");
+    var raw=String(service?.phone||"").replace(/\D/g,"");
     if(raw.startsWith("00"))raw=raw.slice(2);
     if(raw.startsWith("90")&&raw.length===12)return raw;
     if(raw.startsWith("0")&&raw.length===11)return "9"+raw;
@@ -291,9 +292,18 @@
   }
   async function shareReport() {
     if(!selected||processing)return;
+    if(preparedShare && navigator.share && navigator.canShare && navigator.canShare({files:[preparedShare]})){
+      try {
+        await navigator.share({files:[preparedShare],title:"EKZEN Servis Fişi"});
+        status("Paylaşım ekranı açıldı. WhatsApp sohbetini seçip gönderimi onaylayın.");
+      }catch(e) {
+        if(e.name!=="AbortError")status("Paylaşım açılamadı: "+e.message);
+      }
+      return;
+    }
     var service=selected;
     var filename="EKZEN-Servis-Fisi-"+String(service.customerName||service.id||"Musteri")
-      .normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,70)+".pdf";
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,70)+".pdf";
     var button=get("ekzenAiShare");
     var html=printReport("share");
     if(!html)return;
@@ -317,8 +327,9 @@
       var phone=customerWhatsAppPhone(service);
       var message="Merhaba, EKZEN Teknik servis fişiniz hazırlanmıştır.";
       var url=phone?"https://wa.me/"+phone+"?text="+encodeURIComponent(message):"https://web.whatsapp.com/";
-      window.open(url,"_blank","noopener");
-      status("PDF indirildi ve WhatsApp sohbeti açıldı. Bilgisayarda WhatsApp Web dosya ekleme izni vermediği için indirilen PDF’yi sohbetin ataç simgesinden ekleyin.");
+      var chatWindow=window.open(url,"_blank","noopener");
+      if(!chatWindow)status("PDF indirildi. WhatsApp otomatik açılmazsa müşteri sohbetini açıp indirilen PDF’yi ekleyin.");
+      else status("PDF indirildi ve WhatsApp sohbeti açıldı. Bilgisayarda PDF’yi sohbetin ataç simgesinden ekleyin.");
     }catch(e) {
       console.warn("Servis fişi paylaşımı başarısız:",e);
       status("PDF hazırlanamadı: "+(e?.message||"Bilinmeyen hata")+". A4 Servis Fişi / PDF seçeneğini kullanabilirsiniz.");
