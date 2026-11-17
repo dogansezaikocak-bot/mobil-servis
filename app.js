@@ -4530,7 +4530,9 @@ function isMobileTechViewport() {
 }
 
 function mobileFullAddress(service) {
-  return [service.city || "Ankara", service.district, service.address].filter(Boolean).join(" ").trim();
+  const address=String(service.address||"");
+  const neighborhood=service.neighborhood && !address.toLocaleLowerCase("tr").includes(String(service.neighborhood).toLocaleLowerCase("tr")) ? service.neighborhood+" Mahallesi" : "";
+  return [service.city || "Ankara",service.district,neighborhood,address].filter(Boolean).join(", ").trim();
 }
 
 function safeServiceLocationUrl(value) {
@@ -5704,13 +5706,34 @@ const mobileNewServiceSteps = [
   { key: "source", label: "Servis Kaynağı", type: "select", optionsKey: "sources", required: true },
   { key: "customerName", label: "İsim Soyisim", type: "text", placeholder: "Müşteri adı soyadı", required: false },
   { key: "phone", label: "Telefon", type: "tel", placeholder: "05xx xxx xx xx", required: false },
-  { key: "address", label: "Adres", type: "textarea", placeholder: "Mahalle, sokak, bina, daire", required: false },
+  { key: "district", label: "İlçe", type: "district", required: true },
+  { key: "neighborhood", label: "Mahalle", type: "neighborhood", required: true },
+  { key: "address", label: "Sokak / Bina / Daire", type: "textarea", placeholder: "Cadde, sokak, bina no, daire no", required: false },
   { key: "locationUrl", label: "WhatsApp Konumu", type: "url", placeholder: "WhatsApp konum bağlantısını yapıştır (isteğe bağlı)", required: false },
   { key: "fault", label: "Şikayet", type: "textarea", placeholder: "Örn: çalışmıyor, su akıtıyor", required: false },
   { key: "device", label: "Cihaz Türü", type: "select", optionsKey: "devices", required: false },
   { key: "brand", label: "Marka", type: "select", optionsKey: "brands", required: false },
   { key: "model", label: "Model", type: "text", placeholder: "Varsa model yaz", required: false },
 ];
+const ANKARA_DISTRICTS = [
+ ["Akyurt","akyurt"],["Altındağ","altindag"],["Ayaş","ayas"],["Bala","bala"],["Beypazarı","beypazari"],["Çamlıdere","camlidere"],["Çankaya","cankaya"],["Çubuk","cubuk"],["Elmadağ","elmadag"],["Etimesgut","etimesgut"],["Evren","evren"],["Gölbaşı","golbasi"],["Güdül","gudul"],["Haymana","haymana"],["Kahramankazan","kahramankazan"],["Kalecik","kalecik"],["Keçiören","kecioren"],["Kızılcahamam","kizilcahamam"],["Mamak","mamak"],["Nallıhan","nallihan"],["Polatlı","polatli"],["Pursaklar","pursaklar"],["Sincan","sincan"],["Şereflikoçhisar","sereflikochisar"],["Yenimahalle","yenimahalle"]
+];
+const ankaraNeighborhoodCache = new Map();
+async function loadAnkaraNeighborhoods(district) {
+ const slug=ANKARA_DISTRICTS.find(([name])=>name===district)?.[1];
+ if(!slug)return [];
+ if(ankaraNeighborhoodCache.has(slug))return ankaraNeighborhoodCache.get(slug);
+ const url="https://raw.githubusercontent.com/cyaxaress/turkiye-il-ilce-mah/main/PTT/iller/ankara/"+slug+"/mahalleler.json";
+ const response=await fetch(url,{cache:"force-cache"});
+ if(!response.ok)throw new Error("Mahalle listesi yüklenemedi");
+ const data=await response.json();
+ const names=[...new Set(data.map(x=>typeof x==="string"?x:x.mahalle_adi).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"tr"));
+ ankaraNeighborhoodCache.set(slug,names);
+ return names;
+}
+function mobileStructuredAddress(data) {
+ return [data.neighborhood ? data.neighborhood+" Mahallesi" : "",data.address||""].filter(Boolean).join(", ");
+}
 let mobileNewServiceData = {};
 let mobileNewServiceIndex = 0;
 
@@ -5739,6 +5762,8 @@ function mobileRepeatService(serviceId) {
     customerName: original.customerName || "",
     phone: original.phone || "",
     address: original.address || "",
+    district: original.district || "",
+    neighborhood: original.neighborhood || "",
     locationUrl: original.locationUrl || "",
     fault: "",
     device: "",
@@ -5762,7 +5787,19 @@ function renderMobileNewServiceStep() {
   const progress = `${mobileNewServiceIndex + 1}/${mobileNewServiceSteps.length}`;
   const value = mobileNewServiceData[step.key] || "";
   let field = "";
-  if (step.type === "textarea") {
+  if (step.type === "district") {
+    field='<select id="mobileWizardField"><option value="">İlçe seçin</option>'+ANKARA_DISTRICTS.map(([name])=>'<option value="'+escapeAttr(name)+'" '+(name===value?'selected':'')+'>'+escapeHtml(name)+'</option>').join('')+'</select><small>İl: Ankara (sabit)</small>';
+  } else if (step.type === "neighborhood") {
+    field='<select id="mobileWizardField"><option value="">Mahalleler yükleniyor...</option></select><small>Yalnızca seçilen ilçenin mahalleleri gösterilir.</small>';
+    loadAnkaraNeighborhoods(mobileNewServiceData.district).then((names)=>{
+      if(document.querySelector("#mobileNewServiceWizard")?.hasAttribute("hidden") || mobileNewServiceSteps[mobileNewServiceIndex]?.key!=="neighborhood")return;
+      const select=document.querySelector("#mobileWizardField");if(!select)return;
+      select.innerHTML='<option value="">Mahalle seçin</option>'+names.map(name=>'<option value="'+escapeAttr(name)+'" '+(name===value?'selected':'')+'>'+escapeHtml(name)+'</option>').join('');
+    }).catch(()=>{
+      const select=document.querySelector("#mobileWizardField");
+      if(select)select.innerHTML='<option value="">Mahalle listesi alınamadı, geri dönüp yeniden deneyin</option>';
+    });
+  } else if (step.type === "textarea") {
     field = `<textarea id="mobileWizardField" rows="5" placeholder="${escapeAttr(step.placeholder || "")}" ${step.required ? "required" : ""}>${escapeHtml(value)}</textarea>`;
   } else if (step.type === "select") {
     const options = settingsList(step.optionsKey).filter(Boolean);
@@ -5804,7 +5841,8 @@ function mobileWizardNext() {
     alert("Google Haritalar veya Apple Haritalar bağlantısı yapıştırın ya da boş geçin.");
     return;
   }
-  if (step.required && !value) { alert("Servis kaynağını seçin."); return; }
+  if (step.required && !value) { alert(step.label+" seçin."); return; }
+  if (step.key === "district" && value !== mobileNewServiceData.district) mobileNewServiceData.neighborhood = "";
   mobileNewServiceData[step.key] = value;
   if (mobileNewServiceIndex < mobileNewServiceSteps.length - 1) {
     mobileNewServiceIndex += 1;
@@ -5819,7 +5857,10 @@ function saveMobileWizardService() {
     id: nextServiceId(),
     customerName: mobileNewServiceData.customerName || "",
     phone: mobileNewServiceData.phone || "",
-    address: mobileNewServiceData.address || "",
+    city: "Ankara",
+    district: mobileNewServiceData.district || "",
+    neighborhood: mobileNewServiceData.neighborhood || "",
+    address: mobileStructuredAddress(mobileNewServiceData),
     locationUrl: safeServiceLocationUrl(mobileNewServiceData.locationUrl),
     fault: mobileNewServiceData.fault || "",
     device: mobileNewServiceData.device || "",
