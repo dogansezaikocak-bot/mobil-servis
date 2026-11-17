@@ -616,7 +616,10 @@
           <legend>Müşteri Bilgisi</legend>
           <label>Müşteri Adı<input name="customerName" type="text"></label>
           <label>Telefon<input name="phone" type="tel"></label>
-          <label class="wide">Adres<textarea name="address" rows="3"></textarea></label>
+          <label>İl<input name="city" value="Ankara" readonly aria-label="İl Ankara"></label>
+          <label>İlçe<select name="district" id="desktopServiceDistrict" required><option value="">İlçe seçin</option></select></label>
+          <label>Mahalle<select name="neighborhood" id="desktopServiceNeighborhood" required><option value="">Önce ilçe seçin</option></select></label>
+          <label class="wide">Açık Adres (Cadde, Sokak, Bina, Daire)<textarea name="address" rows="3" placeholder="Cadde, sokak, bina no, daire no"></textarea></label>
           <label class="wide">WhatsApp Konumu (harita bağlantısı)<input name="locationUrl" type="url" inputmode="url" placeholder="https://maps.app.goo.gl/... veya Google Haritalar bağlantısı"></label>
           <label>Müsait Tarih<input name="availableDate" type="date"></label>
           <label>Saat Aralığı<input name="availableTime" type="text" placeholder="08:00 ile 22:00 arası"></label>
