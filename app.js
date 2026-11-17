@@ -4650,15 +4650,24 @@ function isMobileTechViewport() {
   return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
 }
 
+function mapReadyStreetAddress(value) {
+  let text=String(value||"").trim().replace(/^\s*,+\s*/,"");
+  // Eski sokak listelerinin "742 (Sokak)" ve "Seval (Cadde)" gösterimini düzelt.
+  text=text.replace(/([0-9]+(?:[/-][0-9]+)?)\.?\s*\((Sokak|Cadde|Bulvar|Meydan)\)/giu,
+    (_,name,kind)=>name+". "+({Cadde:"Caddesi",Bulvar:"Bulvarı",Meydan:"Meydan"}[kind]||kind));
+  text=text.replace(/([^,]+?)\s*\((Cadde|Sokak|Bulvar|Meydan)\)/giu,
+    (_,name,kind)=>name.trim()+" "+({Cadde:"Caddesi",Bulvar:"Bulvarı",Meydan:"Meydanı"}[kind]||kind));
+  text=text.replace(/\bCadde\b/giu,"Caddesi").replace(/\bBulvar\b/giu,"Bulvarı");
+  // "742. Sokak, 4/1" -> "742. Sokak No:4 D:1" (Google Maps'te daha belirgin).
+  text=text.replace(/,\s*(?:No[:\s]*)?(\d+[A-Za-z]?)\s*\/\s*(\d+[A-Za-z]?)\s*$/iu," No:$1 D:$2");
+  text=text.replace(/,\s*No[:\s]*(\d+[A-Za-z]?)\s*[, ]+\s*(?:Daire|D)[:\s]*(\d+[A-Za-z]?)\s*$/iu," No:$1 D:$2");
+  // "4/1" sadece sokak sonrası geldiyse bina/daire olarak yorumlanır.
+  return text.replace(/\s{2,}/g," ").trim();
+}
 function mobileFullAddress(service) {
   const address=String(service.address||"");
   const neighborhood=service.neighborhood ? cleanNeighborhoodName(service.neighborhood)+" Mahallesi" : "";
-  const normalizedStreet=address.replace(/^\s*,+\s*/,"")
-    .replace(/(.+?)\s*\((Sokak|Cadde|Bulvar|Meydan)\)(?=\s*,|\s|$)/giu,(all,name,type)=>{
-      const stem=name.trim().replace(/\.$/,"");
-      return (/^\d+(?:[/-]\d+)?$/.test(stem)?stem+". ":"")+(!/^\d+(?:[/-]\d+)?$/.test(stem)?stem+" ":"")+type;
-    });
-  const street=removeSelectedNeighborhoodPrefix(normalizedStreet,service.neighborhood);
+  const street=mapReadyStreetAddress(removeSelectedNeighborhoodPrefix(address,service.neighborhood));
   return [service.city || "Ankara",service.district,neighborhood,street].filter(Boolean).join(", ").trim();
 }
 
@@ -4679,8 +4688,9 @@ function mobileMapUrl(service) {
   if(shared)return shared;
   const destination = mobileFullAddress(service);
   if (!destination) return "";
-  // Google Haritalar mobilde ve iPhone Safari'de en sorunsuz çalışan arama bağlantısı.
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
+  // Arama sonuçlarını çoğaltmak yerine tek hedefli navigasyon isteği gönder.
+  // Koordinat/Place ID bilinmiyorsa Google yine adresi çözümleyebilir.
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
 }
 
 function openMobileMap(serviceId) {
