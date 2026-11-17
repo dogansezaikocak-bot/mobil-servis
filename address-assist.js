@@ -112,8 +112,12 @@
         const name=props.name||"";
         const type=String(props.osm_value||"");
         const location=norm([props.city,props.county,props.district,props.state,props.country].join(" "));
-        return name&&(!props.countrycode||props.countrycode==="TR")&&
-          (!ctx.district||location.includes(norm(ctx.district))||location.includes("ankara"))&&
+        const municipality=norm([props.city,props.county,props.district].join(" "));
+        const area=norm([props.suburb,props.neighbourhood,props.locality].join(" "));
+        return name&&(!props.countrycode||props.countrycode.toLowerCase()==="tr")&&
+          (!location||location.includes("ankara"))&&
+          (!ctx.district||!municipality||municipality.includes(norm(ctx.district))||municipality==="ankara")&&
+          (!ctx.neighborhood||!area||area.includes(norm(ctx.neighborhood).replace(/ mahallesi$/,"")))&&
           !["restaurant","shop","house"].includes(type);
       }).slice(0,7);
       if(results.length){
