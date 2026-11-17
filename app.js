@@ -3146,6 +3146,8 @@ function desktopRefreshStreetPicker(){
 serviceForm?.elements?.district?.addEventListener("change",()=>{
  desktopPopulateNeighborhoods(serviceForm.elements.district.value);
  document.querySelector("#ekzenDesktopStreetPicker")?.remove();
+ serviceForm.elements.address.hidden=false;
+ serviceForm.elements.address.style.removeProperty("display");
 });
 serviceForm?.elements?.neighborhood?.addEventListener("change",desktopRefreshStreetPicker);
 function openServiceForm(service) {
