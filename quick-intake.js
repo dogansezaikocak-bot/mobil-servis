@@ -25,7 +25,7 @@ function extract(raw){
   const apartment=simple.match(/([A-Za-zÇĞİÖŞÜçğıöşü][A-Za-zÇĞİÖŞÜçğıöşü\s]{1,32})\s+(?:apartmanı|apt\.?|sitesi)\b/iu)?.[0]?.trim()||"";
   // Hızlı kayıt: WhatsApp metninin tamamı açık adreste kalsın; konum URL\u0027si ayrı alanda tutulur.
   const address=text.replace(/https?:\/\/[^\s<>"\u0027]+/gi," ").replace(/[ \t]+/g," ").trim();
-  const fault=simple.split(/[.!?\n]/).map(s=>s.trim()).find(s=>/akıt|çalışm|ısıtm|soğutm|sıkm|ses yap|su alm|hata ver|arızal/i.test(s))||"";
+  const fault=""; // Hızlı Kayıt şikâyeti otomatik doldurmaz.
   return {raw:text,locationUrl,phone,district,device,brand,address,fault};
 }
 function createDialog(){
@@ -52,7 +52,6 @@ function showPreview(){
   if(p.district)info.push("İlçe: "+p.district);
   if(p.address)info.push("Adres: "+p.address);
   if(p.brand||p.device)info.push("Cihaz: "+[p.brand,p.device].filter(Boolean).join(" "));
-  if(p.fault)info.push("Şikâyet: "+p.fault);
   if(p.locationUrl)info.push("WhatsApp/Harita konumu: Bağlantı alındı");
   get("ekzenQuickPreview").textContent=info.join("\n")||"Henüz ayrıştırılan bilgi yok. Mesaj olduğu gibi kaydedilecek.";
 }
@@ -78,7 +77,7 @@ function save(){
   const service={
     id:nextServiceId(),customerName:"",phone:p.phone,city:"Ankara",
     district:p.district,neighborhood:"",address:p.address,locationUrl:p.locationUrl,
-    brand:p.brand,device:p.device,model:"",fault:p.fault,source:get("ekzenQuickSource").value||"Kendi İşim",
+    brand:p.brand,device:p.device,model:"",fault:"",source:get("ekzenQuickSource").value||"Kendi İşim",
     status:"Yeni Kayıt",paymentStatus:"",availableDate:date,visitDate:date,availableTime:"",
     warrantyEnd:addYear(today),operatorNote:"",createdAt:now,price:0,
     sortOrder:state.services.reduce((min,item)=>Math.min(min,Number.isFinite(Number(item.sortOrder))?Number(item.sortOrder):0),0)-1,
