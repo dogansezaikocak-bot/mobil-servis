@@ -16,7 +16,7 @@
   function neighborhoodKey(value){
     // PTT kaynağı "Doğantepe Mah", "Doğantepe Mah.", "Doğantepe Mahallesi"
     // gibi ekler döndürebilir; sokak dosyalarında yalın mahalle adı tutulur.
-    return slug(String(value||"").trim().replace(/(?:\s|[.,-])*(?:mahallesi|mah\\.?|mahalle)$/iu,""));
+    return slug(String(value||"").trim().replace(/(?:\s|[.,-])*(?:mahallesi|mah\.?|mahalle)$/iu,""));
   }
   async function loadStreets(district,neighborhood){
     if(!district||!neighborhood)return [];
