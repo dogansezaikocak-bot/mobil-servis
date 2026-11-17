@@ -9668,3 +9668,38 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
   flex-shrink:0!important;background:#fff!important;border-top:1px solid #dce5ee!important;
  }
 }
+
+/* EKZEN mobil detay: tıklanabilir kartlar metin rengini değiştirmez. */
+@media (max-width: 820px) {
+  #mobileDetailBody .mobile-detail-box.mobile-tap-card {
+    display:block!important;
+    box-sizing:border-box!important;
+    width:100%!important;
+    text-align:left!important;
+    text-decoration:none!important;
+    color:#111827!important;
+    font:inherit!important;
+    -webkit-appearance:none;
+    appearance:none;
+    cursor:pointer!important;
+  }
+  #mobileDetailBody .mobile-detail-box.mobile-tap-card p,
+  #mobileDetailBody .mobile-detail-info-grid .mobile-tap-card p {
+    color:#111827!important;
+    -webkit-text-fill-color:#111827!important;
+    text-decoration:none!important;
+  }
+  #mobileDetailBody .mobile-detail-box.mobile-tap-card h3 {
+    color:#64748b!important;
+    -webkit-text-fill-color:#64748b!important;
+    text-decoration:none!important;
+  }
+  #mobileDetailBody .mobile-detail-box.mobile-fault-box.mobile-tap-card h3 {
+    color:#9a3412!important;
+    -webkit-text-fill-color:#9a3412!important;
+  }
+  #mobileDetailBody .mobile-detail-box.mobile-tap-card:focus-visible {
+    outline:2px solid #0f766e!important;
+    outline-offset:2px;
+  }
+}
