@@ -4688,12 +4688,25 @@ function safeServiceLocationUrl(value) {
 }
 
 function mobileMapUrl(service) {
+  // Müşterinin paylaştığı gerçek harita bağlantısı varsa onu kullan; metinden tahmin etme.
   const shared=safeServiceLocationUrl(service.locationUrl);
   if(shared)return shared;
-  const destination = mobileFullAddress(service);
-  if (!destination) return "";
-  // Arama sonuçlarını çoğaltmak yerine tek hedefli navigasyon isteği gönder.
-  // Koordinat/Place ID bilinmiyorsa Google yine adresi çözümleyebilir.
+  const street=mapReadyStreetAddress(removeSelectedNeighborhoodPrefix(service.address||"",service.neighborhood));
+  if(!street)return "";
+  const district=String(service.district||"").trim();
+  const originalNeighborhood=cleanNeighborhoodName(service.neighborhood||"");
+  // Google Maps, Peyami Safa mahallesini yer yer "Peyami Sefa" olarak indeksliyor.
+  const isPeyami=sourceKey(district)==="mamak" &&
+    /peyami\s+saf[ae]/iu.test(originalNeighborhood);
+  const neighborhood=isPeyami?"Peyami Sefa":originalNeighborhood;
+  const postCode=isPeyami?"06630":"";
+  // Aynı numaralı cadde başka ilçede de olabilir: ilçeyi ve mahalleyi başta vurgula.
+  const destination=[neighborhood?neighborhood+" Mahallesi":"",district,postCode,
+    street,service.city||"Ankara","Türkiye"].filter(Boolean).join(", ");
+  // Numara bazlı cadde/sokaklarda kesin koordinat bilinmiyor. Google'ın hatalı
+  // otomatik rota kurması yerine sonuç ekranını göster; konumu kullanıcı doğrulasın.
+  const ambiguous=/^\d+(?:[/-]\d+)?\.?\s*(?:Sokak|Sk\.?|Cadde|Cd\.?|Caddesi)\b/iu.test(street);
+  if(ambiguous)return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
 }
 
