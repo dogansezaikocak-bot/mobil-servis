@@ -3139,6 +3139,7 @@ function openServiceForm(service) {
     Object.entries(service).forEach(([key, value]) => {
       if (serviceForm.elements[key]) serviceForm.elements[key].value = value || "";
     });
+    if(service.neighborhood) serviceForm.elements.address.value=removeSelectedNeighborhoodPrefix(service.address,service.neighborhood);
     keepSelectValue(serviceForm.elements.source, service.source);
     if(service.district) {serviceForm.elements.district.value=service.district;desktopPopulateNeighborhoods(service.district,service.neighborhood||"");}
     serviceForm.elements.district.required=false;
@@ -3176,7 +3177,7 @@ function saveService(formData) {
   if (isSourcePortal() && previous && !matchesPortalSource(previous.source)) return;
   if (isSourcePortal()) data.source = portalSourceName();
   data.city = "Ankara";
-  if(data.neighborhood && !String(data.address||"").toLocaleLowerCase("tr").includes(data.neighborhood.toLocaleLowerCase("tr"))) data.address = data.neighborhood+" Mahallesi, "+(data.address||"");
+  if(data.neighborhood) data.address = removeSelectedNeighborhoodPrefix(data.address,data.neighborhood);
   const status = isUpdate ? data.status : "Yeni Kayıt";
   const service = {
     ...(previous || {}),
@@ -4562,8 +4563,9 @@ function isMobileTechViewport() {
 
 function mobileFullAddress(service) {
   const address=String(service.address||"");
-  const neighborhood=service.neighborhood && !address.toLocaleLowerCase("tr").includes(String(service.neighborhood).toLocaleLowerCase("tr")) ? service.neighborhood+" Mahallesi" : "";
-  return [service.city || "Ankara",service.district,neighborhood,address].filter(Boolean).join(", ").trim();
+  const neighborhood=service.neighborhood ? cleanNeighborhoodName(service.neighborhood)+" Mahallesi" : "";
+  const street=removeSelectedNeighborhoodPrefix(address,service.neighborhood);
+  return [service.city || "Ankara",service.district,neighborhood,street].filter(Boolean).join(", ").trim();
 }
 
 function safeServiceLocationUrl(value) {
@@ -5762,8 +5764,19 @@ async function loadAnkaraNeighborhoods(district) {
  ankaraNeighborhoodCache.set(slug,names);
  return names;
 }
+function cleanNeighborhoodName(value) {
+ return String(value||"").trim().replace(/\\s+(?:mahallesi|mah\\.?|mah)$/iu,"").trim();
+}
+function removeSelectedNeighborhoodPrefix(address, neighborhood) {
+ const name=cleanNeighborhoodName(neighborhood);
+ let value=String(address||"").trim();
+ if(!name)return value;
+ const escapeRegex=(text)=>text.replace(/[.*+?^\x24{}()|[\]\\]/g,"\\function mobileStructuredAddress(data) {");
+ const prefix=new RegExp("^"+escapeRegex(name)+"(?:\\s+(?:mahallesi|mah\\.?))?(?:\\s*,\\s*|\\s+|$)","iu");
+ return value.replace(prefix,"").trim();
+}
 function mobileStructuredAddress(data) {
- return [data.neighborhood ? data.neighborhood+" Mahallesi" : "",data.address||""].filter(Boolean).join(", ");
+ return [data.neighborhood ? cleanNeighborhoodName(data.neighborhood)+" Mahallesi" : "",removeSelectedNeighborhoodPrefix(data.address,data.neighborhood)].filter(Boolean).join(", ");
 }
 let mobileNewServiceData = {};
 let mobileNewServiceIndex = 0;
@@ -5792,7 +5805,7 @@ function mobileRepeatService(serviceId) {
     source: isSourcePortal() ? portalSourceName() : (original.source || "Kendi İşim"),
     customerName: original.customerName || "",
     phone: original.phone || "",
-    address: original.address || "",
+    address: removeSelectedNeighborhoodPrefix(original.address,original.neighborhood),
     district: original.district || "",
     neighborhood: original.neighborhood || "",
     locationUrl: original.locationUrl || "",
