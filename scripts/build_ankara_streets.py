@@ -14,8 +14,9 @@ OUT = pathlib.Path("data/ankara-streets")
 TYPES = {0:"Köy Sokağı",1:"Meydan",2:"Bulvar",3:"Cadde",4:"Sokak",5:"Küme Evler"}
 
 def slug(value):
-    v = str(value or "").casefold().translate(str.maketrans({"ı":"i","ğ":"g","ü":"u","ş":"s","ö":"o","ç":"c"}))
-    return re.sub(r"[^a-z0-9]+","-",unicodedata.normalize("NFKD",v)).strip("-")
+    v = str(value or "").replace("İ","I").lower().translate(str.maketrans({"ı":"i","ğ":"g","ü":"u","ş":"s","ö":"o","ç":"c"}))
+    v = "".join(ch for ch in unicodedata.normalize("NFKD",v) if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+","-",v).strip("-")
 
 def records(name):
     url=ROOT+name
