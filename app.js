@@ -186,6 +186,7 @@ function migrateState(oldState) {
       hiddenDashboardCounters: Array.isArray(oldState.settings?.hiddenDashboardCounters) ? oldState.settings.hiddenDashboardCounters : [],
       cashCounters: normalizeCashCounters(oldState.settings?.cashCounters),
       customCashCounters: Array.isArray(oldState.settings?.customCashCounters) ? oldState.settings.customCashCounters.filter(x=>x && typeof x==="object").slice(0,30) : [],
+      aiReportTemplates: Array.isArray(oldState.settings?.aiReportTemplates) ? oldState.settings.aiReportTemplates.filter(x => x && typeof x === "object" && typeof x.diagnosis === "string" && typeof x.work === "string").slice(0,300) : [],
       cashSlotSettings: Array.isArray(oldState.settings?.cashSlotSettings) ? oldState.settings.cashSlotSettings : [],
       mobileLayoutCustom: oldState.settings?.mobileLayoutCustom && typeof oldState.settings.mobileLayoutCustom==="object" ? oldState.settings.mobileLayoutCustom : {},
       homeLayout: {desktop:Array.isArray(oldState.settings?.homeLayout?.desktop)?oldState.settings.homeLayout.desktop:[],mobile:Array.isArray(oldState.settings?.homeLayout?.mobile)?oldState.settings.homeLayout.mobile:[]},
