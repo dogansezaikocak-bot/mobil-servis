@@ -101,7 +101,16 @@
     get("ekzenAiWork").value=serviceNote(service);
     get("ekzenAiTests").checked=false;
     refreshSavedOptions();
-    status("Hazır Taslak internet gerektirmez. Yapay Zekâ seçeneği Cloudflare üzerinden çalışır. İki metni de PDF öncesi düzenleyebilirsiniz.");
+    var exactMatches=suggestedTemplates(service).filter(function(t){return t.operation===operationKey(service);});
+    if(exactMatches.length===1){
+      applySavedTemplate(exactMatches[0].id);
+      get("ekzenAiTemplateList").value=exactMatches[0].id;
+      status("Bu cihaz ve işleme uygun kayıtlı açıklama otomatik getirildi. Kontrol edip PDF hazırlayabilirsiniz.");
+    }else if(exactMatches.length>1){
+      status("Bu işlem için birden fazla kayıtlı açıklama bulundu. Yukarıdaki listeden uygun olanı seçin.");
+    }else{
+      status("Bu işlemle tam eşleşen kayıtlı açıklama yok. Hazır Taslak veya Yapay Zekâ ile Oluştur seçeneklerinden birini kullanabilirsiniz.");
+    }
     if(!d.open)d.showModal();
   }
   function localTechnicalDraft(service) {
