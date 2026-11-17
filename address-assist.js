@@ -1,7 +1,4 @@
-/* EKZEN – Ankara cadde/sokak seçici (mobil + masaüstü).
-   Sokak adları OpenStreetMap'teki yol adlarından mahalle konumu çevresinde alınır.
-   Bu resmî UAVT listesi değildir; eksik olabilir. Manuel giriş daima mümkündür.
-*/
+/* EKZEN Ankara cadde/sokak seçici. Ekim 2026 NVİ referanslı statik veri. */
 (function(){
   "use strict";
   const cache=new Map();
@@ -12,84 +9,26 @@
     if(!str||str.length>130||/^[0-9]+$/.test(str))return "";
     return str;
   }
-  async function fetchJson(url,timeout=11000){
-    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),timeout);
-    try{
-      const response=await fetch(url,{signal:ctl.signal,headers:{"Accept":"application/json"}});
-      if(!response.ok)throw new Error("Adres verisine ulaşılamadı ("+response.status+")");
-      return await response.json();
-    }finally{clearTimeout(timer);}
-  }
-  async function resolveBox(district,neighborhood){
-    const q=[neighborhood.replace(/\s+mahallesi$/iu,"")+" Mahallesi",district,"Ankara","Türkiye"].join(", ");
-    const errors=[];
-    try{
-      // Nominatim bazı mobil ağlarda erişimi kısıtlayabiliyor. Tek kaynak olarak kullanma.
-      const u="https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q="+encodeURIComponent(q);
-      const data=await fetchJson(u,6500);
-      const best=(Array.isArray(data)?data:[]).find(x=>{
-        const desc=norm([x.display_name,x.address?.county,x.address?.suburb].join(" "));
-        return desc.includes("ankara")&&desc.includes(norm(district));
-      });
-      if(best?.boundingbox){
-        const bounds=best.boundingbox.map(Number),lat=Number(best.lat),lon=Number(best.lon);
-        if([...bounds,lat,lon].every(Number.isFinite)){
-          let [south,north,west,east]=bounds;
-          if(north-south<0.001){south=lat-0.009;north=lat+0.009;}
-          if(east-west<0.001){west=lon-0.011;east=lon+0.011;}
-          if(north-south>0.035){south=lat-0.0175;north=lat+0.0175;}
-          if(east-west>0.042){west=lon-0.021;east=lon+0.021;}
-          return [south,west,north,east];
-        }
-      }
-    }catch(e){errors.push(e);}
-    try{
-      // Photon mobil tarayıcıda çalışabilen alternatif geocoding kaynağı.
-      const q2=[neighborhood,district,"Ankara"].filter(Boolean).join(" ");
-      const url="https://photon.komoot.io/api/?q="+encodeURIComponent(q2)+"&limit=12&lang=tr";
-      const data=await fetchJson(url,8500);
-      const candidates=(data.features||[]).filter(f=>{
-        const p=f.properties||{};
-        const desc=norm([p.name,p.city,p.county,p.district,p.state,p.country].join(" "));
-        return desc.includes("ankara")&&
-          (desc.includes(norm(district))||norm(p.city)==="ankara")&&
-          norm(p.name||"").includes(norm(neighborhood.replace(/\s+mahallesi$/iu,"")));
-      });
-      const point=candidates[0]?.geometry?.coordinates;
-      if(point&&point.length>=2&&point.every(Number.isFinite)){
-        const [lon,lat]=point;
-        // Yakın yolları getir; komşu mahalle olabilir, resmî kesin liste sayılmaz.
-        return [lat-0.0105,lon-0.0135,lat+0.0105,lon+0.0135];
-      }
-    }catch(e){errors.push(e);}
-    throw new Error("Mahalle koordinatı harita servislerinden alınamadı");
+  function slug(value){
+    return norm(value).replace(/[çğıöşü]/g, c=>({"ç":"c","ğ":"g","ı":"i","ö":"o","ş":"s","ü":"u"}[c]))
+      .normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
   }
   async function loadStreets(district,neighborhood){
     if(!district||!neighborhood)return [];
-    const key=norm(district)+"|"+norm(neighborhood);
+    const districtSlug=slug(district),key=districtSlug+"|"+slug(neighborhood.replace(/\s+mahallesi$/iu,""));
     if(cache.has(key))return cache.get(key);
-    const task=(async()=>{
-      const box=await resolveBox(district,neighborhood);
-      const query='[out:json][timeout:20];way["highway"]["name"]('+box.join(",")+');out tags;';
-      const endpointList=[
-        "https://overpass.private.coffee/api/interpreter?data="+encodeURIComponent(query),
-        "https://overpass.kumi.systems/api/interpreter?data="+encodeURIComponent(query),
-        "https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query)
-      ];
-      let data=null,lastError;
-      for(const url of endpointList){
-        try{data=await fetchJson(url,12000);break;}catch(e){lastError=e;}
-      }
-      if(!data)throw lastError||new Error("Sokak listesi alınamadı");
-      const names=new Set();
-      (data.elements||[]).forEach(el=>{
-        const title=cleanedStreetName(el.tags?.name);
-        if(title)names.add(title);
-      });
-      return [...names].sort((a,b)=>a.localeCompare(b,"tr",{numeric:true}));
+    const request=(async()=>{
+      // GitHub Pages kendi statik dosyası: harita servislerinden bağımsız.
+      const url="./data/ankara-streets/"+encodeURIComponent(districtSlug)+".json?v=2026-10";
+      const r=await fetch(url,{cache:"default"});
+      if(!r.ok)throw new Error("Ankara adres veri dosyası bulunamadı ("+r.status+")");
+      const data=await r.json();
+      const names=data.neighborhoods?.[slug(neighborhood.replace(/\s+mahallesi$/iu,""))];
+      if(!Array.isArray(names))throw new Error("Mahalle bu adres veri dosyasında yok");
+      return [...new Set(names.map(cleanedStreetName).filter(Boolean))];
     })();
-    cache.set(key,task);
-    try{return await task;}catch(e){cache.delete(key);throw e;}
+    cache.set(key,request);
+    try{return await request;}catch(e){cache.delete(key);throw e;}
   }
   function splitOld(value){
     const x=String(value||"").trim();
@@ -112,7 +51,7 @@
     detail.value=original.detail;
     detail.style.cssText=manual.style.cssText;
     const note=document.createElement("small");note.style.cssText="color:#64748b;line-height:1.4";
-    note.textContent="Mahalleye yakın harita yolları listelenir. Eksik veya eski isim olabilir; adresi doğrulayın.";
+    note.textContent="Ankara adres listesinden yollar yükleniyor. Eksik ad varsa elle giriş mümkün.";
     title.appendChild(select);
     detailTitle.appendChild(detail);
     root.append(title,manual,detailTitle,note);
@@ -141,10 +80,10 @@
     const getValue=()=>[select.value==="__manual"||!select.value?manual.value:select.value,detail.value].filter(x=>x.trim()).join(", ");
     loadStreets(district,neighborhood).then(items=>{
       if(!root.isConnected)return;
-      setOptions(items,items.length?"Cadde / Sokak seçin ("+items.length+")":"Haritada sokak bulunamadı");
+      setOptions(items,items.length?"Cadde / Sokak seçin ("+items.length+")":"Bu mahalle için sokak kaydı yok");
       note.textContent=items.length
-        ?"Haritada bu mahalle çevresinde "+items.length+" farklı yol adı bulundu. İsimleri kontrol edin; listede yoksa elle yazın."
-        :"Bu mahalle için yol listesi alınamadı. Cadde / sokak adını elle girin.";
+        ?"Adres veri setinde "+items.length+" cadde/sokak kaydı bulundu. Listede yoksa elle yazın."
+        :"Bu mahalle için cadde/sokak kaydı yok. Elle yazabilirsiniz.";
       if(!items.length)manual.hidden=false;
     }).catch(()=>{
       if(!root.isConnected)return;
