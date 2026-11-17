@@ -7228,7 +7228,7 @@ document.addEventListener("change",event=>{
       root.querySelector(":scope > .mobile-list-head"),
       root.querySelector(":scope > #mobileDailyCashPage"),
       root.querySelector(":scope > #mobileServiceList"),
-      root.querySelector(":scope > .mobile-new-service-bar"),
+      root.querySelector(":scope > .ekzen-mobile-actions") || root.querySelector(":scope > .mobile-new-service-bar"),
       root.querySelector(":scope > .mobile-version-badge")
     ].filter(Boolean);
     nodes.forEach((node) => shell.appendChild(node));
