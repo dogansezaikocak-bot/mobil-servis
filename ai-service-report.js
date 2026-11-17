@@ -79,7 +79,7 @@
       '<label style="display:block;font-weight:bold">Yapılan İşlemler ve Açıklamalar<textarea id="ekzenAiWork" rows="6" style="box-sizing:border-box;width:100%;display:block;margin:8px 0 15px;padding:10px;border:1px solid #bccada;border-radius:7px;font:14px/1.5 Arial"></textarea></label>'+
       '<div style="border:1px solid #d6dee7;border-radius:8px;padding:11px;margin:10px 0;background:#f7f9fb"><b style="display:block;margin-bottom:7px">Kayıtlı Teknik Açıklamalar</b><select id="ekzenAiTemplateList" style="width:100%;padding:9px;border-radius:6px;border:1px solid #bdcbd9"></select><div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap"><button type="button" id="ekzenAiSaveTemplate">Taslağa Kaydet</button><button type="button" id="ekzenAiDeleteTemplate">Seçili Kaydı Sil</button></div></div>'+ 
       '<label style="display:flex;gap:9px;align-items:center;font-size:13px"><input type="checkbox" id="ekzenAiTests"> Test ve kontroller gerçekleştirildi, cihaz müşteriye teslim edildi</label>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">Hazır Taslak Oluştur</button><button id="ekzenAiOnline" type="button" style="padding:11px 14px;background:#087e79;color:white;border:0;border-radius:8px;font-weight:bold">✦ Yapay Zekâ ile Oluştur</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">A4 Servis Fişi / PDF</button><button id="ekzenAiShare" type="button" style="padding:11px 14px;background:#16834d;color:white;border:0;border-radius:8px;font-weight:bold">WhatsApp’tan PDF Gönder</button></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:17px"><button id="ekzenAiGenerate" type="button" style="padding:11px 14px;background:#1c4066;color:white;border:0;border-radius:8px;font-weight:bold">Hazır Taslak Oluştur</button><button id="ekzenAiOnline" type="button" style="padding:11px 14px;background:#087e79;color:white;border:0;border-radius:8px;font-weight:bold">✦ Yapay Zekâ ile Oluştur</button><button id="ekzenAiPrint" type="button" style="padding:11px 14px;border:1px solid #becbda;border-radius:8px;font-weight:bold">A4 Servis Fişi / PDF</button><button id="ekzenAiShare" type="button" style="padding:11px 14px;background:#16834d;color:white;border:0;border-radius:8px;font-weight:bold">Müşteri WhatsApp’ını Aç / PDF</button></div>'+
       '<p style="font-size:12px;color:#65758a">Teknik taslağı kontrol edin. Yapılmayan işlemleri veya doğrulanmamış tespitleri fişe yazmayın.</p></div>';
     document.body.appendChild(d);
     get("ekzenAiClose").onclick=function(){d.close();};
@@ -292,45 +292,39 @@
   }
   async function shareReport() {
     if(!selected||processing)return;
-    if(preparedShare && navigator.share && navigator.canShare && navigator.canShare({files:[preparedShare]})){
-      try {
-        await navigator.share({files:[preparedShare],title:"EKZEN Servis Fişi"});
-        status("Paylaşım ekranı açıldı. WhatsApp sohbetini seçip gönderimi onaylayın.");
-      }catch(e) {
-        if(e.name!=="AbortError")status("Paylaşım açılamadı: "+e.message);
-      }
+    var service=selected;
+    var phone=customerWhatsAppPhone(service);
+    if(!phone){
+      status("Bu fişte geçerli müşteri telefonu yok. Önce müşteri telefonunu kaydedin.");
       return;
     }
-    var service=selected;
+    // Yeni pencereyi doğrudan kullanıcı tıklaması sırasında aç: mobil popup engelini önler.
+    // Web paylaşım API'si hedef WhatsApp sohbetini seçemediği için burada kullanılmaz.
+    var chatWindow=window.open("about:blank","_blank");
+    if(chatWindow){
+      chatWindow.document.write('<!doctype html><html lang="tr"><meta charset="utf-8"><title>EKZEN · WhatsApp</title><body style="font:16px Arial,sans-serif;padding:24px">Servis fişi hazırlanıyor. WhatsApp sohbeti birazdan açılacak...</body></html>');
+      chatWindow.document.close();
+    }
     var filename="EKZEN-Servis-Fisi-"+String(service.customerName||service.id||"Musteri")
       .normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,70)+".pdf";
     var button=get("ekzenAiShare");
     var html=printReport("share");
-    if(!html)return;
+    if(!html){if(chatWindow)chatWindow.close();return;}
     processing=true;button.disabled=true;
-    status("PDF hazırlanıyor...");
+    status("PDF hazırlanıyor; kayıtlı müşterinin WhatsApp sohbeti açılacak...");
     try {
-      var file=await makePdf(html,filename);
+      var file=preparedShare || await makePdf(html,filename);
       preparedShare=file;
-      var canShareFile=!!(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}));
-      if(canShareFile) {
-        try {
-          await navigator.share({files:[file],title:"EKZEN Servis Fişi"});
-          status("Paylaşım ekranı açıldı. WhatsApp’ı ve müşteri sohbetini seçerek gönderimi tamamlayın.");
-          return;
-        }catch(e) {
-          if(e.name==="AbortError"){status("Paylaşım iptal edildi. Yeniden denemek için WhatsApp düğmesine basın.");return;}
-          console.warn("Dosya paylaşımı açılamadı:",e);
-        }
-      }
       downloadFile(file);
-      var phone=customerWhatsAppPhone(service);
-      var message="Merhaba, EKZEN Teknik servis fişiniz hazırlanmıştır.";
-      var url=phone?"https://wa.me/"+phone+"?text="+encodeURIComponent(message):"https://web.whatsapp.com/";
-      var chatWindow=window.open(url,"_blank","noopener");
-      if(!chatWindow)status("PDF indirildi. WhatsApp otomatik açılmazsa müşteri sohbetini açıp indirilen PDF’yi ekleyin.");
-      else status("PDF indirildi ve WhatsApp sohbeti açıldı. Bilgisayarda PDF’yi sohbetin ataç simgesinden ekleyin.");
-    }catch(e) {
+      var url="https://wa.me/"+phone+"?text="+encodeURIComponent("Merhaba, EKZEN Teknik servis fişiniz hazırlanmıştır.");
+      if(chatWindow&&!chatWindow.closed){
+        chatWindow.location.replace(url);
+        status("PDF indirildi; kayıtlı müşterinin WhatsApp sohbeti açılıyor. WhatsApp'ın güvenlik kısıtı nedeniyle PDF dosyasını sohbetin ataç bölümünden eklemeniz gerekiyor.");
+      } else {
+        status("PDF indirildi fakat WhatsApp penceresi açılamadı. Tarayıcıda açılır pencereye izin vererek tekrar deneyin.");
+      }
+    }catch(e){
+      if(chatWindow&&!chatWindow.closed)chatWindow.close();
       console.warn("Servis fişi paylaşımı başarısız:",e);
       status("PDF hazırlanamadı: "+(e?.message||"Bilinmeyen hata")+". A4 Servis Fişi / PDF seçeneğini kullanabilirsiniz.");
     }finally{processing=false;button.disabled=false;}
