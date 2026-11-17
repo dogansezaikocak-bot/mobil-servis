@@ -3265,7 +3265,7 @@ function printSingleServiceCard(serviceId) {
  const money=(value)=>new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY"}).format(value);
  const financial=closed ? '<section class="financial"><div><strong>Alınan Tutar</strong><b>'+safe(money(received))+'</b></div>'+
  (material>0?'<div><strong>Malzeme Ücreti</strong><b>'+safe(money(material))+'</b></div>':'')+
- '<div class="grand"><strong>Genel Toplam</strong><b>'+safe(money(received+material))+'</b></div></section>' : '';
+ '<div class="grand"><strong>Genel Toplam</strong><b>'+safe(money(received-material))+'</b></div></section>' : '';
  const rows=fields.map(([label,value])=>'<div class="line"><strong>'+safe(label)+'</strong><span>'+safe(value)+'</span></div>').join("");
  const html='<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Servis Kartı '+safe(service.id)+'</title><style>'+
  '@page{size:A5 portrait;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#142638;margin:0;background:#fff}'+
