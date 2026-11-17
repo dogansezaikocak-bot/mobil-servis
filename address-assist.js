@@ -22,23 +22,47 @@
   }
   async function resolveBox(district,neighborhood){
     const q=[neighborhood.replace(/\s+mahallesi$/iu,"")+" Mahallesi",district,"Ankara","Türkiye"].join(", ");
-    const url="https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q="+encodeURIComponent(q);
-    const data=await fetchJson(url);
-    const candidates=data.filter(x=>{
-      const desc=norm([x.display_name,x.address?.county,x.address?.suburb].join(" "));
-      return desc.includes("ankara")&&(!district||desc.includes(norm(district)));
-    });
-    const best=candidates[0];
-    if(!best||!best.boundingbox)throw new Error("Mahalle konumu haritada bulunamadı");
-    let [south,north,west,east]=best.boundingbox.map(Number);
-    if(![south,north,west,east].every(Number.isFinite))throw new Error("Mahalle sınırı okunamadı");
-    // Nokta mahalleleri için 1 km yarıçap; geniş boundingbox'ları sınırlama.
-    const lat=Number(best.lat),lon=Number(best.lon);
-    if(north-south<0.001){south=lat-0.009;north=lat+0.009;}
-    if(east-west<0.001){west=lon-0.011;east=lon+0.011;}
-    if(north-south>0.038){south=lat-0.019;north=lat+0.019;}
-    if(east-west>0.046){west=lon-0.023;east=lon+0.023;}
-    return [south,west,north,east];
+    const errors=[];
+    try{
+      // Nominatim bazı mobil ağlarda erişimi kısıtlayabiliyor. Tek kaynak olarak kullanma.
+      const u="https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q="+encodeURIComponent(q);
+      const data=await fetchJson(u,6500);
+      const best=(Array.isArray(data)?data:[]).find(x=>{
+        const desc=norm([x.display_name,x.address?.county,x.address?.suburb].join(" "));
+        return desc.includes("ankara")&&desc.includes(norm(district));
+      });
+      if(best?.boundingbox){
+        const bounds=best.boundingbox.map(Number),lat=Number(best.lat),lon=Number(best.lon);
+        if([...bounds,lat,lon].every(Number.isFinite)){
+          let [south,north,west,east]=bounds;
+          if(north-south<0.001){south=lat-0.009;north=lat+0.009;}
+          if(east-west<0.001){west=lon-0.011;east=lon+0.011;}
+          if(north-south>0.035){south=lat-0.0175;north=lat+0.0175;}
+          if(east-west>0.042){west=lon-0.021;east=lon+0.021;}
+          return [south,west,north,east];
+        }
+      }
+    }catch(e){errors.push(e);}
+    try{
+      // Photon mobil tarayıcıda çalışabilen alternatif geocoding kaynağı.
+      const q2=[neighborhood,district,"Ankara"].filter(Boolean).join(" ");
+      const url="https://photon.komoot.io/api/?q="+encodeURIComponent(q2)+"&limit=12&lang=tr";
+      const data=await fetchJson(url,8500);
+      const candidates=(data.features||[]).filter(f=>{
+        const p=f.properties||{};
+        const desc=norm([p.name,p.city,p.county,p.district,p.state,p.country].join(" "));
+        return desc.includes("ankara")&&
+          (desc.includes(norm(district))||norm(p.city)==="ankara")&&
+          norm(p.name||"").includes(norm(neighborhood.replace(/\s+mahallesi$/iu,"")));
+      });
+      const point=candidates[0]?.geometry?.coordinates;
+      if(point&&point.length>=2&&point.every(Number.isFinite)){
+        const [lon,lat]=point;
+        // Yakın yolları getir; komşu mahalle olabilir, resmî kesin liste sayılmaz.
+        return [lat-0.0105,lon-0.0135,lat+0.0105,lon+0.0135];
+      }
+    }catch(e){errors.push(e);}
+    throw new Error("Mahalle koordinatı harita servislerinden alınamadı");
   }
   async function loadStreets(district,neighborhood){
     if(!district||!neighborhood)return [];
@@ -48,12 +72,13 @@
       const box=await resolveBox(district,neighborhood);
       const query='[out:json][timeout:20];way["highway"]["name"]('+box.join(",")+');out tags;';
       const endpointList=[
+        "https://overpass.private.coffee/api/interpreter?data="+encodeURIComponent(query),
         "https://overpass.kumi.systems/api/interpreter?data="+encodeURIComponent(query),
         "https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query)
       ];
       let data=null,lastError;
       for(const url of endpointList){
-        try{data=await fetchJson(url,22000);break;}catch(e){lastError=e;}
+        try{data=await fetchJson(url,12000);break;}catch(e){lastError=e;}
       }
       if(!data)throw lastError||new Error("Sokak listesi alınamadı");
       const names=new Set();
@@ -125,7 +150,7 @@
       if(!root.isConnected)return;
       setOptions([],"Sokak listesi şu anda yüklenemedi");
       select.value="__manual";manual.hidden=false;
-      note.textContent="Bağlantı sorunu var; cadde/sokağı elle yazabilirsiniz.";
+      note.textContent="Adres sunucuları şu anda yanıt vermedi. Tekrar denemek için mahalleyi yeniden seçebilir veya elle yazabilirsiniz.";
     });
     return {getValue};
   }
