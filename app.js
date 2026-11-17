@@ -4652,16 +4652,20 @@ function isMobileTechViewport() {
 
 function mapReadyStreetAddress(value) {
   let text=String(value||"").trim().replace(/^\s*,+\s*/,"");
-  // Eski sokak listelerinin "742 (Sokak)" ve "Seval (Cadde)" gösterimini düzelt.
-  text=text.replace(/([0-9]+(?:[/-][0-9]+)?)\.?\s*\((Sokak|Cadde|Bulvar|Meydan)\)/giu,
-    (_,name,kind)=>name+". "+({Cadde:"Caddesi",Bulvar:"Bulvarı",Meydan:"Meydan"}[kind]||kind));
-  text=text.replace(/([^,]+?)\s*\((Cadde|Sokak|Bulvar|Meydan)\)/giu,
-    (_,name,kind)=>name.trim()+" "+({Cadde:"Caddesi",Bulvar:"Bulvarı",Meydan:"Meydanı"}[kind]||kind));
-  text=text.replace(/\bCadde\b/giu,"Caddesi").replace(/\bBulvar\b/giu,"Bulvarı");
-  // "742. Sokak, 4/1" -> "742. Sokak No:4 D:1" (Google Maps'te daha belirgin).
+  // Numaralı caddeler: 742 (Cadde) -> 742. Cadde. İsimli: Seval (Cadde) -> Seval Caddesi.
+  text=text.replace(/([^,]+?)\s*\((Sokak|Cadde|Bulvar|Meydan)\)(?=\s*,|\s|$)/giu,(_,name,kind)=>{
+    const stem=name.trim().replace(/\.$/,"");
+    const numbered=/^\d+(?:[/-]\d+)?$/.test(stem);
+    const suffix=kind.toLocaleLowerCase("tr-TR")==="cadde"?(numbered?"Cadde":"Caddesi"):
+      kind.toLocaleLowerCase("tr-TR")==="bulvar"?(numbered?"Bulvar":"Bulvarı"):
+      kind.toLocaleLowerCase("tr-TR")==="meydan"?"Meydanı":"Sokak";
+    return (numbered?stem+".":stem)+" "+suffix;
+  });
+  // Var olan "742. Cadde", "742. Cd." biçimlerini olduğu gibi koru.
+  text=text.replace(/(^|,\s*)(?!\d+(?:[/-]\d+)?\.?\s)([^,]+?)\s+Cadde(?=\s*,|\s+No:|$)/giu,
+    (_,prefix,name)=>prefix+name+" Caddesi");
   text=text.replace(/,\s*(?:No[:\s]*)?(\d+[A-Za-z]?)\s*\/\s*(\d+[A-Za-z]?)\s*$/iu," No:$1 D:$2");
   text=text.replace(/,\s*No[:\s]*(\d+[A-Za-z]?)\s*[, ]+\s*(?:Daire|D)[:\s]*(\d+[A-Za-z]?)\s*$/iu," No:$1 D:$2");
-  // "4/1" sadece sokak sonrası geldiyse bina/daire olarak yorumlanır.
   return text.replace(/\s{2,}/g," ").trim();
 }
 function mobileFullAddress(service) {
