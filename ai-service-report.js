@@ -221,7 +221,6 @@
     }
     var cash=primaryCashForService(s.id);
     var amount=Number(cash?.amount??s.price??0)||0;
-    var material=Number(cash?.materialCost||0)||0;
     var paid=(s.paymentStatus==="Ödendi"||cash?.title==="Tahsilat Yapıldı");
     var closeEntry=(s.statusHistory||[]).find(function(x){return /Fiş kapatıldı/.test(x.description||"");});
     var rawDate=closeEntry?.date||s.visitDate||s.availableDate||s.date||"";
@@ -237,7 +236,7 @@
       '<h2>MÜŞTERİ ŞİKÂYETİ / ARIZA TESPİTİ</h2><div class="paragraph">'+enc(diagnosis)+'</div>'+
       '<h2>YAPILAN İŞLEMLER VE AÇIKLAMALAR</h2><div class="paragraph">'+enc(work)+'</div>'+
       '<h2>DEĞİŞEN PARÇALAR VE ÜCRETLENDİRME</h2><table><thead><tr><th>İşlem / Açıklama</th><th>Adet</th><th>Tutar</th></tr></thead><tbody><tr><td>'+enc(serviceNote(s)||"Servis hizmeti")+'</td><td>1</td><td>'+enc(moneyValue(amount))+'</td></tr>'+
-      (material?'<tr><td>Malzeme bedeli (toplam tutara dâhil)</td><td></td><td>'+enc(moneyValue(material))+'</td></tr>':"")+'</tbody></table>'+
+      '</tbody></table>'+
       '<div class="total">'+(paid?"GENEL TOPLAM (TAHSİL EDİLEN)":"GENEL TOPLAM (KAYITLI BEDEL)")+'<span>'+enc(moneyValue(amount))+'</span></div>'+
       '<div class="terms"><b>TÜKETİCİYE NOTLAR:</b> Garanti kapsamı ve süresi, servis tarafından yapılan işleme ve müşteriye bildirilen şartlara göre belirlenir.</div>'+
       '<footer><span>EKZEN Beyaz Eşya &amp; Kombi Servis Hizmetleri</span><span>Sayfa 1 / 1</span></footer></main></body></html>';
