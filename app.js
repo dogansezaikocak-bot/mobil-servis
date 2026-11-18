@@ -5131,6 +5131,8 @@ function renderSharedCashSlots(items){
      if(summary)summary.innerHTML=c.unit==="count"?'<span id="mobileCashPaymentCount">'+String(value)+'</span> fiş':escapeHtml(money(value));
      const amount=card.querySelector("#mobileCashPaymentAmount");
      if(amount)amount.textContent=money(context.pendingAmount);
+     const ekzen=card.querySelector("#mobileCashPaymentEkzen");
+     if(ekzen)ekzen.textContent=money(context.pendingEkzenShare);
    }else if(c.id==="profit"){const val=card.querySelector("#mobileDailyPageProfit");if(val)val.textContent=c.unit==="count"?String(value):money(value);}
    else if(node)node.textContent=c.unit==="count"?String(value):money(value);
  });
@@ -5263,6 +5265,16 @@ function renderHomeLayoutSettings(){
         }).join("")+'</div>';
     }).join("");
 }
+// Ödeme bekleyen fişlerde Ekzen Teknik'in tahsilat sonrası hakedeceği net pay.
+// Tutar = (fiş tahsilatı - malzeme - diğer gider) × fişteki Ekzen oranı.
+// Ödeme kaydı oluşturulmamış fişler için oran bilinmediğinden tutar uydurulmaz.
+function pendingEkzenShare(services){
+ return (services||[]).reduce((total,service)=>{
+   const primary=primaryCashForService(service.id);
+   if(!primary || !cashIsPosted(primary))return total;
+   return total+Math.max(0,ownerPayAmountForCashItem(primary));
+ },0);
+}
 function homeCashCounterContext(items,selectedSource){
  const dated=customCashContext(items);
  const source=selectedSource||(isSourcePortal()?portalSourceName():"");
@@ -5276,6 +5288,7 @@ function homeCashCounterContext(items,selectedSource){
   remainingPayment:current.remainingPayment,
   pendingCount:pending.length,
   pendingAmount:pending.reduce((total,service)=>{const amount=Number(primaryCashForService(service.id)?.amount??service.price??0);return total+(Number.isFinite(amount)?Math.max(0,amount):0);},0),
+  pendingEkzenShare:pendingEkzenShare(pending),
   sourceDated,
   isExternal
  };
@@ -5331,7 +5344,7 @@ function renderHomeCashCards(device,items){
     const color=/^#[0-9a-fA-F]{6}$/.test(override.color)?override.color:(/^#[0-9a-fA-F]{6}$/.test(c.color)?c.color:"#2563eb");
     const statusServices=c.kind==="service-status"?homeStatusServices(c.statusName,selectedSource,device):null;
     const value=statusServices?statusServices.filter(service=>isStatus(service.status,c.statusName)).length:homeCashCounterValue(c,context);
-    const pendingDetail=id==="payment" ? '<small class="home-pending-amount">₺'+escapeHtml(new Intl.NumberFormat("tr-TR",{maximumFractionDigits:0}).format(context.pendingAmount||0))+'</small>' : '<small class="ekzen-counter-description">'+escapeHtml(c.kind==="service-status"?"Bu durumdaki servisleri görüntüle":id==="profit"?"Hasılat - komisyon - malzeme - gider":id==="income"?"Toplam tahsilat":id==="commission"?"Ödenen komisyonlar":id==="material"?"Malzeme giderleri":id==="expense"?"Diğer giderler":"Ayrıntıları görüntüle")+'</small>';
+    const pendingDetail=id==="payment" ? '<small class="home-pending-amount">Toplam: '+escapeHtml(money(context.pendingAmount||0))+'</small><small class="home-pending-ekzen">Ekzen Teknik kalan: '+escapeHtml(money(context.pendingEkzenShare||0))+'</small>' : '<small class="ekzen-counter-description">'+escapeHtml(c.kind==="service-status"?"Bu durumdaki servisleri görüntüle":id==="profit"?"Hasılat - komisyon - malzeme - gider":id==="income"?"Toplam tahsilat":id==="commission"?"Ödenen komisyonlar":id==="material"?"Malzeme giderleri":id==="expense"?"Diğer giderler":"Ayrıntıları görüntüle")+'</small>';
     const displayValue=homeCounterDisplayValue(c,id,value,device);
     return '<button type="button" class="mobile-daily-counter home-cash-action" data-home-cash-slot="'+escapeAttr(id)+'" data-counter-title="'+escapeAttr(displayName)+'" aria-label="'+escapeAttr(displayName)+' ayrıntılarını aç" style="'+(device==='mobile'?'background:'+color+' !important;color:#fff !important;border-radius:16px;padding:15px;':'')+'min-width:0;box-sizing:border-box"><span class="ekzen-home-counter-title" style="color:#fff">'+escapeHtml(displayName)+'</span><b style="color:#fff">'+displayValue+'</b>'+pendingDetail+'</button>';
   }).join("");
@@ -5549,6 +5562,7 @@ function mobileRenderDailyCash() {
     return total + (Number.isFinite(amount) ? Math.max(0, amount) : 0);
   }, 0);
   setText("#mobileCashPaymentAmount", money(pendingAmount));
+  setText("#mobileCashPaymentEkzen", money(pendingEkzenShare(pendingServices)));
   renderCustomCashCounters(items);
 
   const label = startDate && endDate && startDate === endDate
