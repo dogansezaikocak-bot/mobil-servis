@@ -10124,3 +10124,36 @@ body:not(.auth-checking) #pinLoading { display: none !important; }
     grid-row: 5 !important;
   }
 }
+
+/* Ödeme sayacı iki parasal satırı birbirini örtmeden gösterebilsin. */
+@media (max-width: 820px) {
+  #mobileHomeCashCards button.home-cash-action[data-home-cash-slot="payment"] {
+    aspect-ratio: auto !important;
+    min-height: 156px !important;
+    height: auto !important;
+    display: grid !important;
+    grid-template-rows: auto auto auto auto !important;
+    align-content: center !important;
+    gap: 5px !important;
+  }
+  #mobileHomeCashCards button.home-cash-action[data-home-cash-slot="payment"] > .home-pending-amount {
+    grid-row: 3 !important;
+    align-self: center !important;
+    font-size: clamp(15px, 4vw, 19px) !important;
+    white-space: normal !important;
+  }
+  #mobileHomeCashCards button.home-cash-action[data-home-cash-slot="payment"] > .home-pending-ekzen {
+    grid-column: 1 !important;
+    grid-row: 4 !important;
+    align-self: center !important;
+    margin-top: 0 !important;
+    font-size: clamp(13px, 3.5vw, 16px) !important;
+  }
+  #mobileCashPaymentCounter {
+    aspect-ratio: auto !important;
+    height: auto !important;
+    min-height: 156px !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    overflow: visible !important;
+  }
+}
