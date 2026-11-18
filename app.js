@@ -5058,7 +5058,8 @@ function customCashContext(items) {
     pendingAmount:pending.reduce((sum,s)=>{
       const value=Number(primaryCashForService(s.id)?.amount ?? s.price ?? 0);
       return sum+(Number.isFinite(value)?Math.max(0,value):0);
-    },0)
+    },0),
+    pendingEkzenShare:pendingEkzenShare(pending)
   };
 }
 function customCashValue(counter,context) {
@@ -5271,7 +5272,7 @@ function renderHomeLayoutSettings(){
 function pendingEkzenShare(services){
  return (services||[]).reduce((total,service)=>{
    const primary=primaryCashForService(service.id);
-   if(!primary || !cashIsPosted(primary))return total;
+   if(!primary)return total; // Bekleyen fişler cashIsPosted=false olabilir.
    return total+Math.max(0,ownerPayAmountForCashItem(primary));
  },0);
 }
